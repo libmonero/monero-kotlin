@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.1.20"
     `java-library`
+    jacoco
 }
 
 group = "org.libmonero"
@@ -40,4 +41,13 @@ val unitTests by tasks.registering(Sync::class) {
     from(layout.buildDirectory.dir("resources/main")) { into("resources/main") }
     from(layout.buildDirectory.dir("resources/test")) { into("resources/test") }
     from(configurations.testRuntimeClasspath.map { classpath -> classpath.filter { it.isFile } }) { into("lib") }
+}
+
+// The coverage of the library, which the tests make: ./gradlew test jacocoTestReport. The XML is the one that Codacy reads
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
