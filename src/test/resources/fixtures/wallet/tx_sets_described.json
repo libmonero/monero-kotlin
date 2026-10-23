@@ -1,0 +1,42 @@
+{
+  "txSets": [
+    {
+      "txs": [
+        {
+          "fee": 2599200000,
+          "ringSize": 16,
+          "numConfirmations": 0,
+          "unlockTime": 0,
+          "isConfirmed": false,
+          "inputs": [
+            {
+              "amount": 35184137208383,
+              "index": 3,
+              "stealthPublicKey": "f17f71e0a0a2f4705132c26e9e51fead081195eb6abf8d66a761d3c3d562320b"
+            },
+            {
+              "amount": 35180781944378,
+              "index": 53,
+              "stealthPublicKey": "1f187b56f81e48596d9d593a3b717be83c027c2f95e8a42f78024bd117d6c958"
+            }
+          ],
+          "inputSum": 70364919152761,
+          "outputSum": 70362319952761,
+          "changeAmount": 70362119952761,
+          "numDummyOutputs": 0,
+          "changeAddress": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+          "extraHex": "019ac500548753618e995c790e9f333252e8a8187b40bbf05f6dc50660fe0ab1ad0209010000000000000000",
+          "isOutgoing": true,
+          "outgoingTransfer": {
+            "destinations": [
+              {
+                "amount": 200000000,
+                "address": "46qnfaSR9ww5HgZKXtUZJViiqVjiK8WijHWoZTGKbf6VTeTaUiP5fGG1UY4rUvBp2ZjJrYdWJsDQUDZUyceHk7uPHhoPX8z"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

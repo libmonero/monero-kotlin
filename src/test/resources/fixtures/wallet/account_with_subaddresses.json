@@ -1,0 +1,19 @@
+{
+  "index": 0,
+  "balance": 3518101685576566,
+  "unlockedBalance": 1442502852058827,
+  "primaryAddress": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+  "subaddresses": [
+    {
+      "accountIndex": 0,
+      "index": 0,
+      "balance": 3518101685576566,
+      "unlockedBalance": 1442502852058827,
+      "numUnspentOutputs": 100,
+      "numBlocksToUnlock": 59,
+      "address": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+      "label": "Primary account",
+      "isUsed": true
+    }
+  ]
+}

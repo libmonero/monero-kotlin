@@ -1,0 +1,30 @@
+{
+  "index": 0,
+  "balance": 3623631369152568,
+  "unlockedBalance": 1336949836471243,
+  "primaryAddress": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+  "subaddresses": [
+    {
+      "accountIndex": 0,
+      "index": 0,
+      "balance": 3623581369152568,
+      "unlockedBalance": 1336949836471243,
+      "numUnspentOutputs": 100,
+      "numBlocksToUnlock": 59,
+      "address": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+      "label": "Primary account",
+      "isUsed": true
+    },
+    {
+      "accountIndex": 0,
+      "index": 1,
+      "balance": 50000000000,
+      "unlockedBalance": 0,
+      "numUnspentOutputs": 1,
+      "numBlocksToUnlock": 8,
+      "address": "8BnSaX515n5BUg27ABzMVXTfPVagwXNZ13bz9CQTWJwfhtFXA9YxPXEeTY9NgufW3SSyJBnMEkNvc8xR2QkhJR8D44PasFi",
+      "label": "deposits",
+      "isUsed": true
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "index": 0,
+  "balance": 3000000000,
+  "unlockedBalance": 0,
+  "primaryAddress": "46qnfaSR9ww5HgZKXtUZJViiqVjiK8WijHWoZTGKbf6VTeTaUiP5fGG1UY4rUvBp2ZjJrYdWJsDQUDZUyceHk7uPHhoPX8z",
+  "subaddresses": [
+    {
+      "accountIndex": 0,
+      "index": 0,
+      "balance": 1700000000,
+      "unlockedBalance": 0,
+      "numUnspentOutputs": 2,
+      "numBlocksToUnlock": 8,
+      "address": "46qnfaSR9ww5HgZKXtUZJViiqVjiK8WijHWoZTGKbf6VTeTaUiP5fGG1UY4rUvBp2ZjJrYdWJsDQUDZUyceHk7uPHhoPX8z",
+      "label": "Primary account",
+      "isUsed": true
+    },
+    {
+      "accountIndex": 0,
+      "index": 1,
+      "balance": 1300000000,
+      "unlockedBalance": 0,
+      "numUnspentOutputs": 1,
+      "numBlocksToUnlock": 9,
+      "address": "82U3oVXsieSAKrEbNfLpbagcwEwWC1rcNC9qSRuPrHU5RsbH4fhTHiueKx6UCuLmAkaK4mGqWuWLD2D9xnCuQn7oMAkdfEi",
+      "label": "from a",
+      "isUsed": true
+    }
+  ]
+}

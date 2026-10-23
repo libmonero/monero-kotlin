@@ -1,0 +1,23 @@
+{
+  "blocks": [
+    {
+      "height": 1,
+      "txs": [
+        {
+          "version": 2,
+          "unlockTime": 61,
+          "hash": "a4d361eaf5925c0bcd7784766da5e9e373b937b380b5bb679227e5ba93b19b8b",
+          "isConfirmed": true,
+          "isLocked": true,
+          "outputs": [
+            {
+              "amount": 35184338534400,
+              "accountIndex": 0,
+              "subaddressIndex": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

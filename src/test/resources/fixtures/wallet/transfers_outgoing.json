@@ -1,0 +1,42 @@
+{
+  "blocks": [
+    {
+      "height": 101,
+      "timestamp": 1791741219,
+      "txs": [
+        {
+          "fee": 2599200000,
+          "numConfirmations": 1,
+          "unlockTime": 0,
+          "hash": "c8b34eec8048721fe18b5d7416edebe76b367c4df636e0186ca82c995d860355",
+          "isMinerTx": false,
+          "relay": true,
+          "isRelayed": true,
+          "isConfirmed": true,
+          "inTxPool": false,
+          "isLocked": true,
+          "isDoubleSpendSeen": false,
+          "isFailed": false,
+          "isIncoming": false,
+          "isOutgoing": true,
+          "outgoingTransfer": {
+            "amount": 1000000000,
+            "accountIndex": 0,
+            "subaddressIndices": [
+              0
+            ],
+            "addresses": [
+              "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7"
+            ],
+            "destinations": [
+              {
+                "amount": 1000000000,
+                "address": "46qnfaSR9ww5HgZKXtUZJViiqVjiK8WijHWoZTGKbf6VTeTaUiP5fGG1UY4rUvBp2ZjJrYdWJsDQUDZUyceHk7uPHhoPX8z"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

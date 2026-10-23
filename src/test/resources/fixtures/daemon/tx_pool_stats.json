@@ -1,0 +1,14 @@
+{
+  "numTxs": 1,
+  "numNotRelayed": 0,
+  "numFailing": 0,
+  "numDoubleSpends": 0,
+  "num10m": 0,
+  "feeTotal": 2599200000,
+  "bytesMax": 2166,
+  "bytesMed": 2166,
+  "bytesMin": 2166,
+  "bytesTotal": 2166,
+  "oldestTimestamp": 1791736242,
+  "histo": {}
+}

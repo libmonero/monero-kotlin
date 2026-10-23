@@ -1,0 +1,51 @@
+[
+  {
+    "index": 0,
+    "balance": 3518101685576566,
+    "unlockedBalance": 1442502852058827,
+    "primaryAddress": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+    "subaddresses": [
+      {
+        "accountIndex": 0,
+        "index": 0,
+        "balance": 3518101685576566,
+        "unlockedBalance": 1442502852058827,
+        "numUnspentOutputs": 100,
+        "numBlocksToUnlock": 59,
+        "address": "42jhNF2LEEzjo9Qaw8s4BPNVp6MgDsaeqNHHixtsFwUh3QrMm2iJ1BM2aenMsNUatXPvoXaniuzUXGBi5o4B66ja3c7Ltm7",
+        "label": "Primary account",
+        "isUsed": true
+      },
+      {
+        "accountIndex": 0,
+        "index": 1,
+        "balance": 0,
+        "unlockedBalance": 0,
+        "numUnspentOutputs": 0,
+        "numBlocksToUnlock": 0,
+        "address": "8BnSaX515n5BUg27ABzMVXTfPVagwXNZ13bz9CQTWJwfhtFXA9YxPXEeTY9NgufW3SSyJBnMEkNvc8xR2QkhJR8D44PasFi",
+        "label": "deposits",
+        "isUsed": false
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "balance": 0,
+    "unlockedBalance": 0,
+    "primaryAddress": "857siCx31No5UFYD6xDVaXgvwwbAnSF26P1uLD8mtBCFQcbVftWmsuv4uBtUhmw8i8hSgQBT4qi2MDYY9dfVpDe3Mk5Saeu",
+    "subaddresses": [
+      {
+        "accountIndex": 1,
+        "index": 0,
+        "balance": 0,
+        "unlockedBalance": 0,
+        "numUnspentOutputs": 0,
+        "numBlocksToUnlock": 0,
+        "address": "857siCx31No5UFYD6xDVaXgvwwbAnSF26P1uLD8mtBCFQcbVftWmsuv4uBtUhmw8i8hSgQBT4qi2MDYY9dfVpDe3Mk5Saeu",
+        "label": "savings",
+        "isUsed": false
+      }
+    ]
+  }
+]

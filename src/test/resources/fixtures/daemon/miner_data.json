@@ -1,0 +1,23 @@
+{
+  "prevHash": "d52697790f85fc3bd5dcdb1334a8a9ea06d07c0d89dee26bc8bace65a01491f2",
+  "seedHash": "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
+  "difficulty": "0x1",
+  "majorVersion": 16,
+  "height": 101,
+  "medianWeight": 300000,
+  "alreadyGeneratedCoins": 3535693871620981,
+  "txPoolBacklog": [
+    {
+      "fee": 2599200000,
+      "numConfirmations": 0,
+      "weight": 2166,
+      "hash": "2937db7948bd94f536866c9c02405b147b4dd2bf9d838ddfb8f33963c4926d4b",
+      "isMinerTx": false,
+      "relay": true,
+      "isRelayed": true,
+      "isConfirmed": false,
+      "inTxPool": true,
+      "isFailed": false
+    }
+  ]
+}

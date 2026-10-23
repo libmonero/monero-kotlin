@@ -1,0 +1,10 @@
+{
+  "note": "for lunch",
+  "recipientName": "Bob",
+  "destinations": [
+    {
+      "amount": 1500000000,
+      "address": "46qnfaSR9ww5HgZKXtUZJViiqVjiK8WijHWoZTGKbf6VTeTaUiP5fGG1UY4rUvBp2ZjJrYdWJsDQUDZUyceHk7uPHhoPX8z"
+    }
+  ]
+}

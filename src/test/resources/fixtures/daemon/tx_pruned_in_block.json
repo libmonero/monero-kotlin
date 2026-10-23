@@ -1,0 +1,140 @@
+{
+  "blocks": [
+    {
+      "height": 101,
+      "timestamp": 1791736242,
+      "txs": [
+        {
+          "version": 2,
+          "fee": 2599200000,
+          "numConfirmations": 1,
+          "unlockTime": 0,
+          "hash": "2937db7948bd94f536866c9c02405b147b4dd2bf9d838ddfb8f33963c4926d4b",
+          "prunedHex": "020002020010000a0102030205040101010101020102ac416ea1b15a977da8c60cf74b312670461d08eb8c37ab1b5811fa4fe6dc57ac0200100a020101020204020304010102020201aa2aab09bf9ab29c37cad262cb8b70334d52a2e8d9343ae9dbb01c93033c3e54020003ebcac95a27a64ff82133b2f2fe973981a3b732d8d87fc87e32434b18ff37919d5a00034982861b1ef60e3268c197f4b6c5c51d5fd2ceca16f198a5a865c14ba115f5d0fd2c019e8560440e04b93cfdd4477da9abcbc87f5d9ed7b224522da7404fa352c0b0d502090153539746906505ba0680cab2d7099fbc70f8f3ed958839bfdc84646564004eb97883730fd746d9f1d336478e82880e23267308118b88e90a3920210bf6200c96d4c8bd6454752ce9e1c80dc39401dc7306090bd2912d4c05abe580aafe62",
+          "prunableHash": "f7a26b7989caf255d7b686c0e0b42897bba4dd056c4cdd6054d7af3ecb9f4db7",
+          "isMinerTx": false,
+          "relay": true,
+          "isRelayed": true,
+          "isConfirmed": true,
+          "inTxPool": false,
+          "isDoubleSpendSeen": false,
+          "isFailed": false,
+          "inputs": [
+            {
+              "amount": 0,
+              "ringOutputIndices": [
+                0,
+                10,
+                1,
+                2,
+                3,
+                2,
+                5,
+                4,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                2
+              ],
+              "keyImage": {
+                "hex": "ac416ea1b15a977da8c60cf74b312670461d08eb8c37ab1b5811fa4fe6dc57ac"
+              }
+            },
+            {
+              "amount": 0,
+              "ringOutputIndices": [
+                10,
+                2,
+                1,
+                1,
+                2,
+                2,
+                4,
+                2,
+                3,
+                4,
+                1,
+                1,
+                2,
+                2,
+                2,
+                1
+              ],
+              "keyImage": {
+                "hex": "aa2aab09bf9ab29c37cad262cb8b70334d52a2e8d9343ae9dbb01c93033c3e54"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "amount": 0,
+              "index": 101,
+              "stealthPublicKey": "ebcac95a27a64ff82133b2f2fe973981a3b732d8d87fc87e32434b18ff37919d",
+              "mask": "4eb97883730fd746d9f1d336478e82880e23267308118b88e90a3920210bf620"
+            },
+            {
+              "amount": 0,
+              "index": 102,
+              "stealthPublicKey": "4982861b1ef60e3268c197f4b6c5c51d5fd2ceca16f198a5a865c14ba115f5d0",
+              "mask": "0c96d4c8bd6454752ce9e1c80dc39401dc7306090bd2912d4c05abe580aafe62"
+            }
+          ],
+          "outputIndices": [
+            101,
+            102
+          ],
+          "extra": [
+            1,
+            158,
+            133,
+            96,
+            68,
+            14,
+            4,
+            185,
+            60,
+            253,
+            212,
+            71,
+            125,
+            169,
+            171,
+            203,
+            200,
+            127,
+            93,
+            158,
+            215,
+            178,
+            36,
+            82,
+            45,
+            167,
+            64,
+            79,
+            163,
+            82,
+            192,
+            176,
+            213,
+            2,
+            9,
+            1,
+            83,
+            83,
+            151,
+            70,
+            144,
+            101,
+            5,
+            186
+          ]
+        }
+      ]
+    }
+  ]
+}

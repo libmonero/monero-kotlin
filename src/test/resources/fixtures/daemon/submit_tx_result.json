@@ -1,0 +1,16 @@
+{
+  "credits": 0,
+  "hasInvalidInput": false,
+  "hasInvalidOutput": false,
+  "hasTooFewOutputs": false,
+  "isGood": true,
+  "isRelayed": true,
+  "isDoubleSpend": false,
+  "isFeeTooLow": false,
+  "isMixinTooLow": false,
+  "isOverspend": false,
+  "isTooBig": false,
+  "isTxExtraTooBig": false,
+  "isNonZeroUnlockTime": false,
+  "sanityCheckFailed": false
+}

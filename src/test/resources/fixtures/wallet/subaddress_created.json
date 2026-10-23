@@ -1,0 +1,11 @@
+{
+  "accountIndex": 0,
+  "index": 1,
+  "balance": 0,
+  "unlockedBalance": 0,
+  "numUnspentOutputs": 0,
+  "numBlocksToUnlock": 0,
+  "address": "8BnSaX515n5BUg27ABzMVXTfPVagwXNZ13bz9CQTWJwfhtFXA9YxPXEeTY9NgufW3SSyJBnMEkNvc8xR2QkhJR8D44PasFi",
+  "label": "deposits",
+  "isUsed": false
+}

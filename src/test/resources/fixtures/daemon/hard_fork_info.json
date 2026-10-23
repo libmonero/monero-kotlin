@@ -1,0 +1,11 @@
+{
+  "credits": 0,
+  "earliestHeight": 1,
+  "state": 0,
+  "threshold": 0,
+  "version": 16,
+  "numVotes": 101,
+  "window": 102,
+  "voting": 16,
+  "isEnabled": true
+}
