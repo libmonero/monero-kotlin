@@ -1,0 +1,238 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="csharp-architecture" name="Page-1">
+    <mxGraphModel dx="1414" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="kt-lib" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EEE9FA;strokeColor=#512BD4;strokeWidth=2;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="67.75" y="170" width="740" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="c-abi" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF4E0;strokeColor=#D79B00;strokeWidth=2;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="67.75" y="470" width="740" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="cpp-lib" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFEDEB;strokeColor=#36393D;strokeWidth=2;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="67.75" y="640" width="740" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="project" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFEDEB;strokeColor=#36393D;strokeWidth=2;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="67.75" y="830" width="740" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="e-if-rpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;dashed=1;" parent="1" edge="1" source="kt-wallet-if" target="kt-wallet-rpc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-if-full" value="" style="endArrow=classic;html=1;fontFamily=Avenir;dashed=1;" parent="1" edge="1" source="kt-wallet-if" target="kt-wallet-full">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-if-keys" value="" style="endArrow=classic;html=1;fontFamily=Avenir;dashed=1;" parent="1" edge="1" source="kt-wallet-if" target="kt-wallet-keys">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-dif-drpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;dashed=1;" parent="1" edge="1" source="kt-daemon-if" target="kt-daemon-rpc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-pi-rpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.1479;entryY=0;dashed=1;" parent="1" edge="1" source="kt-wallet-rpc" target="c-wallet">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-pi-full" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.501;entryY=0;dashed=1;" parent="1" edge="1" source="kt-wallet-full" target="c-wallet">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-pi-keys" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.8521;entryY=0;dashed=1;" parent="1" edge="1" source="kt-wallet-keys" target="c-wallet">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-pi-drpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="kt-daemon-rpc" target="c-daemon">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-c-rpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.1479;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="c-wallet" target="cpp-wallet-rpc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-c-full" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.501;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="c-wallet" target="cpp-wallet-full">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-c-keys" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.8521;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="c-wallet" target="cpp-wallet-keys">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-c-drpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="c-daemon" target="cpp-daemon-rpc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-http-wrpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.5;entryY=0.1;" parent="1" edge="1" source="cpp-wallet-rpc" target="wallet-rpc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-native-full" value="" style="endArrow=classic;html=1;fontFamily=Avenir;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;entryX=0.25;entryY=0;" parent="1" edge="1" source="cpp-wallet-full" target="wallet2">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-native-keys" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.618;entryY=0;" parent="1" edge="1" source="cpp-wallet-keys" target="project">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-http-drpc" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.5;entryY=0.1;" parent="1" edge="1" source="cpp-daemon-rpc" target="monerod">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-uses-1" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" edge="1" source="wallet-rpc" target="wallet2">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-uses-2" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" edge="1" source="wallet2" target="monerod">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-p2p" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="monerod" target="net-icon">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e-app" value="" style="endArrow=classic;html=1;fontFamily=Avenir;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" edge="1" source="app-icon" target="kt-lib">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="app-title" value="Kotlin Application" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontStyle=1;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="387.75" y="20" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="app-icon" value="" style="pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#434445;aspect=fixed;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.vvd.web_browser;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="395.5" y="56" width="84.5" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="app-icon-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#FFFFFF;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="407.75" y="76" width="60" height="33" as="geometry" />
+        </mxCell>
+        <mxCell id="app-icon-logo" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;aspect=fixed;imageAspect=0;image=data:image/png,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;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="422.75" y="77.5" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-lib-title" value="Monero Kotlin Library" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=12;fontStyle=1;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="360" y="174" width="130" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-wallet-if" value="Wallet Interface" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontSize=13;fontStyle=2;fontFamily=Avenir;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="272" y="208" width="150" height="37" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-daemon-if" value="Daemon Interface" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontSize=13;fontStyle=2;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="628" y="208" width="150" height="37" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-wallet-rpc" value="Wallet RPC Client" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="93" y="295" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-wallet-full" value="Local Full Wallet" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="272" y="295" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-wallet-keys" value="Local Keys-Only Wallet" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="450" y="295" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="kt-daemon-rpc" value="Daemon RPC Client" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="628" y="295" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-wallet-if" value="MoneroWallet.kt" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#EEE9FA;" parent="1" vertex="1">
+          <mxGeometry x="297" y="246" width="100" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-daemon-if" value="MoneroDaemon.kt" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#EEE9FA;" parent="1" vertex="1">
+          <mxGeometry x="653" y="246" width="100" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-wallet-rpc" value="MoneroWalletRpc.kt" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#EEE9FA;" parent="1" vertex="1">
+          <mxGeometry x="113" y="334" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-wallet-full" value="MoneroWalletFull.kt" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#EEE9FA;" parent="1" vertex="1">
+          <mxGeometry x="292" y="334" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-wallet-keys" value="MoneroWalletKeys.kt" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#EEE9FA;" parent="1" vertex="1">
+          <mxGeometry x="470" y="334" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-daemon-rpc" value="MoneroDaemonRpc.kt" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#EEE9FA;" parent="1" vertex="1">
+          <mxGeometry x="648" y="334" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="c-abi-title" value="Monero C ABI (monero-c)" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=12;fontStyle=1;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="320" y="474" width="210" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="c-wallet" value="Wallet API" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="93" y="508" width="507" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-daemon" value="Daemon API" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="628" y="508" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-c-wallet" value="monero_c_wallet.h" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFF4E0;" parent="1" vertex="1">
+          <mxGeometry x="291" y="547" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-c-daemon" value="monero_c_daemon.h" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFF4E0;" parent="1" vertex="1">
+          <mxGeometry x="648" y="547" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-jna-0" value="JNA" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="136" y="405" width="64" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-jna-1" value="JNA" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="315" y="405" width="64" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-jna-2" value="JNA" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="493" y="405" width="64" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-jna-3" value="JNA" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="671" y="405" width="64" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="cpp-lib-title" value="Monero C++ Library" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=12;fontStyle=1;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="355" y="644" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="cpp-wallet-rpc" value="Wallet RPC Client" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="93" y="680" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cpp-wallet-full" value="Local Full Wallet" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="272" y="680" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cpp-wallet-keys" value="Local Keys-Only Wallet" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="450" y="680" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cpp-daemon-rpc" value="Daemon RPC Client" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="628" y="680" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-cpp-wallet-rpc" value="monero_wallet_rpc.h" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFEDEB;" parent="1" vertex="1">
+          <mxGeometry x="113" y="719" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-cpp-wallet-full" value="monero_wallet_full.h" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFEDEB;" parent="1" vertex="1">
+          <mxGeometry x="292" y="719" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-cpp-wallet-keys" value="monero_wallet_keys.h" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFEDEB;" parent="1" vertex="1">
+          <mxGeometry x="470" y="719" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-cpp-daemon-rpc" value="monero_daemon_rpc.h" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFEDEB;" parent="1" vertex="1">
+          <mxGeometry x="648" y="719" width="110" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="project-title" value="monero-project" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=12;fontStyle=1;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="375" y="834" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="wallet-rpc" value="monero-wallet-rpc" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="78" y="860" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="wallet2" value="wallet2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontStyle=0;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="376" y="870" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cap-wallet2" value="wallet2.cpp" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=9;fontFamily=Avenir;labelBackgroundColor=#FFEDEB;" parent="1" vertex="1">
+          <mxGeometry x="401" y="909" width="70" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="monerod" value="monerod" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;fontSize=13;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="613" y="860" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-low-0" value="HTTP(S)" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="138" y="760" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-low-1" value="Native" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="317" y="760" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-low-2" value="Native" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="495" y="760" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-low-3" value="HTTP(S)" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;labelBackgroundColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="673" y="760" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-uses-1" value="&amp;lt;uses&amp;gt;" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="298" y="876" width="50" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl-uses-2" value="&amp;lt;uses&amp;gt;" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="523" y="876" width="50" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="net-icon" value="" style="image;html=1;labelBackgroundColor=#ffffff;image=img/lib/clip_art/computers/Network_2_128x128.png;fillColor=#FFEDEB;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="618" y="975" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="net-title" value="Monero peer-to-peer network" style="text;html=1;resizable=0;autosize=1;align=center;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=13;fontStyle=1;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="558" y="1065" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;dashed=1;dashPattern=6 4;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="90" y="1000" width="36" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-text" value="Not implemented in Kotlin yet" style="text;html=1;resizable=0;autosize=1;align=left;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=11;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="134" y="1000" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAD0F5;strokeColor=#512BD4;strokeWidth=2;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="90" y="1028" width="36" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-text2" value="Implemented" style="text;html=1;resizable=0;autosize=1;align=left;verticalAlign=middle;points=[];fillColor=none;strokeColor=none;rounded=0;fontSize=11;fontFamily=Avenir;" parent="1" vertex="1">
+          <mxGeometry x="134" y="1028" width="150" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
