@@ -1,0 +1,50 @@
+name: Codacy Coverage Reporter
+
+on:
+  workflow_run:
+    workflows:
+      - Build
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  report-coverage:
+    if: github.repository == 'libmonero/monero-kotlin' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-24.04
+    env:
+      CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+      # the commit that Build tested, which is the head of the pull request
+      COMMIT_UUID: ${{ github.event.workflow_run.head_sha }}
+      # The reporter is downloaded for this version only, and runs only if its SHA-512 is the one here. The SHA-512 is also the one of
+      # codacy-coverage-reporter-linux.SHA512SUM in the release of the version. To update: take the new version from
+      # https://github.com/codacy/codacy-coverage-reporter/releases and its .SHA512SUM, and change both.
+      CODACY_REPORTER_VERSION: 14.1.3
+      CODACY_REPORTER_SHA512: 73a6c93fc5db509fd0423d6e545759c3f61d8360ee12054e32a9277daab6add0da6c6639248f6ed6c0042366440293ebc0b6144325aef52c5d3d4b230d65eb17
+    steps:
+      - name: Download coverage report
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-reports
+          path: coverage-reports
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      # the report of JaCoCo has the paths of the classes, e.g. monero/daemon/MoneroDaemonRpc.kt, and the sources are in src/main/kotlin/
+      - name: Report Kotlin coverage
+        if: steps.download.outcome == 'success'
+        shell: bash
+        run: |
+          if [ -z "$CODACY_PROJECT_TOKEN" ]; then
+            echo "::notice::No CODACY_PROJECT_TOKEN secret, the coverage is not reported"
+            exit 0
+          fi
+          curl -fsSL -o codacy-coverage-reporter "https://artifacts.codacy.com/bin/codacy-coverage-reporter/$CODACY_REPORTER_VERSION/codacy-coverage-reporter-linux"
+          echo "$CODACY_REPORTER_SHA512  codacy-coverage-reporter" | sha512sum -c -
+          chmod +x codacy-coverage-reporter
+          ./codacy-coverage-reporter report --language Kotlin --force-coverage-parser jacoco --prefix src/main/kotlin/ --coverage-reports coverage-reports/jacocoTestReport.xml --commit-uuid "$COMMIT_UUID"
