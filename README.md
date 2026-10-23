@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml)
 [![Tests](https://github.com/libmonero/monero-kotlin/actions/workflows/test.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/test.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![JDK](https://img.shields.io/badge/JDK-21-blue?logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![License](https://img.shields.io/github/license/libmonero/monero-kotlin)](https://github.com/libmonero/monero-kotlin/blob/main/LICENSE)
@@ -153,9 +154,17 @@ The unit tests read and write the JSON of the models, which is the JSON that mon
 ./gradlew test
 ```
 
+To get the coverage of the library:
+
+```sh
+./gradlew test jacocoTestReport
+```
+
+The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTestReport.xml`, which is the one that Codacy reads.
+
 ## Continuous integration
 
-* **Build** builds the library and the unit tests, and uploads the unit tests, with the files they need to run (`./gradlew unitTests`).
+* **Build** builds the library and the unit tests, uploads the unit tests, with the files they need to run (`./gradlew unitTests`), and collects the coverage of the unit tests.
 * **Tests** waits for the Build run of the same commit, and runs the unit tests that Build made on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), without building them again.
 
 ## Related projects
