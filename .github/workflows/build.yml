@@ -1,5 +1,4 @@
-# Builds the library and runs the unit tests of the data model, which read the JSON that monero-c writes, so they need no native library.
-# The submodule monero-c is not checked out: nothing here needs it.
+# Builds the library and the unit tests of the data model. The tests run on every platform in test.yml, from the files that this uploads
 name: Build
 
 on:
@@ -18,26 +17,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The submodule monero-c is not checked out: nothing here needs it
   build:
-    name: Build, ${{ matrix.platform }}
-    runs-on: ${{ matrix.os }}
+    name: Build
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: Linux x86_64
-            os: ubuntu-24.04
-          - platform: Windows x86_64
-            os: windows-latest
-          - platform: macOS arm64
-            os: macos-15
-
-    # gradlew is a shell script, which Git Bash runs on Windows too
-    defaults:
-      run:
-        shell: bash
 
     steps:
       - name: Checkout repository
@@ -51,14 +35,12 @@ jobs:
           cache: gradle
 
       - name: Build
-        run: ./gradlew build --console=plain
+        run: ./gradlew assemble unitTests --console=plain
 
-      - name: Upload the test results
-        if: always()
+      # the tests and the files they need, which test.yml runs on every platform without building them again
+      - name: Upload the unit tests
         uses: actions/upload-artifact@v7
         with:
-          name: test-results-${{ matrix.os }}
-          path: |
-            build/reports/tests
-            build/test-results
-          if-no-files-found: ignore
+          name: monero-kotlin-tests
+          path: build/unit-tests
+          if-no-files-found: error
