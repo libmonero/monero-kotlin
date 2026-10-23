@@ -3,6 +3,7 @@
 [![Build](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml)
 [![Tests](https://github.com/libmonero/monero-kotlin/actions/workflows/test.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/test.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![JDK](https://img.shields.io/badge/JDK-21-blue?logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![License](https://img.shields.io/github/license/libmonero/monero-kotlin)](https://github.com/libmonero/monero-kotlin/blob/main/LICENSE)
