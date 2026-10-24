@@ -7,6 +7,7 @@ import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.PointerByReference
+import java.math.BigInteger
 import monero.common.MoneroError
 import monero.common.MoneroJson
 
@@ -148,6 +149,12 @@ internal object MoneroNative {
             lib.monero_utils_free(ptr)
         }
     }
+
+    /**
+     * The value of an unsigned 64-bit number, such as a balance in atomic units, which a Long holds as a negative number when it
+     * is bigger than Long.MAX_VALUE.
+     */
+    fun unsigned(value: Long): BigInteger = BigInteger(java.lang.Long.toUnsignedString(value))
 
     /**
      * Memory for a size_t that a call writes.
