@@ -16,6 +16,7 @@
 A Kotlin library for creating Monero applications using RPC and a C ABI to [monero v0.18.5.3 'Fluorine Fermi'](https://github.com/monero-project/monero/tree/v0.18.5.3).
 
 * Supports a daemon RPC client.
+* Models the responses of a [monero-lws](https://github.com/vtnerd/monero-lws) light wallet server, with the interface of a light wallet client.
 * Daemon implementations are interchangeable by conforming to a [common interface](src/main/kotlin/monero/daemon/MoneroDaemon.kt).
 * Uses a clearly defined [data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
 * Fetch and process binary data from the daemon (e.g. raw blocks).
@@ -150,7 +151,7 @@ When it is loaded, the version of its ABI is compared with the one that monero-k
 
 ### Unit tests
 
-The unit tests read and write the JSON of the models, which is the JSON that monero-c writes, in [src/test/resources/fixtures](src/test/resources/fixtures). They need no node. The ones that call monero-c, e.g. the utils, are skipped when its library is not found. To run them, set the environment variable `MONERO_C_LIBRARY` to the library, built as described above:
+The unit tests read and write the JSON of the models, which is the JSON that monero-c writes, and the responses that a monero-lws server sends, in [src/test/resources/fixtures](src/test/resources/fixtures). They need no node. The ones that call monero-c, e.g. the utils, are skipped when its library is not found. To run them, set the environment variable `MONERO_C_LIBRARY` to the library, built as described above:
 
 ```sh
 ./gradlew test
