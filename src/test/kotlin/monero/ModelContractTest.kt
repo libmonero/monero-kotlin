@@ -24,7 +24,7 @@ import org.junit.jupiter.api.TestFactory
  */
 class ModelContractTest {
 
-    private val types = modelTypes("monero.common", "monero.daemon.model", "monero.wallet.model")
+    private val types = modelTypes("monero.common", "monero.daemon.model", "monero.wallet.model", "monero.wallet.lws.model")
 
     private fun forEachType(test: (Class<*>) -> Unit): List<DynamicTest> =
         types.map { type -> dynamicTest(type.simpleName) { test(type) } }
