@@ -25,10 +25,27 @@ kotlin {
     jvmToolchain(21)
 }
 
+// The tests that need a node are tagged integration: they are not run by test, but by integrationTest, which needs the node of
+// integration-tests.yml
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
     maxParallelForks = 1
     maxHeapSize = "512m"
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs the integration tests, which need monero-c and a regtest node"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform {
+        includeTags("integration")
+    }
+    maxParallelForks = 1
+    maxHeapSize = "512m"
+    shouldRunAfter(tasks.test)
 }
 
 // The tests, and the files they need to run without building anything: the classes, the resources and the libraries, as unit-tests.yml of
