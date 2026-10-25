@@ -31,7 +31,7 @@ tasks.test {
     maxHeapSize = "512m"
 }
 
-// The tests, and the files they need to run without building anything: the classes, the resources and the libraries, as test.yml of
+// The tests, and the files they need to run without building anything: the classes, the resources and the libraries, as unit-tests.yml of
 // GitHub runs them on every platform. The classes stay as directories, since the tests look for the classes of the model there
 val unitTests by tasks.registering(Sync::class) {
     dependsOn(tasks.testClasses)

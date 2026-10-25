@@ -1,0 +1,141 @@
+# Runs the unit tests that Build made, on every platform, with the library of monero-c that Native built from the submodule. It does not build
+# anything. The unit tests need no node: the integration tests, which do, are in integration-tests.yml
+name: Unit tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: unit-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wait-build:
+    name: Pending
+    runs-on: ubuntu-24.04
+    # Native takes hours when it has to build monero-c, which it does when the submodule changes
+    timeout-minutes: 180
+
+    outputs:
+      build-run-id: ${{ steps.build.outputs.run-id }}
+      native-run-id: ${{ steps.native.outputs.run-id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Wait for the Build run of this commit
+        id: build
+        uses: ./.github/actions/wait-for-run
+        with:
+          workflow: build.yml
+          artifacts: monero-kotlin-tests
+
+      - name: Wait for the Native run of this commit
+        id: native
+        uses: ./.github/actions/wait-for-run
+        with:
+          workflow: native.yml
+          artifacts: monero-c-linux-x86_64 monero-c-linux-arm64 monero-c-windows monero-c-mac-arm64 monero-c-mac-x86_64
+
+  unit:
+    name: Unit tests, ${{ matrix.platform }}
+    needs: wait-build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux x86_64
+            os: ubuntu-24.04
+            monero-c: linux-x86_64
+            library: libmonero_c.so
+          - platform: Linux arm64
+            os: ubuntu-24.04-arm
+            monero-c: linux-arm64
+            library: libmonero_c.so
+          - platform: Windows x86_64
+            os: windows-latest
+            monero-c: windows
+            library: libmonero_c.dll
+          - platform: macOS arm64
+            os: macos-15
+            monero-c: mac-arm64
+            library: libmonero_c.dylib
+          - platform: macOS x86_64
+            os: macos-15-intel
+            monero-c: mac-x86_64
+            library: libmonero_c.dylib
+
+    # Git Bash on Windows too
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Download the unit tests
+        uses: actions/download-artifact@v8
+        with:
+          name: monero-kotlin-tests
+          path: unit-tests
+          run-id: ${{ needs.wait-build.outputs.build-run-id }}
+          github-token: ${{ github.token }}
+
+      # the library of the platform, with the libusb that it needs next to it
+      - name: Download monero-c
+        uses: actions/download-artifact@v8
+        with:
+          name: monero-c-${{ matrix.monero-c }}
+          path: monero-c
+          run-id: ${{ needs.wait-build.outputs.native-run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Set the library of monero-c
+        env:
+          LIBRARY: monero-c/${{ matrix.library }}
+        run: |
+          if [ ! -f "$LIBRARY" ]; then echo "the build of monero-c has no $LIBRARY"; ls monero-c; exit 1; fi
+          if [ "$RUNNER_OS" = Windows ]; then
+            # $PWD is the path of Git Bash, which Java does not read, and Windows looks for the libraries that libmonero_c needs,
+            # e.g. libusb, in the path
+            library=$(cygpath -m "$PWD/$LIBRARY")
+            dirname "$library" >> "$GITHUB_PATH"
+          else
+            library="$PWD/$LIBRARY"
+          fi
+          echo "MONERO_C_LIBRARY=$library" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # the classes stay in directories, since the tests look for the classes of the model there
+      - name: Run the unit tests
+        run: >
+          java -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
+          --disable-banner --details=summary
+          --exclude-tag integration
+          --class-path unit-tests/classes/main
+          --class-path unit-tests/classes/test
+          --class-path unit-tests/resources/test
+          --scan-class-path unit-tests/classes/test
+          --reports-dir test-results
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results-${{ matrix.os }}
+          path: test-results
+          if-no-files-found: ignore

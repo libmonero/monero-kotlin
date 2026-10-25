@@ -1,7 +1,7 @@
 # Monero Kotlin Library
 
 [![Build](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml)
-[![Tests](https://github.com/libmonero/monero-kotlin/actions/workflows/test.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/test.yml)
+[![Unit tests](https://github.com/libmonero/monero-kotlin/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/unit-tests.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
@@ -149,11 +149,14 @@ When it is loaded, the version of its ABI is compared with the one that monero-k
 
 ### Unit tests
 
-The unit tests read and write the JSON of the models, which is the JSON that monero-c writes, in [src/test/resources/fixtures](src/test/resources/fixtures). They need no node and no native library.
+The unit tests read and write the JSON of the models, which is the JSON that monero-c writes, in [src/test/resources/fixtures](src/test/resources/fixtures). They need no node. The ones that call monero-c, e.g. the utils, are skipped when its library is not found. To run them, set the environment variable `MONERO_C_LIBRARY` to the library, built as described above:
 
 ```sh
 ./gradlew test
+MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew test --rerun
 ```
+
+Gradle does not run the tests again when only the environment changed, so add `--rerun` after setting or unsetting the variable.
 
 To get the coverage of the library:
 
@@ -166,7 +169,8 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 ## Continuous integration
 
 * **Build** builds the library and the unit tests, uploads the unit tests, with the files they need to run (`./gradlew unitTests`), and collects the coverage of the unit tests.
-* **Tests** waits for the Build run of the same commit, and runs the unit tests that Build made on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), without building them again.
+* **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes.
+* **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything.
 
 ## Related projects
 
