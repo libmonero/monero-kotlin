@@ -72,6 +72,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           apt-get install -y build-essential cmake pkg-config file perl wget libzmq3-dev libunbound-dev libsodium-dev libunwind-dev liblzma-dev libreadline-dev libexpat1-dev libpgm-dev libhidapi-dev libusb-1.0-0-dev libprotobuf-dev protobuf-compiler libudev-dev python3 ccache git curl autoconf libtool gperf bison flex nettle-dev libevent-dev
           # record versions of the distro libraries that get statically linked into the shipped binary
@@ -79,6 +80,7 @@ jobs:
 
       - name: Install openssl
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           # build the current openssl LTS statically (/etc/ssl matches most distros' CA layout)
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz
@@ -91,6 +93,7 @@ jobs:
 
       - name: Install expat
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libexpat/libexpat/releases/download/R_2_7_1/expat-2.7.1.tar.bz2
           echo "45c98ae1e9b5127325d25186cf8c511fa814078e9efeae7987a574b482b79b3d  expat-2.7.1.tar.bz2" | sha256sum -c
@@ -102,6 +105,7 @@ jobs:
 
       - name: Install unbound
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://www.nlnetlabs.nl/downloads/unbound/unbound-1.22.0.tar.gz
           echo "c5dd1bdef5d5685b2cedb749158dd152c52d44f65529a34ac15cd88d4b1b3d43  unbound-1.22.0.tar.gz" | sha256sum -c
@@ -115,6 +119,7 @@ jobs:
 
       - name: Install libusb
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
           echo "ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575  libusb-1.0.27.tar.bz2" | sha256sum -c
@@ -127,6 +132,7 @@ jobs:
 
       - name: Install hidapi
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.14.0.tar.gz
           echo "a5714234abe6e1f53647dd8cba7d69f65f71c558b7896ed218864ffcf405bcbd  hidapi-0.14.0.tar.gz" | sha256sum -c
@@ -138,6 +144,7 @@ jobs:
 
       - name: Install boost
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           # PIC static boost, same version on all platforms (no distro boost so headers and archives match)
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://archives.boost.io/release/1.85.0/source/boost_1_85_0.tar.bz2
@@ -149,6 +156,7 @@ jobs:
 
       - name: Build monero-project
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           cd external/monero-cpp/external/monero-project
           mkdir -p build/release
@@ -159,6 +167,7 @@ jobs:
 
       - name: Build monero-cpp libraries
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           cd external/monero-cpp
           mkdir -p build
@@ -169,6 +178,7 @@ jobs:
 
       - name: Build monero-c library
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           mkdir -p build
           cd build
@@ -179,10 +189,11 @@ jobs:
 
       - name: Stage monero-c build
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
-          mkdir -p dist
-          cp build/libmonero_c.so dist/
-          cp -L /usr/local/lib/libusb-1.0.so.0 dist/
+          mkdir -p ../../dist
+          cp build/libmonero_c.so ../../dist/
+          cp -L /usr/local/lib/libusb-1.0.so.0 ../../dist/
 
       - name: Upload monero-c build
         uses: actions/upload-artifact@v7
@@ -236,6 +247,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           HOMEBREW_NO_AUTO_UPDATE=1 brew install libsodium openssl zmq libpgm miniupnpc expat libunwind-headers protobuf unbound libevent libnghttp2
           # record versions of the brew libraries that get statically linked into the shipped binary
@@ -243,6 +255,7 @@ jobs:
 
       - name: Install libusb 1.0.27
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSLO https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
           echo "ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575  libusb-1.0.27.tar.bz2" | shasum -a 256 -c
@@ -255,6 +268,7 @@ jobs:
 
       - name: Install hidapi (static)
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           # brew has no static hidapi, so build it from source to get a standalone library
           curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSLO https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.14.0.tar.gz
@@ -267,6 +281,7 @@ jobs:
 
       - name: Install boost
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           # brew has no static boost, so build it from source at the 11.0 deployment target
           curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSLO https://archives.boost.io/release/1.85.0/source/boost_1_85_0.tar.bz2
@@ -279,6 +294,7 @@ jobs:
 
       - name: Build monero-project
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           cd external/monero-cpp/external/monero-project
           mkdir -p build/release
@@ -289,6 +305,7 @@ jobs:
 
       - name: Build monero-cpp libraries
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           cd external/monero-cpp
           mkdir -p build
@@ -299,6 +316,7 @@ jobs:
 
       - name: Build monero-c library
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           mkdir -p build
           cd build
@@ -309,6 +327,7 @@ jobs:
 
       - name: Relocate bundled libusb
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
           dependency=$(otool -L build/libmonero_c.dylib | awk '/libusb-1.0/ {print $1; exit}')
           test -n "$dependency" || { echo "libusb is not dynamically linked"; exit 1; }
@@ -316,10 +335,11 @@ jobs:
 
       - name: Stage monero-c build
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
-          mkdir -p dist
-          cp build/libmonero_c.dylib dist/
-          cp /usr/local/lib/libusb-1.0.0.dylib dist/
+          mkdir -p ../../dist
+          cp build/libmonero_c.dylib ../../dist/
+          cp /usr/local/lib/libusb-1.0.0.dylib ../../dist/
 
       - name: Upload monero-c build
         uses: actions/upload-artifact@v7
@@ -393,6 +413,7 @@ jobs:
 
       - name: Install ICU v76.1
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-76.1-1-any.pkg.tar.zst
@@ -401,6 +422,7 @@ jobs:
 
       - name: Install boost v1.87.0
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           # boost depends on boost-libs without a version, so install both from files or pacman takes the newest boost-libs
@@ -415,6 +437,7 @@ jobs:
       # the MINGW64 repository of MSYS2 doesn't have hidapi anymore, so it is built as on Linux, static
       - name: Install hidapi 0.14.0
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.14.0.tar.gz
@@ -429,6 +452,7 @@ jobs:
 
       - name: Install libusb 1.0.27
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
@@ -443,6 +467,7 @@ jobs:
 
       - name: Build monero-project
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           cd external/monero-cpp/external/monero-project
@@ -462,6 +487,7 @@ jobs:
 
       - name: Build monero-cpp libraries
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           cd external/monero-cpp
@@ -473,6 +499,7 @@ jobs:
 
       - name: Build monero-c library
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         shell: msys2 {0}
         run: |
           mkdir -p build
@@ -485,10 +512,11 @@ jobs:
 
       - name: Stage monero-c build
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: external/monero-c
         run: |
-          mkdir -p dist
-          cp build/libmonero_c.dll dist/
-          cp "$MINGW_PREFIX/bin/libusb-1.0.dll" dist/
+          mkdir -p ../../dist
+          cp build/libmonero_c.dll ../../dist/
+          cp "$MINGW_PREFIX/bin/libusb-1.0.dll" ../../dist/
 
       - name: Upload monero-c build
         uses: actions/upload-artifact@v7
