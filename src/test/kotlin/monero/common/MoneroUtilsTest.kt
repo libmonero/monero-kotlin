@@ -3,6 +3,7 @@ package monero.common
 import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
+import com.sun.jna.Structure
 import com.sun.jna.ptr.PointerByReference
 import java.io.File
 import java.io.IOException
@@ -937,8 +938,8 @@ class MoneroUtilsTest {
 
     // A binding that forgets to call monero_utils_free() leaks native memory that the heap of the JVM never sees,
     // and every other test of this class stays green while it grows. Like the RSS test of the python suite, this
-    // one loops a bounded batch of calls, forces a steady state, and asserts that the memory of the process stays
-    // roughly flat
+    // one loops a bounded batch of calls, forces a steady state, and asserts that the native memory of the process
+    // stays roughly flat
     @Test
     fun testSerializationLoopDoesNotLeakNativeMemory() {
         val small = mapOf("heights" to listOf(111, 222, 333))
@@ -954,7 +955,7 @@ class MoneroUtilsTest {
         // to their steady state, which takes longer to absorb than the one-time growth the python test warms away
         runBatch(10_000)
         System.gc()
-        val before = physicalMemoryKb()
+        val before = nativeMemoryKb()
         if (before == null) {
             assumeTrue(false, "the physical memory of the process cannot be read on this platform")
             return
@@ -965,13 +966,13 @@ class MoneroUtilsTest {
         val rounds = 25_000
         runBatch(rounds)
         System.gc()
-        val after = physicalMemoryKb()!!
+        val after = nativeMemoryKb()!!
 
         val growthMb = (after - before) / 1024.0
         // generous bound: a binding that never frees holds back the JSON string of the large map, about 14 KB per
         // round trip, which is ~315 MB for the 25,000 round trips measured here, an order of magnitude above the
-        // ~35 MB that the settling of the JVM grows by. This only needs to rule out that magnitude of leak, not
-        // pin the settling down
+        // ~35 MB that the settling of the JVM grows by in the RSS (on Linux the malloc bytes are read instead, which stay
+        // within a few MB of flat). This only needs to rule out that magnitude of leak, not pin the settling down
         assertTrue(growthMb < 128, "Memory grew by $growthMb MB after $rounds serialization round trips -- possible native leak")
     }
 
@@ -1063,12 +1064,35 @@ class MoneroUtilsTest {
         assertTrue(e.message!!.contains("public spend key expected to be 64 hex characters"), e.message)
     }
 
-    // The physical memory of this process in kilobytes. On macOS this is the physical footprint that vmmap
-    // reports, which counts the pages that the memory compressor of the system has taken out of the resident set:
-    // a leak of cold pages, which a leaked native string is, disappears from the resident set without it. On
-    // Linux, and anywhere else without vmmap, this is the resident set that ps reports. Null when the platform
-    // has no way to read it, which skips the test that needs it
-    private fun physicalMemoryKb(): Long? {
+    // What mallinfo2() of glibc returns: ten size_t counters of the allocator, kept as an array since only two are read
+    @Structure.FieldOrder("counters")
+    open class MallInfo2 : Structure() {
+        @JvmField var counters = LongArray(10)
+
+        // uordblks (bytes in use) + hblkhd (bytes in mmapped chunks)
+        fun inUse() = counters[7] + counters[4]
+
+        class ByValue : MallInfo2(), Structure.ByValue
+    }
+
+    interface GlibcMalloc : Library {
+        fun mallinfo2(): MallInfo2.ByValue
+    }
+
+    // The native memory of this process in KB, or null if the platform can't tell, which skips the test.
+    // On Linux it is what malloc has handed out (mallinfo2), which unlike the RSS doesn't follow the heap of the JVM, the
+    // JIT or the free pages of the arenas: the RSS moved enough on arm64 to fail the leak test without a leak.
+    // On macOS it is the physical footprint of vmmap, which counts the pages that the memory compressor took out of the
+    // resident set: a leak of cold pages would vanish from the RSS. Elsewhere, or without mallinfo2 (musl, 32-bit), it
+    // is the RSS of ps.
+    private fun nativeMemoryKb(): Long? {
+        if (System.getProperty("os.name").startsWith("Linux") && Native.SIZE_T_SIZE == 8) {
+            try {
+                return Native.load("c", GlibcMalloc::class.java).mallinfo2().inUse() / 1024
+            } catch (_: UnsatisfiedLinkError) {
+                // no mallinfo2() in this libc
+            }
+        }
         val pid = ProcessHandle.current().pid().toString()
         try {
             val vmmap = ProcessBuilder("vmmap", "--summary", pid).start()
