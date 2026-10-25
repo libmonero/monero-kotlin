@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml)
 [![Unit tests](https://github.com/libmonero/monero-kotlin/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/unit-tests.yml)
+[![Integration tests](https://github.com/libmonero/monero-kotlin/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/integration-tests.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
@@ -158,6 +159,18 @@ MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so .
 
 Gradle does not run the tests again when only the environment changed, so add `--rerun` after setting or unsetting the variable.
 
+### Integration tests
+
+The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and a regtest node, which is the one of the `docker-compose.yml` of monero-c:
+
+```sh
+docker compose -f external/monero-c/tests/c/integration/docker-compose.yml up -d
+MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew integrationTest --rerun
+docker compose -f external/monero-c/tests/c/integration/docker-compose.yml down -v
+```
+
+The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one.
+
 To get the coverage of the library:
 
 ```sh
@@ -171,6 +184,7 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 * **Build** builds the library and the unit tests, uploads the unit tests, with the files they need to run (`./gradlew unitTests`), and collects the coverage of the unit tests.
 * **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes.
 * **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything.
+* **Integration tests** waits for the same runs, starts the regtest node of monero-c, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test.
 
 ## Related projects
 
