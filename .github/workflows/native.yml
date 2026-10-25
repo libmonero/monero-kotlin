@@ -1,0 +1,499 @@
+# Builds libmonero_c from the submodule external/monero-c, on the platforms where the tests run, with the same recipes as the Build workflows of
+# monero-c: the dependencies are the ones of its release, with the sha256 that it checks. What is built is the commit of the submodule, so a
+# change of the submodule is tested with the library that it brings. The tests of monero-c are not built.
+# The library and the libusb that it needs are uploaded as monero-c-<platform> and also kept in the cache of Actions with the commit of the submodule
+# in the key, so the runs that do not change the submodule do not build it again. To update the recipes: copy the changes of build-linux.yml,
+# build-macos.yml and build-windows.yml of monero-c, which are in external/monero-c/.github/workflows
+name: Native
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A run is not cancelled by a newer one: the build is long, and the cache is saved only when it ends, so a run that is always
+# cancelled would never leave it
+concurrency:
+  group: native-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    name: Linux ${{ matrix.cpu }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    # debian:12 provides a supported build environment. The library needs glibc 2.34, see the unbound step
+    container: debian:12
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: linux-x86_64
+            cpu: x86_64
+            march: x86-64
+          - os: ubuntu-24.04-arm
+            arch: linux-arm64
+            cpu: arm64
+            march: armv8-a
+
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y git ca-certificates zstd
+          git config --global --add safe.directory '*'
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Find the commit of monero-c
+        id: submodule
+        run: echo "commit=$(git rev-parse HEAD:external/monero-c)" >> "$GITHUB_OUTPUT"
+
+      # The build of a commit of monero-c is kept, so only the runs that change the submodule or this file build it
+      - name: Restore the build of monero-c
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: monero-c-${{ matrix.arch }}-${{ steps.submodule.outputs.commit }}-${{ hashFiles('.github/workflows/native.yml') }}
+
+      # monero-c, monero-cpp and monero-project, which are big
+      - name: Check out monero-c
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: git submodule update --init --recursive
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          apt-get install -y build-essential cmake pkg-config file perl wget libzmq3-dev libunbound-dev libsodium-dev libunwind-dev liblzma-dev libreadline-dev libexpat1-dev libpgm-dev libhidapi-dev libusb-1.0-0-dev libprotobuf-dev protobuf-compiler libudev-dev python3 ccache git curl autoconf libtool gperf bison flex nettle-dev libevent-dev
+          # record versions of the distro libraries that get statically linked into the shipped binary
+          dpkg -s libsodium-dev libprotobuf-dev | grep -E '^(Package|Version)'
+
+      - name: Install openssl
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # build the current openssl LTS statically (/etc/ssl matches most distros' CA layout)
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz
+          echo "a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8  openssl-3.5.7.tar.gz" | sha256sum -c
+          tar xzf openssl-3.5.7.tar.gz
+          cd openssl-3.5.7
+          ./config --prefix=/usr/local --openssldir=/etc/ssl --libdir=lib no-shared no-tests -fPIC
+          make -j3
+          make install_sw
+
+      - name: Install expat
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libexpat/libexpat/releases/download/R_2_7_1/expat-2.7.1.tar.bz2
+          echo "45c98ae1e9b5127325d25186cf8c511fa814078e9efeae7987a574b482b79b3d  expat-2.7.1.tar.bz2" | sha256sum -c
+          tar -xf expat-2.7.1.tar.bz2
+          cd expat-2.7.1
+          ./configure --enable-static --disable-shared --with-pic
+          make
+          make install
+
+      - name: Install unbound
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://www.nlnetlabs.nl/downloads/unbound/unbound-1.22.0.tar.gz
+          echo "c5dd1bdef5d5685b2cedb749158dd152c52d44f65529a34ac15cd88d4b1b3d43  unbound-1.22.0.tar.gz" | sha256sum -c
+          tar xzf unbound-1.22.0.tar.gz
+          cd unbound-1.22.0
+          # arc4random and arc4random_uniform are in glibc 2.36, and the ones that unbound finds there would make the library need it.
+          # Without them it builds its own, and the next highest version of the library is 2.34
+          ./configure --with-libexpat=/usr/local --with-ssl=/usr/local --enable-static --disable-shared --with-pic ac_cv_func_arc4random=no ac_cv_func_arc4random_uniform=no
+          make
+          make install
+
+      - name: Install libusb
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+          echo "ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575  libusb-1.0.27.tar.bz2" | sha256sum -c
+          tar -xf libusb-1.0.27.tar.bz2
+          cd libusb-1.0.27
+          ./configure --disable-static --enable-shared --disable-udev --with-pic
+          make
+          make install
+          test -s /usr/local/lib/libusb-1.0.so.0
+
+      - name: Install hidapi
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.14.0.tar.gz
+          echo "a5714234abe6e1f53647dd8cba7d69f65f71c558b7896ed218864ffcf405bcbd  hidapi-0.14.0.tar.gz" | sha256sum -c
+          tar xzf hidapi-0.14.0.tar.gz
+          cd hidapi-hidapi-0.14.0
+          cmake -B build -DBUILD_SHARED_LIBS=OFF -DHIDAPI_WITH_HIDRAW=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .
+          cmake --build build
+          cmake --install build
+
+      - name: Install boost
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # PIC static boost, same version on all platforms (no distro boost so headers and archives match)
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://archives.boost.io/release/1.85.0/source/boost_1_85_0.tar.bz2
+          echo "7009fe1faa1697476bdc7027703a2badb84e849b7b0baad5086b087b971f8617  boost_1_85_0.tar.bz2" | sha256sum -c
+          tar xf boost_1_85_0.tar.bz2
+          cd boost_1_85_0
+          ./bootstrap.sh --with-libraries=chrono,date_time,filesystem,locale,program_options,regex,serialization,system,thread
+          ./b2 -j3 cxxflags=-fPIC cflags=-fPIC link=static runtime-link=shared boost.locale.icu=off install
+
+      - name: Build monero-project
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd external/monero-cpp/external/monero-project
+          mkdir -p build/release
+          cd build/release
+          cmake -DSTATIC=ON -DBUILD_64=ON -DARCH="${{ matrix.march }}" -DCMAKE_BUILD_TYPE=Release -DUSE_DEVICE_TREZOR=OFF ../../
+          make -j3 wallet cryptonote_protocol
+          cd ../../../../../../
+
+      - name: Build monero-cpp libraries
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd external/monero-cpp
+          mkdir -p build
+          cd build
+          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON ..
+          cmake --build . --target monero-cpp-static -j3
+          cd ../../..
+
+      - name: Build monero-c library
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.so -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON ..
+          grep -Fxq 'MONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.so' CMakeCache.txt
+          cmake --build . -j3
+          cd ..
+
+      - name: Stage monero-c build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p dist
+          cp build/libmonero_c.so dist/
+          cp -L /usr/local/lib/libusb-1.0.so.0 dist/
+
+      - name: Upload monero-c build
+        uses: actions/upload-artifact@v7
+        with:
+          name: monero-c-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  macos:
+    name: macOS ${{ matrix.cpu }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: mac-arm64
+            cpu: arm64
+            march: armv8-a
+          - os: macos-15-intel
+            arch: mac-x86_64
+            cpu: x86_64
+            march: x86-64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Find the commit of monero-c
+        id: submodule
+        run: echo "commit=$(git rev-parse HEAD:external/monero-c)" >> "$GITHUB_OUTPUT"
+
+      # The build of a commit of monero-c is kept, so only the runs that change the submodule or this file build it
+      - name: Restore the build of monero-c
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: monero-c-${{ matrix.arch }}-${{ steps.submodule.outputs.commit }}-${{ hashFiles('.github/workflows/native.yml') }}
+
+      # monero-c, monero-cpp and monero-project, which are big
+      - name: Check out monero-c
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: git submodule update --init --recursive
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install libsodium openssl zmq libpgm miniupnpc expat libunwind-headers protobuf unbound libevent libnghttp2
+          # record versions of the brew libraries that get statically linked into the shipped binary
+          brew list --versions | sort
+
+      - name: Install libusb 1.0.27
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSLO https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+          echo "ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575  libusb-1.0.27.tar.bz2" | shasum -a 256 -c
+          tar -xf libusb-1.0.27.tar.bz2
+          cd libusb-1.0.27
+          ./configure --prefix=/usr/local --disable-static --enable-shared --disable-udev --with-pic
+          make
+          sudo make install
+          test -s /usr/local/lib/libusb-1.0.0.dylib
+
+      - name: Install hidapi (static)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # brew has no static hidapi, so build it from source to get a standalone library
+          curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSLO https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.14.0.tar.gz
+          echo "a5714234abe6e1f53647dd8cba7d69f65f71c558b7896ed218864ffcf405bcbd  hidapi-0.14.0.tar.gz" | shasum -a 256 -c
+          tar xzf hidapi-0.14.0.tar.gz
+          cd hidapi-hidapi-0.14.0
+          cmake -B build -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .
+          cmake --build build
+          sudo cmake --install build
+
+      - name: Install boost
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # brew has no static boost, so build it from source at the 11.0 deployment target
+          curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSLO https://archives.boost.io/release/1.85.0/source/boost_1_85_0.tar.bz2
+          echo "7009fe1faa1697476bdc7027703a2badb84e849b7b0baad5086b087b971f8617  boost_1_85_0.tar.bz2" | shasum -a 256 -c
+          tar xf boost_1_85_0.tar.bz2
+          cd boost_1_85_0
+          ./bootstrap.sh --with-libraries=chrono,date_time,filesystem,locale,program_options,regex,serialization,system,thread
+          ./b2 -j3 cxxflags=-fPIC cflags=-fPIC link=static runtime-link=shared boost.locale.icu=off
+          sudo -E ./b2 -j3 cxxflags=-fPIC cflags=-fPIC link=static runtime-link=shared boost.locale.icu=off install
+
+      - name: Build monero-project
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd external/monero-cpp/external/monero-project
+          mkdir -p build/release
+          cd build/release
+          cmake -DSTATIC=ON -DBUILD_64=ON -DARCH="${{ matrix.march }}" -DCMAKE_BUILD_TYPE=Release -DUSE_DEVICE_TREZOR=OFF ../../
+          make -j3 wallet cryptonote_protocol
+          cd ../../../../../../
+
+      - name: Build monero-cpp libraries
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd external/monero-cpp
+          mkdir -p build
+          cd build
+          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON ..
+          cmake --build . --target monero-cpp-static -j3
+          cd ../../..
+
+      - name: Build monero-c library
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.0.dylib -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON ..
+          grep -Fxq 'MONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.0.dylib' CMakeCache.txt
+          cmake --build . -j3
+          cd ..
+
+      - name: Relocate bundled libusb
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          dependency=$(otool -L build/libmonero_c.dylib | awk '/libusb-1.0/ {print $1; exit}')
+          test -n "$dependency" || { echo "libusb is not dynamically linked"; exit 1; }
+          install_name_tool -change "$dependency" "@loader_path/libusb-1.0.0.dylib" build/libmonero_c.dylib
+
+      - name: Stage monero-c build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p dist
+          cp build/libmonero_c.dylib dist/
+          cp /usr/local/lib/libusb-1.0.0.dylib dist/
+
+      - name: Upload monero-c build
+        uses: actions/upload-artifact@v7
+        with:
+          name: monero-c-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    strategy:
+      matrix:
+        include:
+          - arch: windows
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Find the commit of monero-c
+        id: submodule
+        shell: bash
+        run: echo "commit=$(git rev-parse HEAD:external/monero-c)" >> "$GITHUB_OUTPUT"
+
+      # The build of a commit of monero-c is kept, so only the runs that change the submodule or this file build it
+      - name: Restore the build of monero-c
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: monero-c-${{ matrix.arch }}-${{ steps.submodule.outputs.commit }}-${{ hashFiles('.github/workflows/native.yml') }}
+
+      # monero-c, monero-cpp and monero-project, which are big
+      - name: Check out monero-c
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: git submodule update --init --recursive
+
+      - name: Setup MSYS2 MINGW64
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-zeromq
+            mingw-w64-x86_64-libsodium
+            mingw-w64-x86_64-unbound
+            mingw-w64-x86_64-protobuf
+            mingw-w64-x86_64-expat
+            mingw-w64-x86_64-ntldd
+            git
+            make
+            gettext
+            base-devel
+            autoconf
+            automake
+            libtool
+            wget
+
+      - name: Install ICU v76.1
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-76.1-1-any.pkg.tar.zst
+          echo "43908bc001071edca02849e65bca94e9fedd5b9984400c7311bfaad9a292d200  mingw-w64-x86_64-icu-76.1-1-any.pkg.tar.zst" | sha256sum -c
+          pacman -U --noconfirm mingw-w64-x86_64-icu-76.1-1-any.pkg.tar.zst
+
+      - name: Install boost v1.87.0
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          # boost depends on boost-libs without a version, so install both from files or pacman takes the newest boost-libs
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-boost-1.87.0-3-any.pkg.tar.zst
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-boost-libs-1.87.0-3-any.pkg.tar.zst
+          echo "241919a5885a9270d0e0937e71cf5e146c2a8cabecc2714f09248350181cb1b6  mingw-w64-x86_64-boost-1.87.0-3-any.pkg.tar.zst" | sha256sum -c
+          echo "5fd77df3e5983ba0d9c689f46151119e0e59b3da6850c5a0ba54068eeae7749c  mingw-w64-x86_64-boost-libs-1.87.0-3-any.pkg.tar.zst" | sha256sum -c
+          pacman -U --noconfirm mingw-w64-x86_64-boost-libs-1.87.0-3-any.pkg.tar.zst mingw-w64-x86_64-boost-1.87.0-3-any.pkg.tar.zst
+          # record versions of the msys2 libraries that get statically linked into the shipped binary
+          pacman -Q | grep mingw-w64 | sort
+
+      # the MINGW64 repository of MSYS2 doesn't have hidapi anymore, so it is built as on Linux, static
+      - name: Install hidapi 0.14.0
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/hidapi/archive/refs/tags/hidapi-0.14.0.tar.gz
+          echo "a5714234abe6e1f53647dd8cba7d69f65f71c558b7896ed218864ffcf405bcbd  hidapi-0.14.0.tar.gz" | sha256sum -c
+          tar xzf hidapi-0.14.0.tar.gz
+          cd hidapi-hidapi-0.14.0
+          cmake -G "MSYS Makefiles" -B build -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .
+          cmake --build build
+          cmake --install build
+          test -s "$MINGW_PREFIX/lib/libhidapi.a"
+          test -s "$MINGW_PREFIX/include/hidapi/hidapi.h"
+
+      - name: Install libusb 1.0.27
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          wget --tries=5 --waitretry=5 --timeout=30 --retry-on-http-error=500,502,503,504 https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+          echo "ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575  libusb-1.0.27.tar.bz2" | sha256sum -c
+          tar -xf libusb-1.0.27.tar.bz2
+          cd libusb-1.0.27
+          ./configure --prefix="$MINGW_PREFIX" --disable-static --enable-shared
+          make
+          make install
+          test -s "$MINGW_PREFIX/lib/libusb-1.0.dll.a"
+          test -s "$MINGW_PREFIX/bin/libusb-1.0.dll"
+
+      - name: Build monero-project
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          cd external/monero-cpp/external/monero-project
+          mkdir -p build/release
+          cd build/release
+          cmake -G "MSYS Makefiles" \
+            -D STATIC=ON \
+            -D ARCH="x86-64" \
+            -D BUILD_64=ON \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D BUILD_TAG="win-x64" \
+            -D CMAKE_TOOLCHAIN_FILE="../../cmake/64-bit-toolchain.cmake" \
+            -D MSYS2_FOLDER=$(cd $MINGW_PREFIX/.. && pwd -W) \
+            -D USE_DEVICE_TREZOR=OFF \
+            ../../
+          make wallet cryptonote_protocol
+
+      - name: Build monero-cpp libraries
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          cd external/monero-cpp
+          mkdir -p build
+          cd build
+          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF ..
+          cmake --build . --target monero-cpp-static
+          cd ../../..
+
+      - name: Build monero-c library
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          mkdir -p build
+          cd build
+          libusb_import=$(cygpath -m "$MINGW_PREFIX/lib/libusb-1.0.dll.a")
+          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH="$libusb_import" ..
+          grep -Fxq "MONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=$libusb_import" CMakeCache.txt
+          cmake --build .
+          cd ..
+
+      - name: Stage monero-c build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p dist
+          cp build/libmonero_c.dll dist/
+          cp "$MINGW_PREFIX/bin/libusb-1.0.dll" dist/
+
+      - name: Upload monero-c build
+        uses: actions/upload-artifact@v7
+        with:
+          name: monero-c-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
