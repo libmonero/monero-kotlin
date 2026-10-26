@@ -221,6 +221,58 @@ internal interface MoneroC : Library {
     fun monero_daemon_download_update(daemon: Pointer, path: String, json: PointerByReference): Int
 
     fun monero_daemon_stop(daemon: Pointer): Int
+
+    // wallet
+
+    fun monero_wallet_keys_create_random(networkType: Int, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_keys_create_from_seed(networkType: Int, seed: String, seedOffset: String?, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_keys_create_from_keys(networkType: Int, address: String?, privateViewKey: String?, privateSpendKey: String?, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_get_seed_languages(json: PointerByReference): Int
+
+    fun monero_wallet_close(wallet: Pointer, save: Boolean): Int
+
+    fun monero_wallet_free(wallet: Pointer)
+
+    fun monero_wallet_get_network_type(wallet: Pointer, networkType: IntByReference): Int
+
+    fun monero_wallet_is_view_only(wallet: Pointer, viewOnly: ByteByReference): Int
+
+    fun monero_wallet_get_seed(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_seed_language(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_primary_address(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_private_view_key(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_private_spend_key(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_public_view_key(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_public_spend_key(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_version(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_get_address(wallet: Pointer, accountIdx: Int, subaddressIdx: Int, out: PointerByReference): Int
+
+    fun monero_wallet_get_integrated_address(wallet: Pointer, standardAddress: String?, paymentId: String?, json: PointerByReference): Int
+
+    fun monero_wallet_decode_integrated_address(wallet: Pointer, integratedAddress: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_account(wallet: Pointer, accountIdx: Int, includeSubaddresses: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_get_subaddresses(wallet: Pointer, accountIdx: Int, subaddressIndices: IntArray?, numSubaddressIndices: SizeT, json: PointerByReference): Int
+
+    fun monero_wallet_sign_message(wallet: Pointer, message: String, signatureType: Int, accountIdx: Int, subaddressIdx: Int, out: PointerByReference): Int
+
+    fun monero_wallet_verify_message(wallet: Pointer, message: String, address: String, signature: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_payment_uri(wallet: Pointer, configJson: String, out: PointerByReference): Int
+
+    fun monero_wallet_parse_payment_uri(wallet: Pointer, uri: String, json: PointerByReference): Int
 }
 
 /**
