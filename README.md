@@ -16,7 +16,7 @@
 A Kotlin library for creating Monero applications using RPC and a C ABI to [monero v0.18.5.3 'Fluorine Fermi'](https://github.com/monero-project/monero/tree/v0.18.5.3).
 
 * Supports a daemon RPC client.
-* Models the responses of a [monero-lws](https://github.com/vtnerd/monero-lws) light wallet server, with the interface of a light wallet client.
+* Models the responses of a [monero-lws](https://github.com/vtnerd/monero-lws) light wallet server, with the interface of a light wallet client and an implementation of it, [MoneroLightWalletRpc](src/main/kotlin/monero/wallet/lws/MoneroLightWalletRpc.kt), over plain http with no native library.
 * Daemon implementations are interchangeable by conforming to a [common interface](src/main/kotlin/monero/daemon/MoneroDaemon.kt).
 * Uses a clearly defined [data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
 * Fetch and process binary data from the daemon (e.g. raw blocks).
@@ -180,7 +180,7 @@ docker compose -f src/test/integration/docker-compose.yml up -d
 docker compose -f src/test/integration/docker-compose.yml down
 ```
 
-The server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The test skips when no server answers, so continuous integration, which does not start the compose yet, stays green without it. Its database lives in the container, so `down` makes the next `up` a fresh one, which the test needs: it asserts the responses of an account that no block was mined to yet.
+The server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The test skips when no server answers, so continuous integration stays green without it, and its workflow starts the compose of the integration tests, so the test runs there. Its database lives in the container, so `down` makes the next `up` a fresh one, which the test needs: it asserts the responses of an account that no block was mined to yet.
 
 To get the coverage of the library:
 
