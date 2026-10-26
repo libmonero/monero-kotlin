@@ -5,12 +5,12 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import java.math.BigInteger
 
-// a transaction of the lws wire, kept separate from the
-// MoneroLwsTransaction that the client computes from it. the actual
-// amounts come from total_received, total_sent and spent_outputs, not
-// from guessing with the view key. fee and recipient are always sent
-// (light_wallet.cpp:521,528): an outgoing tx's real debit is
-// total_sent + fee. a mempool tx has no height and no timestamp
+/**
+ * Models a transaction on the wire, kept separate from the MoneroLwsTransaction that the client computes from it.
+ * The actual amounts come from total_received, total_sent and spent_outputs, not from a guess with the view key. The
+ * server always writes fee and recipient (light_wallet.cpp:521,528), so the real debit of an outgoing transaction is
+ * its total_sent plus its fee, and a transaction in the mempool has no height and no timestamp.
+ */
 class MoneroLwsTx {
     var id: Long? = null
     var hash: String? = null

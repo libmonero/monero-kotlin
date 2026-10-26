@@ -3,13 +3,12 @@ package monero.wallet.lws
 import monero.wallet.lws.model.MoneroLwsAddressInfo
 import monero.wallet.lws.model.MoneroLwsTransaction
 import monero.wallet.lws.wire.MoneroLwsLoginResponse
+import monero.wallet.lws.wire.MoneroLwsVersion
 
 /**
- * A client of a Monero light wallet server (lws): a wallet that scans
- * through it needs no monerod and no wallet-rpc of its own. The calls
- * are suspend bc an lws server is plain http, so an implementation
- * needs no native library. Nothing implements this yet, monero-c has no
- * light wallet functions.
+ * A client of a Monero light wallet server: a wallet that scans through it needs no monerod and no wallet RPC of its
+ * own. The calls are suspend because a light wallet server is plain http, so an implementation of them needs no
+ * native library.
  */
 interface MoneroLightWalletClient : AutoCloseable {
 
@@ -24,7 +23,8 @@ interface MoneroLightWalletClient : AutoCloseable {
     suspend fun getAddressInfo(): MoneroLwsAddressInfo
 
     /**
-     * Get the transactions of the address since the last fetch.
+     * Get the transactions of the address as its scan has them now. The server sends the whole history of the account
+     * on every call, so a wallet that wants the transactions it has not seen diffs the responses itself.
      */
     suspend fun getAddressTxs(): List<MoneroLwsTransaction>
 
@@ -35,6 +35,13 @@ interface MoneroLightWalletClient : AutoCloseable {
      * @return true if the server took the transaction
      */
     suspend fun submitRawTx(signedTxHex: String): Boolean
+
+    /**
+     * Get the version of the server, and of the monerod behind it.
+     *
+     * @return the version of the server
+     */
+    suspend fun getVersion(): MoneroLwsVersion
 
     override fun close()
 }

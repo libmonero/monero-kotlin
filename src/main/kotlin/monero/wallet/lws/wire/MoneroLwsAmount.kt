@@ -10,14 +10,16 @@ import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.SerializerProvider
 import java.math.BigInteger
 
-// the lws wire format sends uint64 amounts as decimal strings, bc js
-// cant count past 2^53. amounts are BigInteger like everywhere else in
-// the library, which takes the whole uint64 range
+// the wire format of the light wallet server writes unsigned 64-bit amounts as decimal strings, because a JavaScript
+// number cannot count past 2^53. the models hold BigInteger like everywhere else in the library, which takes the
+// whole uint64 range
 private val UINT64_MAX = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE)
 private val DECIMAL_STRING = Regex("[0-9]+")
 
-// reads a uint64 that the server wrote as a decimal string. a number,
-// or anything else that is not digits, is an error
+/**
+ * Reads a uint64 that the server wrote as a decimal string. A number, or anything else that is not digits, is an
+ * error.
+ */
 class MoneroLwsAmountDeserializer : JsonDeserializer<BigInteger>() {
 
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): BigInteger {
@@ -31,7 +33,9 @@ class MoneroLwsAmountDeserializer : JsonDeserializer<BigInteger>() {
     }
 }
 
-// writes an amount the way the server does, a uint64 as a decimal string
+/**
+ * Writes an amount the way the server does: a uint64 as a decimal string.
+ */
 class MoneroLwsAmountSerializer : JsonSerializer<BigInteger>() {
 
     override fun serialize(value: BigInteger, gen: JsonGenerator, serializers: SerializerProvider) {

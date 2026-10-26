@@ -2,7 +2,10 @@ package monero.wallet.lws.wire
 
 import com.fasterxml.jackson.annotation.JsonProperty
 
-// body of POST /login
+/**
+ * Models the body of POST /login: the credentials of the account, and whether the login asks the server to create the
+ * account when it has none for the address.
+ */
 class MoneroLwsLoginRequest {
     var address: String? = null
     @JsonProperty("view_key") var viewKey: String? = null

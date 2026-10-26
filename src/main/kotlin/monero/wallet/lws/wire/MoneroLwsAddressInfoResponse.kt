@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import java.math.BigInteger
 
-// response of /get_address_info. lookahead and lookahead_fail only show
-// up when the scan window moved or failed, the server leaves them out at
-// defaults, and spent_outputs is omitted entirely when there are none
+/**
+ * Models the response of /get_address_info. The server writes lookahead and lookahead_fail only when the scan window
+ * moved or failed, leaving them out at the defaults, and it leaves spent_outputs and rates out entirely when the
+ * address has no candidate spends and the daemon provides no exchange rates (light_wallet.cpp:479-491).
+ */
 class MoneroLwsAddressInfoResponse {
     @JsonProperty("locked_funds")
     @JsonDeserialize(using = MoneroLwsAmountDeserializer::class)
@@ -33,6 +35,10 @@ class MoneroLwsAddressInfoResponse {
     @JsonProperty("lookahead_fail") var lookaheadFail: Long? = null
     @JsonProperty("spent_outputs") var spentOutputs: List<MoneroLwsSpend>? = null
 
+    // the exchange rates of Monero against other currencies, which the server writes only when the daemon provides
+    // them (light_wallet.cpp:487)
+    var rates: MoneroLwsRates? = null
+
     constructor()
 
     constructor(other: MoneroLwsAddressInfoResponse) {
@@ -47,6 +53,7 @@ class MoneroLwsAddressInfoResponse {
         this.lookahead = other.lookahead?.copy()
         this.lookaheadFail = other.lookaheadFail
         this.spentOutputs = other.spentOutputs?.map { it.copy() }
+        this.rates = other.rates?.copy()
     }
 
     fun copy(): MoneroLwsAddressInfoResponse {

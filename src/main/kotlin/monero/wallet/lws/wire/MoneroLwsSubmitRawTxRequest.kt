@@ -1,8 +1,10 @@
 package monero.wallet.lws.wire
 
-// body of POST /submit_raw_tx
+/**
+ * Models the body of POST /submit_raw_tx.
+ */
 class MoneroLwsSubmitRawTxRequest {
-    // signed tx hex, monerod p2p format
+    // the signed transaction in hexadecimal, in the p2p format of monerod
     var tx: String? = null
 
     constructor()

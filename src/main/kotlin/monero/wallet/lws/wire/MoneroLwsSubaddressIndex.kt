@@ -2,9 +2,10 @@ package monero.wallet.lws.wire
 
 import com.fasterxml.jackson.annotation.JsonProperty
 
-// a subaddress index on the lws wire: maj_i is the account, min_i the
-// subaddress in it. the same shape shows up as lookahead, recipient and
-// sender, its just an index pair
+/**
+ * Models a subaddress index on the wire: maj_i is the account, and min_i the subaddress within it. The same shape
+ * shows up as lookahead, recipient and sender, which are all just index pairs.
+ */
 class MoneroLwsSubaddressIndex {
     @JsonProperty("maj_i") var majorIndex: Long? = null
     @JsonProperty("min_i") var minorIndex: Long? = null

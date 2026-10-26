@@ -5,7 +5,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import java.math.BigInteger
 
-// an output of the address that a transaction spent
+/**
+ * Models an output of the address that a transaction spent. The server writes all six fields of a spend, which
+ * light_wallet.cpp:462-472 shows, and no capture of the test account has a spend in it to pin them.
+ */
 class MoneroLwsSpend {
     @JsonDeserialize(using = MoneroLwsAmountDeserializer::class)
     @JsonSerialize(using = MoneroLwsAmountSerializer::class)
@@ -13,8 +16,12 @@ class MoneroLwsSpend {
 
     @JsonProperty("key_image") var keyImage: String? = null
 
-    // the server always writes sender (light_wallet.cpp:470) but no
-    // capture has a spend in it, so keep it forgiving
+    @JsonProperty("tx_pub_key") var txPubKey: String? = null
+
+    @JsonProperty("out_index") var outIndex: Long? = null
+
+    var mixin: Long? = null
+
     var sender: MoneroLwsSubaddressIndex? = null
 
     constructor()
@@ -22,6 +29,9 @@ class MoneroLwsSpend {
     constructor(other: MoneroLwsSpend) {
         this.amount = other.amount
         this.keyImage = other.keyImage
+        this.txPubKey = other.txPubKey
+        this.outIndex = other.outIndex
+        this.mixin = other.mixin
         this.sender = other.sender?.copy()
     }
 

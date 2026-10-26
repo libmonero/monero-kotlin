@@ -2,10 +2,11 @@ package monero.wallet.lws.wire
 
 import com.fasterxml.jackson.annotation.JsonProperty
 
-// response of /login, straight from live captures: new_address,
-// generated_locally, lookahead and nothing else. the spec still claims
-// start_height, its stale, light_wallet.cpp never sends it. the scan
-// start comes from get_address_info
+/**
+ * Models the response of /login, straight from the live captures: new_address, generated_locally, lookahead and
+ * nothing else. The OpenAPI spec still claims start_height, but it is stale: light_wallet.cpp:930-937 never writes it.
+ * The scan start comes from get_address_info.
+ */
 class MoneroLwsLoginResponse {
     @JsonProperty("new_address") var isNewAddress: Boolean? = null
     @JsonProperty("generated_locally") var generatedLocally: Boolean? = null

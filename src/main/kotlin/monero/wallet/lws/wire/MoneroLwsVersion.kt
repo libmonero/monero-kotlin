@@ -2,9 +2,11 @@ package monero.wallet.lws.wire
 
 import com.fasterxml.jackson.annotation.JsonProperty
 
-// response of /get_version, the 11 fields the real server sends.
-// network_type stays a string bc lws writes "main" for mainnet, which
-// is not a name that MoneroNetworkType parses
+/**
+ * Models the response of /get_version: the 11 fields the real server sends, which are the version of the server, of
+ * the monerod behind it, and of the wire API that it speaks. The network type stays a string because the server writes
+ * "main" for mainnet, which is not a name that MoneroNetworkType parses.
+ */
 class MoneroLwsVersion {
     @JsonProperty("server_type") var serverType: String? = null
     @JsonProperty("server_version") var serverVersion: String? = null

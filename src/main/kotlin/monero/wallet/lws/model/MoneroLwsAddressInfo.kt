@@ -2,16 +2,18 @@ package monero.wallet.lws.model
 
 import java.math.BigInteger
 
-// what a light wallet wants out of get_address_info: its balances and
-// where its scan is. total balance is received minus sent, unlocked is
-// that minus the locked funds
+/**
+ * Models what a light wallet wants out of get_address_info: its balances and where its scan is. The total balance is
+ * what the address received minus what it sent, and the unlocked balance is that minus the locked funds.
+ */
 class MoneroLwsAddressInfo {
-    var totalBalance: BigInteger? = null        // atomic units
+    // the balances of the address, in atomic units
+    var totalBalance: BigInteger? = null
     var unlockedBalance: BigInteger? = null
     var scannedHeight: Long? = null
 
-    // the scan start comes from get_address_info, not login. the spec
-    // is stale on this lol
+    // the scan start, which comes from get_address_info and not from login: the OpenAPI spec still claims the login
+    // response has it, which the server never writes
     var startHeight: Long? = null
 
     constructor()

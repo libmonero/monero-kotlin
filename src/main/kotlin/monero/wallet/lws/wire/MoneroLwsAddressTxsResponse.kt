@@ -5,9 +5,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import java.math.BigInteger
 
-// response of /get_address_txs. transactions is omitted entirely when
-// the address has none. a scan loop fetches from start_height and
-// continues at transaction_height + 1
+/**
+ * Models the response of /get_address_txs. The server leaves transactions out entirely when the address has none. A
+ * scan loop fetches from start_height and continues at transaction_height + 1.
+ */
 class MoneroLwsAddressTxsResponse {
     @JsonProperty("total_received")
     @JsonDeserialize(using = MoneroLwsAmountDeserializer::class)
