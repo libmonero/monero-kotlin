@@ -7,7 +7,12 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -28,9 +33,9 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 
 /**
- * Lws integration tests, on the wire only: the calls are plain http with the request and response models of
- * [monero.wallet.lws.wire], through a server that no client of [MoneroLightWalletClient] talks to yet — what this
- * test reads is what an implementation of it has to answer one day. They need the monero-lws of
+ * Lws integration tests, on the wire: the calls are plain http with the request and response models of
+ * [monero.wallet.lws.wire], and the last step of the test runs [MoneroLightWalletRpc] against the same server, to
+ * check that the client of the library reads what the test just read raw. They need the monero-lws of
  * src/test/integration/docker-compose.yml, on the regtest node behind it, and they log in the account of the
  * captures in src/test/resources/fixtures/lws: the test reads the responses of the empty chain, mines five blocks
  * to the account the way the captures were taken, and reads the responses again. Set the environment variable
@@ -58,7 +63,8 @@ class MoneroLwsWireTest {
         "35184070099967"
     ).map { BigInteger(it) }
 
-    // no client of the library is involved: the rest server is plain http, the bodies are the wire models
+    // the raw calls of the test go through this http client, with the bodies of the wire models and no client of the
+    // library
     private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()
 
     @BeforeTest
@@ -171,6 +177,16 @@ class MoneroLwsWireTest {
             assertNotNull(tx.hash)
             assertNotNull(tx.timestamp)
         }
+
+        // the client of the library, against the same server: it reads what the test just read raw
+        MoneroLightWalletRpc(lwsUri, address, viewKey).use { lws ->
+            val info = run { lws.getAddressInfo() }
+            assertEquals(BigInteger.valueOf(175921021585277), info.totalBalance)
+            assertEquals(BigInteger.ZERO, info.unlockedBalance)
+            assertEquals(5L, info.scannedHeight)
+            assertEquals(0L, info.startHeight)
+            assertEquals("monero-lws", run { lws.getVersion() }.serverType)
+        }
     }
 
     /**
@@ -241,5 +257,24 @@ class MoneroLwsWireTest {
             if (System.nanoTime() >= deadline) throw MoneroError("the scan never reached height $height, it is at ${info.scannedBlockHeight}")
             Thread.sleep(500)
         }
+    }
+
+    // runs a call of the client, which is suspend, to its end without a library of coroutines, the way the unit
+    // tests of the client do
+    private fun <T> run(call: suspend () -> T): T {
+        val done = CountDownLatch(1)
+        var value: T? = null
+        var thrown: Throwable? = null
+        call.startCoroutine(object : Continuation<T> {
+            override val context: CoroutineContext = EmptyCoroutineContext
+            override fun resumeWith(result: Result<T>) {
+                result.fold({ value = it }, { thrown = it })
+                done.countDown()
+            }
+        })
+        done.await()
+        thrown?.let { throw it }
+        @Suppress("UNCHECKED_CAST")
+        return value as T
     }
 }

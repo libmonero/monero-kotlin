@@ -266,8 +266,8 @@ class MoneroLwsModelTest {
         request.tx = "deadbeef"
         assertSameJson("""{"tx":"deadbeef"}""", write(request))
 
-        val response = MoneroJson.deserialize("""{"status":"success"}""", MoneroLwsSubmitRawTxResponse::class.java)
-        assertEquals("success", response.status)
+        val response = MoneroJson.deserialize("""{"status":"OK"}""", MoneroLwsSubmitRawTxResponse::class.java)
+        assertEquals("OK", response.status)
     }
 
     // the uint64 amounts, which the wire writes as decimal strings

@@ -19,6 +19,8 @@ import kotlin.test.assertTrue
 import monero.ModelTestSupport
 import monero.ModelTestSupport.assertSameJson
 import monero.common.MoneroError
+import monero.common.MoneroJson
+import monero.wallet.lws.wire.MoneroLwsAddressInfoResponse
 
 // the light wallet client against the http server of the JDK, which answers with the captured responses of a real
 // monero-lws (52cf3fe) on a regtest node. the captures are the contract: every call decodes them exactly, and the
@@ -106,6 +108,25 @@ class MoneroLightWalletRpcTest {
             assertEquals(BigInteger.ZERO, info.unlockedBalance)
             assertEquals(3707000L, info.scannedHeight)
             assertEquals(3707000L, info.startHeight)
+        }
+    }
+
+    @Test
+    fun getAddressInfo_SubtractsWhatTheAddressSent() {
+        // written by hand, in the same shape: no capture has an account that spent anything, and this pins which way
+        // the arithmetic goes
+        val json = """{"locked_funds":"2","total_received":"10","total_sent":"3","scanned_height":8,"scanned_block_height":8,"start_height":0,"transaction_height":8,"blockchain_height":8}"""
+        TestServer().use { server ->
+            server.answer("/get_address_info", 200, json)
+            val info = run { client(server).getAddressInfo() }
+            assertEquals(BigInteger.valueOf(7), info.totalBalance)
+            assertEquals(BigInteger.valueOf(5), info.unlockedBalance)
+            assertEquals(8L, info.scannedHeight)
+            assertEquals(0L, info.startHeight)
+            val raw = MoneroJson.deserialize(json, MoneroLwsAddressInfoResponse::class.java)
+            assertEquals(BigInteger.valueOf(10), raw.totalReceived)
+            assertEquals(BigInteger.valueOf(3), raw.totalSent)
+            assertEquals(BigInteger.valueOf(2), raw.lockedFunds)
         }
     }
 
@@ -208,8 +229,38 @@ class MoneroLightWalletRpcTest {
     @Test
     fun submitRawTx_ATransactionThatTheServerTookWithoutRelaying_IsTaken() {
         TestServer().use { server ->
-            server.answer("/submit_raw_tx", 200, """{"status":"OK","reason":"Not relayed","untrusted":true}""")
+            server.answer("/submit_raw_tx", 200, """{"status":"OK","reason":"Not relayed","not_relayed":true}""")
             assertTrue(run { client(server).submitRawTx("deadbeef") })
+        }
+    }
+
+    // get_version
+
+    @Test
+    fun getVersion_ReadsTheCaptures() {
+        TestServer().use { server ->
+            server.answer("/get_version", 200, fixture("version"))
+            val version = run { client(server).getVersion() }
+            assertEquals("monero-lws", version.serverType)
+            assertEquals("1.1-alpha", version.serverVersion)
+            assertEquals("52cf3fe54b2ddf15351ed7b6d62880edc6c603e8", version.lastGitCommitHash)
+            assertEquals("2026/10/16 23:43:21", version.lastGitCommitDate)
+            assertEquals("master", version.gitBranchName)
+            assertEquals("0.18.1.0-d56daee99", version.moneroVersionFull)
+            assertEquals(3707000L, version.blockchainHeight)
+            assertEquals(65543L, version.api)
+            assertEquals(0L, version.maxSubaddresses)
+            assertEquals("main", version.networkType)
+            assertEquals(false, version.isTestnet)
+        }
+    }
+
+    @Test
+    fun getVersion_SendsTheEmptyBodyThatTheCapturesSent() {
+        TestServer().use { server ->
+            server.answer("/get_version", 200, fixture("version"))
+            run { client(server).getVersion() }
+            assertSameJson("{}", server.bodies("/get_version").single())
         }
     }
 
@@ -222,11 +273,18 @@ class MoneroLightWalletRpcTest {
             server.answer("/get_address_info", 200, fixture("address_info"))
             server.answer("/get_address_txs", 200, fixture("address_txs"))
             server.answer("/submit_raw_tx", 200, """{"status":"OK"}""")
+            server.answer("/get_version", 200, fixture("version"))
             val lws = client(server)
             run { lws.login() }
             run { lws.getAddressInfo() }
             run { lws.getAddressTxs() }
             run { lws.submitRawTx("deadbeef") }
+            run { lws.getVersion() }
+            assertSameJson("""{"address":"$address","view_key":"$viewKey","create_account":true,"generated_locally":false}""", server.bodies("/login").single())
+            assertSameJson("""{"address":"$address","view_key":"$viewKey"}""", server.bodies("/get_address_info").single())
+            assertSameJson("""{"address":"$address","view_key":"$viewKey"}""", server.bodies("/get_address_txs").single())
+            assertSameJson("""{"tx":"deadbeef"}""", server.bodies("/submit_raw_tx").single())
+            assertSameJson("{}", server.bodies("/get_version").single())
             assertEquals(listOf("application/json"), server.contentTypes("/login"))
         }
     }
@@ -243,11 +301,11 @@ class MoneroLightWalletRpcTest {
     }
 
     @Test
-    fun aWrongViewKey_IsAnErrorThatNamesTheViewKey() {
+    fun aWrongViewKey_IsAnErrorThatNamesTheAddress() {
         TestServer().use { server ->
             server.answer("/login", 500, "")
             val error = assertFailsWith<MoneroError> { run { client(server, createAccount = false).login() } }
-            assertEquals("The light wallet server rejected the view key: it does not match the address $address", error.message)
+            assertEquals("The light wallet server answered 500 on /login: the view key does not match the address $address, or the server failed", error.message)
         }
     }
 
@@ -260,7 +318,7 @@ class MoneroLightWalletRpcTest {
     }
 
     @Test
-    fun getAddressTxs_WithAWrongViewKey_IsTheErrorOfTheViewKey() {
+    fun getAddressTxs_WithAWrongViewKey_IsAnError() {
         TestServer().use { server ->
             server.answer("/get_address_txs", 500, "")
             assertFailsWith<MoneroError> { run { client(server).getAddressTxs() } }
@@ -335,6 +393,15 @@ class MoneroLightWalletRpcTest {
     @Test
     fun aUriThatIsNotValid_IsRejectedWhenTheClientIsBuilt() {
         assertFailsWith<MoneroError> { MoneroLightWalletRpc("not a uri", address, viewKey) }
+    }
+
+    @Test
+    fun aUriThatIsNotHttpOrHttps_IsRejectedWhenTheClientIsBuilt() {
+        // no capture has these, and the http client of the JDK would reject them later with its own exception
+        assertFailsWith<MoneroError> { MoneroLightWalletRpc("example.com", address, viewKey) }
+        assertFailsWith<MoneroError> { MoneroLightWalletRpc("localhost:8443", address, viewKey) }
+        assertFailsWith<MoneroError> { MoneroLightWalletRpc("", address, viewKey) }
+        assertFailsWith<MoneroError> { MoneroLightWalletRpc("ftp://127.0.0.1:8443", address, viewKey) }
     }
 
     private fun client(server: TestServer, createAccount: Boolean = true): MoneroLightWalletRpc {
