@@ -1,0 +1,56 @@
+--- a/external/monero-c/CMakeLists.txt
++++ b/external/monero-c/CMakeLists.txt
+@@ -224,7 +224,17 @@
+   endif()
+ endif()
+ 
+-find_package(HIDAPI REQUIRED)
++# ANDROID PATCH (AAR spike): HIDAPI optional. The Android arm64 closure is built
++# without hidapi (monero gates device_ledger behind HIDAPI_FOUND, and this cross
++# build has USE_DEVICE_TREZOR=OFF), so no hid_* symbols exist to link; the empty
++# ${HIDAPI_LIBRARIES} below is then a no-op in MONERO_C_LINK_LIBS.
++find_package(HIDAPI)
++if (NOT HIDAPI_FOUND)
++  # clear the -NOTFOUND placeholders: target_include_directories treats them as real paths
++  set(HIDAPI_INCLUDE_DIR "")
++  set(HIDAPI_LIBRARIES "")
++  message(STATUS "HIDAPI not found: linking without it (Android cross build)")
++endif()
+ 
+ # hidapi's macOS backend needs these directly (see monero-project's own CMakeLists.txt).
+ if (APPLE)
+@@ -244,6 +254,15 @@
+ if (NOT APPLE)
+   include(FindProtobuf)
+   find_package(Protobuf)
++  # ANDROID PATCH (AAR spike): clear the -NOTFOUND placeholders find_package
++  # leaves behind — target_include_directories/target_link_libraries treat them
++  # as real items and CMake fails at generate time. The Android closure needs
++  # no protobuf (USE_DEVICE_TREZOR=OFF).
++  if (NOT Protobuf_FOUND)
++    set(Protobuf_LIBRARY "")
++    set(Protobuf_INCLUDE_DIR "")
++    set(Protobuf_LIBRARIES "")
++  endif()
+ endif()
+ 
+ ##############################################################################
+@@ -359,6 +378,18 @@
+   target_link_options(monero_c-static INTERFACE -Wl,-z,noexecstack)
+ endif()
+ 
++# ANDROID PATCH (AAR spike): CMAKE_SYSTEM_NAME is "Android", not "Linux", so the
++# hardening block above does not fire — apply the same flags here, plus 16 KiB
++# page alignment for Android 15+ devices with 16 KiB kernels (NDK docs:
++# "Support 16 KB page sizes", use -Wl,-z,max-page-size=16384).
++if (CMAKE_SYSTEM_NAME STREQUAL "Android")
++  target_link_options(monero_c PRIVATE -Wl,-z,noexecstack)
++  target_link_options(monero_c PRIVATE -Wl,--exclude-libs,ALL)
++  target_link_options(monero_c PRIVATE -Wl,-z,relro,-z,now)
++  target_link_options(monero_c PRIVATE -Wl,--no-undefined)
++  target_link_options(monero_c PRIVATE -Wl,-z,max-page-size=16384)
++endif()
++
+ # export only the C ABI on macOS too, from the list that the tests check. C symbols start with an underscore there
+ if (APPLE)
+   set(MONERO_C_SYMBOLS ${CMAKE_CURRENT_SOURCE_DIR}/tests/c/abi/monero_c.symbols)

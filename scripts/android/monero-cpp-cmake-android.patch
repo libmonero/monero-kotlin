@@ -1,0 +1,58 @@
+--- a/external/monero-c/external/monero-cpp/CMakeLists.txt
++++ b/external/monero-c/external/monero-cpp/CMakeLists.txt
+@@ -86,6 +86,15 @@
+ if (NOT APPLE)
+   include(FindProtobuf)
+   find_package(Protobuf)
++  # ANDROID PATCH (AAR spike): clear the -NOTFOUND placeholders find_package
++  # leaves behind - target_include_directories/target_link_libraries treat them
++  # as real items and CMake fails at generate time. The Android closure needs
++  # no protobuf (USE_DEVICE_TREZOR=OFF).
++  if (NOT Protobuf_FOUND)
++    set(Protobuf_LIBRARY "")
++    set(Protobuf_INCLUDE_DIR "")
++    set(Protobuf_LIBRARIES "")
++  endif()
+   message(STATUS "Protobuf lib: ${Protobuf_LIBRARY}, inc: ${Protobuf_INCLUDE_DIR}, protoc: ${Protobuf_PROTOC_EXECUTABLE}")
+ endif()
+ 
+@@ -93,8 +102,14 @@
+ # LibUSB
+ ############
+ 
++# ANDROID PATCH (AAR spike): guard the not-found case - find_library leaves
++# usb_LIBRARY-NOTFOUND in the variable, which target_link_libraries then treats
++# as a link item and CMake fails at generate time. monero-c's own CMakeLists
++# guards this the same way. The Android closure needs no libusb (no hidapi).
+ find_library(usb_LIBRARY NAMES usb-1.0 libusb usb)
+-set(LibUSB_LIBRARIES ${usb_LIBRARY})
++if (usb_LIBRARY)
++  set(LibUSB_LIBRARIES ${usb_LIBRARY})
++endif()
+ 
+ ############
+ # Boost
+@@ -165,9 +180,20 @@
+   endif()
+ endif()
+ 
+-find_package(HIDAPI REQUIRED)
+-message(STATUS "Using HIDAPI include dir at ${HIDAPI_INCLUDE_DIR}")
+-add_definitions(-DHAVE_HIDAPI)
++# ANDROID PATCH (AAR spike): HIDAPI optional. The Android arm64 closure is built
++# without hidapi (monero gates device_ledger behind HIDAPI_FOUND, and this cross
++# build has USE_DEVICE_TREZOR=OFF), so no hid_* symbols exist to link. Mirrors
++# monero-project's own `if(HIDAPI_FOUND)` gating in src/device/CMakeLists.txt.
++find_package(HIDAPI)
++if (HIDAPI_FOUND)
++    message(STATUS "Using HIDAPI include dir at ${HIDAPI_INCLUDE_DIR}")
++    add_definitions(-DHAVE_HIDAPI)
++else()
++    # clear the -NOTFOUND placeholders: target_include_directories treats them as real paths
++    set(HIDAPI_INCLUDE_DIR "")
++    set(HIDAPI_LIBRARIES "")
++    message(STATUS "HIDAPI not found: building without HID support (Android cross build)")
++endif()
+ 
+ #############
+ # Monero

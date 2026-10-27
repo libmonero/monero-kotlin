@@ -525,3 +525,66 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 7
+
+  android:
+    name: Android arm64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    strategy:
+      matrix:
+        include:
+          - arch: android-arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Find the commit of monero-c
+        id: submodule
+        run: echo "commit=$(git rev-parse HEAD:external/monero-c)" >> "$GITHUB_OUTPUT"
+
+      # The build of a commit of monero-c is kept, so only the runs that change the submodule or this file build it
+      - name: Restore the build of monero-c
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: monero-c-${{ matrix.arch }}-${{ steps.submodule.outputs.commit }}-${{ hashFiles('.github/workflows/native.yml', 'scripts/build-android-arm64.sh') }}
+
+      # monero-c, monero-cpp and monero-project, which are big
+      - name: Check out monero-c
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: git submodule update --init --recursive
+
+      - name: Install the Android NDK
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # r30 is the version the cross-build was proven with; the licenses of the runner image are accepted already
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;30.0.16248370"
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+
+      - name: Build monero-c library
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # the recipe is proven with the cmake of the 4 series, which the distro of the runner does not have
+          pipx install cmake
+          scripts/build-android-arm64.sh
+
+      - name: Stage monero-c build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p dist
+          # the NDK keeps the debug information in a Release build (190 MB); strip it,
+          # as every consumer of the library does when it packages it
+          "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --strip-unneeded \
+            external/monero-c/build-android-arm64-v8a/build-monero-c/libmonero_c.so
+          cp external/monero-c/build-android-arm64-v8a/build-monero-c/libmonero_c.so dist/
+
+      - name: Upload monero-c build
+        uses: actions/upload-artifact@v7
+        with:
+          name: monero-c-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
