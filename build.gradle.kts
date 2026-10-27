@@ -1,5 +1,10 @@
 plugins {
     kotlin("jvm") version "2.1.20"
+    // The Android Gradle plugin of the android module, declared here so that it shares the
+    // classpath with the Kotlin plugin (the android variant of it needs the classes of both).
+    // It is not applied: without -Pandroid the module is not even included, and this resolves
+    // and caches the plugin only
+    id("com.android.library") version "8.13.0" apply false
     `java-library`
     jacoco
 }
