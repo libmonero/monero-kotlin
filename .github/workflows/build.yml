@@ -1,5 +1,5 @@
-# Builds the library and the unit tests of the data model, and collects the coverage of the tests. The tests run on every platform in unit-tests.yml, from
-# the files that this uploads, and codacy.yml sends the coverage to Codacy
+# Builds the library and the unit tests of the data model. The tests run on every platform in unit-tests.yml, from the files that this
+# uploads, and coverage.yml collects the coverage with the library of monero-c that Native built
 name: Build
 
 on:
@@ -44,21 +44,4 @@ jobs:
         with:
           name: monero-kotlin-tests
           path: build/unit-tests
-          if-no-files-found: error
-
-      # The coverage needs the tests of the project, so the run is here. A failure of the collector does not fail Build: the tests of unit-tests.yml are the ones that count.
-      - name: Collect the coverage
-        id: coverage
-        continue-on-error: true
-        run: |
-          ./gradlew test jacocoTestReport --console=plain
-          mkdir coverage-reports
-          cp build/reports/jacoco/test/jacocoTestReport.xml coverage-reports/
-
-      - name: Upload the coverage report
-        if: steps.coverage.outcome == 'success'
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-reports
-          path: coverage-reports
           if-no-files-found: error

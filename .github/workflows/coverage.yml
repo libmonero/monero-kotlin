@@ -1,0 +1,89 @@
+# Collects the coverage of the tests, which run with the library of monero-c that Native built: without it every test that calls monero-c
+# skips, and the coverage of the bindings sees nothing. codacy.yml sends the report to Codacy
+name: Coverage
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: coverage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wait-build:
+    name: Pending
+    runs-on: ubuntu-24.04
+    # Native takes hours when it has to build monero-c, which it does when the submodule changes
+    timeout-minutes: 180
+
+    outputs:
+      native-run-id: ${{ steps.native.outputs.run-id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Wait for the Native run of this commit
+        id: native
+        uses: ./.github/actions/wait-for-run
+        with:
+          workflow: native.yml
+          artifacts: monero-c-linux-x86_64
+
+  coverage:
+    name: Coverage, Linux x86_64
+    needs: wait-build
+    runs-on: ubuntu-24.04
+    # a failure of the collector does not fail this workflow: the tests of unit-tests.yml are the ones that count
+    continue-on-error: true
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # the library, with the libusb that it needs next to it
+      - name: Download monero-c
+        uses: actions/download-artifact@v8
+        with:
+          name: monero-c-linux-x86_64
+          path: monero-c
+          run-id: ${{ needs.wait-build.outputs.native-run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Set the library of monero-c
+        run: |
+          if [ ! -f monero-c/libmonero_c.so ]; then echo "the build of monero-c has no libmonero_c.so"; ls monero-c; exit 1; fi
+          ldd_out=$(ldd monero-c/libmonero_c.so || true)
+          if grep -q 'not found' <<< "$ldd_out"; then
+            echo "$ldd_out"
+            echo "missing runtime libraries above"; exit 1
+          fi
+          echo "MONERO_C_LIBRARY=$PWD/monero-c/libmonero_c.so" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # The coverage needs the tests of the project, so the run is here, from the sources of this commit
+      - name: Collect the coverage
+        run: |
+          ./gradlew test jacocoTestReport --console=plain
+          mkdir coverage-reports
+          cp build/reports/jacoco/test/jacocoTestReport.xml coverage-reports/
+
+      - name: Upload the coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          path: coverage-reports
+          if-no-files-found: error
