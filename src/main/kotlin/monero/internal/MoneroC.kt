@@ -335,6 +335,12 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
 
+    fun monero_wallet_create_txs(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_relay_tx(wallet: Pointer, txMetadata: String, out: PointerByReference): Int
+
+    fun monero_wallet_relay_tx_json(wallet: Pointer, txJson: String, out: PointerByReference): Int
+
     // wallet: light
 
     fun monero_wallet_light_create(configJson: String, connection: Pointer, out: PointerByReference): Int
