@@ -324,6 +324,32 @@ internal interface MoneroC : Library {
     fun monero_wallet_get_payment_uri(wallet: Pointer, configJson: String, out: PointerByReference): Int
 
     fun monero_wallet_parse_payment_uri(wallet: Pointer, uri: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_height(wallet: Pointer, height: LongByReference): Int
+
+    fun monero_wallet_get_balance(wallet: Pointer, balance: LongByReference): Int
+
+    fun monero_wallet_get_unlocked_balance(wallet: Pointer, balance: LongByReference): Int
+
+    fun monero_wallet_sync(wallet: Pointer, startHeight: LongByReference?, listener: Pointer?, json: PointerByReference): Int
+
+    fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
+
+    fun monero_wallet_create_txs(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_relay_tx(wallet: Pointer, txMetadata: String, out: PointerByReference): Int
+
+    fun monero_wallet_relay_tx_json(wallet: Pointer, txJson: String, out: PointerByReference): Int
+
+    // wallet: light
+
+    fun monero_wallet_light_create(configJson: String, connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_light_open(configJson: String, connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_light_wallet_exists(configJson: String, connection: Pointer, exists: ByteByReference): Int
+
+    fun monero_wallet_light_get_unrefined_spend_count(wallet: Pointer, count: LongByReference): Int
 }
 
 /**
