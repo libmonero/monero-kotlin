@@ -102,6 +102,12 @@ class MainActivity : Activity() {
                 val balance = wallet.getBalance()
                 report("balance: $balance atomic units (~${MoneroUtils.atomicUnitsToXmr(BigInteger.valueOf(balance))} XMR)")
             }
+        } catch (e: UnsatisfiedLinkError) {
+            // a library without the light wallet functions loads fine and fails here: the AAR
+            // was built from a monero-c without them, which the staging of the module checks,
+            // but a stale or hand-built one still reaches the phone
+            Log.e(TAG, "the library has no light wallet functions", e)
+            report("the library of the AAR has no light wallet functions: build it from the light wallet branch of monero-c")
         } catch (e: Exception) {
             Log.e(TAG, "the light wallet call failed", e)
             report("failed: $e")

@@ -2,10 +2,11 @@
 // and packaged as an AAR with the native library of monero-c. The module is included only with
 // -Pandroid (see settings.gradle.kts) because it needs the SDK and the cross-built library.
 //
-// The native library is not in the repository: it is the libmonero_c.so of the Android arm64
-// build, which the Native workflow of the CI produces as the artifact monero-c-android-arm64 and
-// which scripts/build-android-arm64.sh builds locally. Point -Pmonero.c.android.library (or the
-// environment MONERO_C_ANDROID_LIBRARY) at it; the default is where the CI artifact is downloaded.
+// The native library is not in this repository: it is the libmonero_c.so of the Android arm64
+// build, which the android job of the Native workflow of the CI produces as the artifact
+// monero-c-android-arm64 (that job and its build script are reviewed on the android-ci branch).
+// Point -Pmonero.c.android.library (or the environment MONERO_C_ANDROID_LIBRARY) at it; the
+// default is where the CI artifact is downloaded.
 plugins {
     // no versions: both come from the classpath of the root build, where the Kotlin plugin of
     // the repository already is and the Android one is declared beside it
@@ -70,8 +71,28 @@ val stageMoneroCLibrary by tasks.registering(Sync::class) {
         if (!library.isFile) {
             throw GradleException(
                 "libmonero_c.so is not at $library: set -Pmonero.c.android.library (or the environment " +
-                    "MONERO_C_ANDROID_LIBRARY) to the Android arm64 build of it, or build it with " +
-                    "scripts/build-android-arm64.sh"
+                    "MONERO_C_ANDROID_LIBRARY) to the Android arm64 build of it, which the android job of " +
+                    "the CI builds (see the android-ci branch)"
+            )
+        }
+
+        // the light wallet of the sources needs the light functions of the C ABI, which the
+        // monero-c of the submodule pin does not have yet: an AAR without them loads fine and
+        // fails on the phone with an UnsatisfiedLinkError, so check before packaging. The
+        // exported names live in the dynamic symbol table, whose strings are in the file
+        // (ISO_8859_1 keeps the bytes one to one).
+        val text = String(library.readBytes(), Charsets.ISO_8859_1)
+        val lightFunctions = listOf(
+            "monero_wallet_light_create", "monero_wallet_light_open",
+            "monero_wallet_light_wallet_exists", "monero_wallet_light_get_unrefined_spend_count"
+        )
+        val missing = lightFunctions.filter { function -> text.indexOf(function) < 0 }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "$library has no light wallet functions (${missing.joinToString()}): the library needs a " +
+                    "monero-c with the light wallet surface of the C ABI, which the submodule pin does not " +
+                    "have yet — build it from the light wallet branch of monero-c and point " +
+                    "-Pmonero.c.android.library at that build"
             )
         }
     }
