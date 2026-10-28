@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import monero.common.MoneroRpcConnection
+import monero.common.MoneroError
 import monero.common.MoneroUtils
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.MoneroWalletLight
@@ -107,8 +108,13 @@ class MainActivity : Activity() {
             // but a stale or hand-built one still reaches the phone
             Log.e(TAG, "the library has no light wallet functions", e)
             report("the library of the AAR has no light wallet functions: build it from the light wallet branch of monero-c")
-        } catch (e: Exception) {
+        } catch (e: MoneroError) {
+            // the calls of the wallet fail with this, a malformed field of the screen with the illegal argument
             Log.e(TAG, "the light wallet call failed", e)
+            report("failed: $e")
+        } catch (e: IllegalArgumentException) {
+            // the fields of the screen are user input, and a malformed server or address is one
+            Log.e(TAG, "the input of the screen is not a wallet", e)
             report("failed: $e")
         } finally {
             runOnUiThread {
