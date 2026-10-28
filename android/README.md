@@ -8,11 +8,15 @@ cross-built native library: add it with `-Pandroid`.
 
 ## The native library
 
-`libmonero_c.so` is not in the repository. It comes from the Android arm64 build of monero-c:
+`libmonero_c.so` is not in this repository. It comes from the Android arm64 build of monero-c:
 
-- in the CI, the `Native` workflow builds it and uploads it as the artifact
-  `monero-c-android-arm64` (the job of the same name);
-- locally, `scripts/build-android-arm64.sh` builds it from the submodule.
+- in the CI, the android job of the `Native` workflow builds it and uploads it as the artifact
+  `monero-c-android-arm64` — that job, its build script and the cmake patches it applies are
+  reviewed on the `android-ci` branch of this repository;
+- locally, cross-build it with the NDK for arm64-v8a: configure monero-c and its dependencies
+  with the toolchain of the NDK (`ANDROID_ABI=arm64-v8a`, `ANDROID_PLATFORM=android-28`) and
+  `-fPIC` for the static dependencies, then strip the result with `llvm-strip --strip-unneeded`;
+  the build script on the `android-ci` branch does exactly this and is the reference recipe.
 
 Point the build at it with `-Pmonero.c.android.library=<path>` (or the environment
 variable `MONERO_C_ANDROID_LIBRARY`); the default is `external/monero-c/dist/libmonero_c.so`,
