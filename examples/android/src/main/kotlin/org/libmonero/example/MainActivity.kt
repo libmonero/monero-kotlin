@@ -13,7 +13,6 @@ import monero.common.MoneroUtils
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.MoneroWalletLight
 import monero.wallet.model.MoneroWalletConfig
-import java.math.BigInteger
 
 /**
  * The example of the android module: opens the light wallet of an account on a light wallet
@@ -100,7 +99,7 @@ class MainActivity : Activity() {
                 val result = wallet.sync()
                 report("synced: ${result.numBlocksFetched} blocks fetched, received money: ${result.receivedMoney}")
                 val balance = wallet.getBalance()
-                report("balance: $balance atomic units (~${MoneroUtils.atomicUnitsToXmr(BigInteger.valueOf(balance))} XMR)")
+                report("balance: $balance atomic units (~${MoneroUtils.atomicUnitsToXmr(balance)} XMR)")
             }
         } catch (e: UnsatisfiedLinkError) {
             // a library without the light wallet functions loads fine and fails here: the AAR
