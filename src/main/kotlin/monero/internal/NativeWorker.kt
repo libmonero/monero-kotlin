@@ -4,6 +4,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
 import monero.common.MoneroError
 
 /**
@@ -39,10 +40,15 @@ internal class NativeWorker(name: String) : AutoCloseable {
     }
 
     /**
-     * Stop the thread after the calls that are in the queue.
+     * Stop the thread after the calls that are in the queue. A call that is queued still runs, since the caller
+     * frees the handle right after the close, and a call on a freed handle is a second thread on the handle, which
+     * the C ABI does not allow (monero_c_wallet.h:49-53).
      */
     override fun close() {
         executor.shutdown()
+        while (!executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS)) {
+            // the wait is unbounded: the calls of a worker are finite, and freeing the handle under one is not
+        }
     }
 
     companion object {
