@@ -1,6 +1,6 @@
-# Runs the integration tests that Build made against a regtest node, with the library of monero-c that Native built from the submodule. The node
-# and the wallet RPC server are the ones of the docker-compose.yml of monero-c, which is in the submodule, so they are the ones that it tests
-# with. The tests that need no node are in unit-tests.yml
+# Runs the integration tests that Build made against a regtest node and a monero-lws server, with the library of monero-c that Native built
+# from the submodule. The node and the light wallet server are the ones of the docker-compose.yml of the integration tests, which runs the
+# same monerod image as the one of monero-c. The tests that need no node are in unit-tests.yml
 name: Integration tests
 
 on:
@@ -54,7 +54,8 @@ jobs:
 
     env:
       MONERO_C_TEST_DAEMON_URI: http://127.0.0.1:18081
-      COMPOSE_FILE: external/monero-c/tests/c/integration/docker-compose.yml
+      MONERO_KOTLIN_TEST_LWS_URI: http://127.0.0.1:8443
+      COMPOSE_FILE: src/test/integration/docker-compose.yml
 
     steps:
       # only monero-c, for its docker-compose.yml: the submodules of monero-c are not needed
@@ -96,7 +97,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Start the regtest monerod and monero-wallet-rpc
+      - name: Start the regtest monerod and monero-lws
         run: docker compose up -d
 
       - name: Wait for monerod
@@ -108,6 +109,17 @@ jobs:
             sleep 2
           done
           echo "monerod did not answer"; exit 1
+
+      # monero-lws answers only after it has scanned the chain of the node, which takes about a minute after it starts
+      - name: Wait for monero-lws
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS -m 5 -X POST "$MONERO_KOTLIN_TEST_LWS_URI/get_version" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "monero-lws did not answer"; exit 1
 
       # --fail-if-no-tests: a run that finds no integration test would pass without testing anything
       - name: Run the integration tests

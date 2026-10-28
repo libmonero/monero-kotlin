@@ -86,6 +86,52 @@ You need a daemon to connect to:
 1. Download and install [Monero CLI](https://web.getmonero.org/downloads/).
 2. Start monerod, e.g.: `./monerod --stagenet` (or use a remote daemon).
 
+## Using monero-kotlin on Android
+
+The android module packages the same sources of the library with the native library of monero-c
+for arm64-v8a as an AAR: an app gets the library, `libmonero_c.so` and JNA's Android artifact in
+one dependency. The library loads unchanged on Android: `MoneroNative` asks JNA for `monero_c`,
+which resolves `libmonero_c.so` from the `lib/arm64-v8a` of the app, where the AAR put it.
+
+The module is published to the local maven repository until it is published elsewhere, so publish
+it first and depend on it:
+
+```kotlin
+dependencies {
+    implementation("org.libmonero:monero-kotlin-android:0.1.0-SNAPSHOT")
+}
+```
+
+The app needs `minSdk` 28, which is the floor of the native library: the bionic iconv that
+boost.locale needs was introduced in Android 9. A light wallet opens against a light wallet
+server the way it does on the JVM:
+
+```kotlin
+val config = MoneroWalletConfig()
+config.networkType = MoneroNetworkType.MAINNET
+config.primaryAddress = "..."
+config.privateViewKey = "..."
+val wallet = MoneroWalletLight.createWallet(config, MoneroRpcConnection("http://10.0.2.2:8443"))
+wallet.use {
+    println(wallet.getPrimaryAddress())   // the account the server registered
+    wallet.sync()                         // the blocks the server scanned for it
+    println(wallet.getBalance())          // atomic units
+}
+```
+
+`examples/android` is a complete example: an activity that opens the light wallet of an account,
+syncs it and reads its balance. Its build fields default to the throwaway regtest account of the
+integration tests and to the light wallet server of the compose of `src/test/integration`, which
+an emulator reaches from the host with `adb reverse tcp:8443 tcp:8443` (the compose is plain
+HTTP, so the example allows cleartext to it; a server on the internet should be HTTPS). Build it
+with `./gradlew -Pandroid :examples:android:assembleDebug` and read `android/README.md` for how
+the native library is pointed at, since it is not part of the repository.
+
+The light wallet calls above need a `libmonero_c.so` that has the light wallet functions of the C
+ABI, which the submodule pin does not have yet: the PR that adds them to monero-c is queued for
+review. Until it lands, build the artifact of the android job from the light wallet branch of
+monero-c, or point `-Pmonero.c.android.library` at a cross-build of it.
+
 ## Building monero-kotlin from source
 
 You need a JDK 21.
@@ -165,15 +211,15 @@ Gradle does not run the tests again when only the environment changed, so add `-
 
 ### Integration tests
 
-The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and a regtest node, which is the one of the `docker-compose.yml` of monero-c:
+The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and a regtest node with a monero-lws server, which is the `docker-compose.yml` of the integration tests:
 
 ```sh
-docker compose -f external/monero-c/tests/c/integration/docker-compose.yml up -d
+docker compose -f src/test/integration/docker-compose.yml up -d
 MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew integrationTest --rerun
-docker compose -f external/monero-c/tests/c/integration/docker-compose.yml down -v
+docker compose -f src/test/integration/docker-compose.yml down -v
 ```
 
-The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one.
+The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The monero-lws server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The light wallet tests need a monero-c with the light wallet surface, which the submodule does not have yet: they skip with a message when the library has no light wallet.
 
 To get the coverage of the library:
 
