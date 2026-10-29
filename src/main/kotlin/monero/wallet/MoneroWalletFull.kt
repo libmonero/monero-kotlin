@@ -7,6 +7,7 @@ import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
 import com.sun.jna.ptr.PointerByReference
 import java.math.BigInteger
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
@@ -50,7 +51,12 @@ import monero.wallet.model.MoneroWalletConfig
 class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCloseable {
 
     private val worker = NativeWorker("MoneroWalletFull")
+    // volatile: requestShutdown reads it from any thread, and the read/write lock below orders that read against
+    // the free of the handle, which the threading contract of the c abi allows no second thread on
+    @Volatile
     private var closed = false
+
+    private val shutdownLock = ReentrantReadWriteLock()
 
     // ------------------------------- KEYS, SEED AND ADDRESSES ----------------------------------
 
@@ -677,8 +683,17 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         if (save) requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
         closed = true
-        worker.close()
-        MoneroNative.lib.monero_wallet_free(handle)
+
+        // the write lock holds requestShutdown out while the handle dies: its read lock around the native call is
+        // what keeps the one any-thread call off a freed handle, since the worker can not order it (a sync that is
+        // stuck on the worker is what it exists to stop)
+        shutdownLock.writeLock().lock()
+        try {
+            worker.close()
+            MoneroNative.lib.monero_wallet_free(handle)
+        } finally {
+            shutdownLock.writeLock().unlock()
+        }
     }
 
     override fun close() {
@@ -760,7 +775,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.text(lib.monero_wallet_make_multisig(h, multisigHexes.toTypedArray(), multisigHexes.size.toLong(), threshold, password, out), out)
+            MoneroNative.text(lib.monero_wallet_make_multisig(h, multisigHexes.toTypedArray(), SizeT(multisigHexes.size.toLong()), threshold, password, out), out)
                 ?: throw MoneroError("monero-c returned no string")
         }
     }
@@ -779,7 +794,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_exchange_multisig_keys(h, multisigHexes.toTypedArray(), multisigHexes.size.toLong(), password, out), out, MoneroMultisigInitResult::class.java)
+            MoneroNative.json(lib.monero_wallet_exchange_multisig_keys(h, multisigHexes.toTypedArray(), SizeT(multisigHexes.size.toLong()), password, out), out, MoneroMultisigInitResult::class.java)
         }
     }
 
@@ -808,7 +823,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         checkNotClosed()
         return run { lib, h ->
             val numImported = IntByReference()
-            MoneroNative.ok(lib.monero_wallet_import_multisig_hex(h, multisigHexes.toTypedArray(), multisigHexes.size.toLong(), refreshAfterImport, numImported))
+            MoneroNative.ok(lib.monero_wallet_import_multisig_hex(h, multisigHexes.toTypedArray(), SizeT(multisigHexes.size.toLong()), refreshAfterImport, numImported))
             numImported.value
         }
     }
@@ -855,7 +870,12 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      */
     fun requestShutdown() {
         checkNotClosed()
-        MoneroNative.ok(MoneroNative.lib.monero_wallet_request_shutdown(handle))
+        shutdownLock.readLock().lock()
+        try {
+            if (!closed) MoneroNative.ok(MoneroNative.lib.monero_wallet_request_shutdown(handle))
+        } finally {
+            shutdownLock.readLock().unlock()
+        }
     }
 
     // ------------------------------- PRIVATE ------------------------------------
