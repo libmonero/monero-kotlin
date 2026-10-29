@@ -20,6 +20,7 @@ import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Tag
 
 /**
@@ -35,9 +36,10 @@ import org.junit.jupiter.api.Tag
  *
  * The test asserts that no account exists for the address yet, so it needs a fresh database, which a `down` of the
  * compose gives, and it must run before any test that mines to the account or registers it. The integration tests
- * run in class name order (junit-platform.properties), which puts this class first; a test that mines and sorts
+ * run first (@Order(1), junit-platform.properties); a test that mines and sorts
  * before it breaks this one with the timeout of the scan wait.
  */
+@Order(1)
 @Tag("integration")
 class MoneroWalletLightIntegrationTest {
 

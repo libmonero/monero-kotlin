@@ -25,6 +25,7 @@ import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.io.TempDir
 
@@ -48,6 +49,7 @@ import org.junit.jupiter.api.io.TempDir
  * that one, so the order needs the class orderer of junit-platform.properties to put the classes that need a fresh
  * chain first.
  */
+@Order(2)
 @Tag("integration")
 class MoneroWalletFullIntegrationTest {
 
