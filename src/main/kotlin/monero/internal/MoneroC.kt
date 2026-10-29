@@ -324,6 +324,97 @@ internal interface MoneroC : Library {
     fun monero_wallet_get_payment_uri(wallet: Pointer, configJson: String, out: PointerByReference): Int
 
     fun monero_wallet_parse_payment_uri(wallet: Pointer, uri: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_height(wallet: Pointer, height: LongByReference): Int
+
+    fun monero_wallet_get_balance(wallet: Pointer, balance: LongByReference): Int
+
+    fun monero_wallet_get_unlocked_balance(wallet: Pointer, balance: LongByReference): Int
+
+    fun monero_wallet_sync(wallet: Pointer, startHeight: LongByReference?, listener: Pointer?, json: PointerByReference): Int
+
+    fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
+
+    fun monero_wallet_create_txs(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_relay_tx(wallet: Pointer, txMetadata: String, out: PointerByReference): Int
+
+    fun monero_wallet_relay_tx_json(wallet: Pointer, txJson: String, out: PointerByReference): Int
+
+    // wallet: light
+
+    fun monero_wallet_light_create(configJson: String, connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_light_open(configJson: String, connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_light_wallet_exists(configJson: String, connection: Pointer, exists: ByteByReference): Int
+
+    fun monero_wallet_light_get_unrefined_spend_count(wallet: Pointer, count: LongByReference): Int
+
+    // wallet: full
+
+    fun monero_wallet_create_random(path: String, password: String?, networkType: Int, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_create_from_seed(path: String, password: String?, networkType: Int, seed: String, seedOffset: String?, restoreHeight: Long, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_create_from_keys(path: String, password: String?, networkType: Int, address: String, privateViewKey: String, privateSpendKey: String?, restoreHeight: Long, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_create(configJson: String, out: PointerByReference): Int
+
+    fun monero_wallet_open(path: String, password: String?, networkType: Int, out: PointerByReference): Int
+
+    fun monero_wallet_exists(path: String, exists: ByteByReference): Int
+
+    fun monero_wallet_save(wallet: Pointer): Int
+
+    fun monero_wallet_get_path(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_restore_height(wallet: Pointer, height: LongByReference): Int
+
+    fun monero_wallet_set_restore_height(wallet: Pointer, restoreHeight: Long): Int
+
+    fun monero_wallet_change_password(wallet: Pointer, oldPassword: String, newPassword: String): Int
+
+    fun monero_wallet_set_daemon_connection(wallet: Pointer, uri: String, username: String, password: String, proxyUri: String, isTrusted: ByteByReference?, sslVerify: Boolean): Int
+
+    fun monero_wallet_get_daemon_connection(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_is_daemon_trusted(wallet: Pointer, trusted: ByteByReference): Int
+
+    fun monero_wallet_start_syncing(wallet: Pointer, syncPeriodMs: Long): Int
+
+    fun monero_wallet_stop_syncing(wallet: Pointer): Int
+
+    fun monero_wallet_is_connected_to_daemon(wallet: Pointer, connected: ByteByReference): Int
+
+    fun monero_wallet_is_daemon_synced(wallet: Pointer, synced: ByteByReference): Int
+
+    fun monero_wallet_is_synced(wallet: Pointer, synced: ByteByReference): Int
+
+    // the one call that any thread can make on a wallet, which the others can not (monero_c_wallet.h:49-53)
+    fun monero_wallet_request_shutdown(wallet: Pointer): Int
+
+    fun monero_wallet_is_multisig(wallet: Pointer, multisig: ByteByReference): Int
+
+    fun monero_wallet_is_multisig_import_needed(wallet: Pointer, needed: ByteByReference): Int
+
+    fun monero_wallet_get_multisig_info(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_prepare_multisig(wallet: Pointer, multisigHex: PointerByReference): Int
+
+    fun monero_wallet_make_multisig(wallet: Pointer, multisigHexes: Array<String>, numMultisigHexes: SizeT, threshold: Int, password: String, multisigHex: PointerByReference): Int
+
+    fun monero_wallet_exchange_multisig_keys(wallet: Pointer, multisigHexes: Array<String>, numMultisigHexes: SizeT, password: String, json: PointerByReference): Int
+
+    fun monero_wallet_export_multisig_hex(wallet: Pointer, multisigHex: PointerByReference): Int
+
+    fun monero_wallet_import_multisig_hex(wallet: Pointer, multisigHexes: Array<String>, numMultisigHexes: SizeT, refreshAfterImport: Boolean, numImported: IntByReference): Int
+
+    fun monero_wallet_sign_multisig_tx_hex(wallet: Pointer, multisigTxHex: String, json: PointerByReference): Int
+
+    fun monero_wallet_submit_multisig_tx_hex(wallet: Pointer, signedMultisigTxHex: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_daemon_height(wallet: Pointer, height: LongByReference): Int
 }
 
 /**
