@@ -298,7 +298,6 @@ class MoneroWalletFullIntegrationTest {
         try {
             // each participant prepares the hex that the others make their wallet multisig with
             val prepared = participants.map { it.prepareMultisig() }
-            assertEquals(n, prepared.size)
 
             // a hex that is not a prepared multisig hex is refused
             val badMake = assertFailsWith<MoneroError> { participants[0].makeMultisig(listOf("asd", "dsa"), m, "") }
@@ -308,7 +307,6 @@ class MoneroWalletFullIntegrationTest {
             var hexes = participants.mapIndexed { i, wallet ->
                 wallet.makeMultisig(prepared.filterIndexed { j, _ -> j != i }, m, "")
             }
-            assertEquals(n, hexes.size)
 
             // the wallet is multisig but not final, so it has no seed to read
             val notFinal = assertFailsWith<MoneroError> { participants[0].getSeed() }
@@ -343,6 +341,7 @@ class MoneroWalletFullIntegrationTest {
                 assertEquals(true, info.isReady)
                 assertEquals(m, info.threshold)
                 assertEquals(n, info.numParticipants)
+                assertEquals(true, wallet.isMultisig())
                 assertTrue(wallet.getSeed()!!.isNotEmpty())
                 assertEquals(false, wallet.isViewOnly())
             }
@@ -353,6 +352,7 @@ class MoneroWalletFullIntegrationTest {
             for (wallet in participants) wallet.sync()
             val before = participants[0].getBalance()
             assertTrue(before > BigInteger.ZERO, "the multisig wallet has no funds")
+            assertEquals(true, participants[0].isMultisigImportNeeded(), "a funded multisig wallet needs the hexes of its peers")
             val amount = BigInteger.valueOf(5000000000000L)
 
             // a participant that did not import the hexes of its peers can not build the transfer of the outputs
