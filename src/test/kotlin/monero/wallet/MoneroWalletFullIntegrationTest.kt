@@ -45,9 +45,8 @@ import org.junit.jupiter.api.io.TempDir
  * skips when no daemon answers, like the unit tests skip without monero-c, which this test also needs.
  *
  * The test mines onto the chain of the daemon, so it has to run after MoneroWalletLightIntegrationTest, which
- * asserts the height of a fresh chain: the integration tests run in class name order, which puts this class before
- * that one, so the order needs the class orderer of junit-platform.properties to put the classes that need a fresh
- * chain first.
+ * asserts the height of a fresh chain: this class is @Order(2) and that one @Order(1), which the class orderer of
+ * junit-platform.properties runs in that order.
  */
 @Order(2)
 @Tag("integration")
@@ -223,7 +222,9 @@ class MoneroWalletFullIntegrationTest {
             assertEquals(false, sent.isIncoming)
 
             // the sender's file is written with its chain, and closing it lets another wallet open it: the balance
-            // and the seed survive the close
+            // and the seed survive the close. the height before the sync of the reopened wallet is the one the file
+            // carries, which is the save: a wallet that re-scans starts from the restore height
+            val savedHeight = sender.getHeight()
             sender.save()
             sender.close()
             val saved = MoneroWalletFull.openWallet(config(senderPath))
@@ -232,6 +233,7 @@ class MoneroWalletFullIntegrationTest {
                 assertEquals(primaryAddress, saved.getPrimaryAddress())
                 assertEquals(senderPath, saved.getPath())
                 assertEquals(null, saved.getDaemonConnection())
+                assertEquals(savedHeight, saved.getHeight())
                 saved.setDaemonConnection(connection)
                 saved.sync()
                 assertEquals(before.subtract(amount).subtract(fee), saved.getBalance())

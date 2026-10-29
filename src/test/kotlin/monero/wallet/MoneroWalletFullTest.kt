@@ -405,4 +405,20 @@ class MoneroWalletFullTest {
         // the seed of monero-python's test_monero_wallet_common.ini, which is two words short of a mnemonic
         private val brokenSeed = "memoir desk algebra inbound innocent unplugs fully okay five inflamed giant factual ritual toyed topic snake unhappy guarded tweezers haunted inundate giant"
     }
+
+    @Test
+    fun save_WithoutAPath_IsAnError() {
+        val config = MoneroWalletConfig()
+        config.networkType = MoneroNetworkType.TESTNET
+        val wallet = MoneroWalletFull.createWallet(config)
+        try {
+            val error = assertFailsWith<MoneroError> { wallet.save() }
+            assertEquals("The wallet has no path to write to", error.message)
+            val closeError = assertFailsWith<MoneroError> { wallet.close(true) }
+            assertEquals("The wallet has no path to write to", closeError.message)
+            assertEquals(false, wallet.isClosed())
+        } finally {
+            wallet.close()
+        }
+    }
 }
