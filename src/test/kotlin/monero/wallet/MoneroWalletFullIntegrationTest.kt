@@ -23,6 +23,7 @@ import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Order
@@ -271,6 +272,138 @@ class MoneroWalletFullIntegrationTest {
                 Thread.sleep(1000)
                 false
             }
+        }
+    }
+
+    @Test
+    fun testMultisig() {
+        testMultisig(2, 2)
+        testMultisig(2, 3)
+    }
+
+    /**
+     * Run the multisig story of the java suite for m of n: the participants prepare and make their wallets multisig,
+     * exchange keys until the wallet is final, the coinbases of five blocks fund it, a transfer needs the signatures
+     * of the threshold, and the participants import each others hexes to see it (TestMoneroWalletCommon.java:3815).
+     *
+     * @param m is the number of signatures that a transfer needs
+     * @param n is the number of participants
+     */
+    private fun testMultisig(m: Int, n: Int) {
+        val participants = (0 until n).map {
+            val config = MoneroWalletConfig()
+            config.networkType = MoneroNetworkType.REGTEST
+            MoneroWalletFull.createWallet(config).also { wallet -> wallet.setDaemonConnection(connection) }
+        }
+        try {
+            // each participant prepares the hex that the others make their wallet multisig with
+            val prepared = participants.map { it.prepareMultisig() }
+            assertEquals(n, prepared.size)
+
+            // a hex that is not a prepared multisig hex is refused
+            val badMake = assertFailsWith<MoneroError> { participants[0].makeMultisig(listOf("asd", "dsa"), m, "") }
+            assertEquals("Kex message unexpectedly small.", badMake.message)
+
+            // each participant makes its wallet multisig from the prepared hexes of its peers
+            var hexes = participants.mapIndexed { i, wallet ->
+                wallet.makeMultisig(prepared.filterIndexed { j, _ -> j != i }, m, "")
+            }
+            assertEquals(n, hexes.size)
+
+            // the wallet is multisig but not final, so it has no seed to read
+            val notFinal = assertFailsWith<MoneroError> { participants[0].getSeed() }
+            assertEquals("This wallet is multisig, but not yet finalized", notFinal.message)
+
+            // the participants exchange keys n - m + 1 times, and the last round carries the address
+            var address: String? = null
+            repeat(n - m + 1) { round ->
+                val nextHexes = mutableListOf<String>()
+                for (i in participants.indices) {
+                    val badExchange = assertFailsWith<MoneroError> { participants[i].exchangeMultisigKeys(listOf("asd", "dsa"), "") }
+                    assertTrue(badExchange.message!!.isNotEmpty())
+
+                    val result = participants[i].exchangeMultisigKeys(hexes.filterIndexed { j, _ -> j != i }, "")
+                    val resultHex = assertNotNull(result.multisigHex, "the exchange round returned no hex")
+                    assertTrue(resultHex.isNotEmpty())
+                    if (round == n - m) {
+                        val resultAddress = assertNotNull(result.address, "the last exchange round returned no address")
+                        if (address == null) address = resultAddress else assertEquals(address, resultAddress)
+                    } else {
+                        nextHexes.add(resultHex)
+                    }
+                }
+                hexes = nextHexes
+            }
+
+            // the final wallet is multisig, ready, and answers its info with the threshold and the participants
+            for (wallet in participants) {
+                assertEquals(address, wallet.getPrimaryAddress())
+                val info = wallet.getMultisigInfo()
+                assertEquals(true, info.isMultisig)
+                assertEquals(true, info.isReady)
+                assertEquals(m, info.threshold)
+                assertEquals(n, info.numParticipants)
+                assertTrue(wallet.getSeed()!!.isNotEmpty())
+                assertEquals(false, wallet.isViewOnly())
+            }
+
+            // five coinbases fund the multisig wallet, and the chain grows past the locks and the ring window
+            mineBlocks(5, address!!)
+            mineBlocks(130, unwatchedAddress())
+            for (wallet in participants) wallet.sync()
+            val before = participants[0].getBalance()
+            assertTrue(before > BigInteger.ZERO, "the multisig wallet has no funds")
+            val amount = BigInteger.valueOf(5000000000000L)
+
+            // a participant that did not import the hexes of its peers can not build the transfer of the outputs
+            // that they share, which the java suite asserts the same way (TestMoneroWalletCommon.java:4125)
+            val unsynchronized = assertFailsWith<MoneroError> { participants[0].createTxs(txConfig(address!!, amount)) }
+            assertEquals("No transaction created", unsynchronized.message)
+
+            // the participants import each others hexes, which is what a transfer of the shared outputs needs
+            synchronizeParticipants(participants)
+
+            // a transfer of the threshold wallet is made from its hex and signed by enough participants
+            val txs = participants[0].createTxs(txConfig(address!!, amount))
+            assertEquals(1, txs.size)
+            var multisigTxHex = assertNotNull(txs[0].txSet?.multisigTxHex, "the transfer of a multisig wallet made no multisig hex")
+            for (i in 1 until m) {
+                val signed = participants[i].signMultisigTxHex(multisigTxHex)
+                multisigTxHex = assertNotNull(signed.signedMultisigTxHex)
+            }
+
+            // one participant submits the signed transfer, and the participants import each others hexes to see it
+            val hashes = participants[0].submitMultisigTxHex(multisigTxHex)
+            assertTrue(hashes.isNotEmpty())
+            synchronizeParticipants(participants)
+            val query = MoneroTxQuery()
+            query.hashes = hashes
+            assertEquals(hashes.size, participants[0].getTxs(query).size)
+        } finally {
+            for (wallet in participants) {
+                try {
+                    wallet.close()
+                } catch (e: MoneroError) {
+                    // a participant that failed to initialize is closed already
+                }
+            }
+        }
+    }
+
+    /**
+     * Sync the participants of a multisig wallet and import each others multisig hex, which shows them the outputs
+     * that the others know (TestMoneroWalletCommon.java:4296).
+     *
+     * @param participants are the wallets of the multisig participants
+     */
+    private fun synchronizeParticipants(participants: List<MoneroWalletFull>) {
+        val hexes = participants.map { wallet ->
+            wallet.sync()
+            wallet.exportMultisigHex()
+        }
+        for (i in participants.indices) {
+            participants[i].sync()
+            participants[i].importMultisigHex(hexes.filterIndexed { j, _ -> j != i }, true)
         }
     }
 
