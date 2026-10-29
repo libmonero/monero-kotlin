@@ -1,0 +1,8 @@
+---
+# the security scan flags the passwords of the test wallets, which are fake by design: the tests
+# write regtest wallets to temp dirs, so there is no password to protect. the style scan stays on
+# the test sources
+engines:
+  opengrep:
+    exclude_paths:
+      - "src/test/**"
