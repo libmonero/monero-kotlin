@@ -500,16 +500,18 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * not (monero_c_wallet.h:925).
      *
      * @param connection is the connection to the daemon, or null to disconnect it
+     * @param isTrusted is whether the daemon is trusted for spend results, or null to trust a daemon on a local
+     * address only, which is the default of wallet2
      * @throws MoneroError if the wallet is closed
      */
-    fun setDaemonConnection(connection: MoneroRpcConnection?) {
+    fun setDaemonConnection(connection: MoneroRpcConnection?, isTrusted: Boolean? = null) {
         checkNotClosed()
         run { lib, h ->
             val uri = connection?.uri ?: ""
             val username = connection?.username ?: ""
             val password = connection?.password ?: ""
             val proxyUri = connection?.proxyUri ?: ""
-            MoneroNative.ok(lib.monero_wallet_set_daemon_connection(h, uri, username, password, proxyUri, null, connection?.sslVerify ?: false))
+            MoneroNative.ok(lib.monero_wallet_set_daemon_connection(h, uri, username, password, proxyUri, isTrusted?.let { ByteByReference().apply { value = if (it) 1 else 0 } }, connection?.sslVerify ?: true))
         }
     }
 
@@ -646,6 +648,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      */
     fun save() {
         checkNotClosed()
+        requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_save(h)) }
     }
 
@@ -665,8 +668,10 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param save is whether to save the wallet before closing it
      * @throws MoneroError if the wallet is closed, or a save is asked for and the wallet has no path to write to
      */
+    @Synchronized
     fun close(save: Boolean) {
         if (closed) return
+        if (save) requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
         closed = true
         worker.close()
@@ -681,6 +686,11 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     private fun checkNotClosed() {
         if (closed) throw MoneroError("Wallet is closed")
+    }
+
+    // wallet2 silently skips the save of a wallet that stays in memory, which loses the wallet when it closes
+    private fun requirePath() {
+        if (getPath().isEmpty()) throw MoneroError("The wallet has no path to write to")
     }
 
     private fun <T> run(call: (MoneroC, Pointer) -> T): T {
@@ -750,8 +760,9 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
          * and can name the password of the files and the language of the seed, and give the restore height, which is
          * the first block to scan
          * @return the restored wallet
-         * @throws MoneroError if the configuration has no path or no network type, no key to restore from, a private
-         * view key without the address, or keys that do not match the address
+         * @throws MoneroError if the configuration has no path or no network type, no key to restore from (which the
+         * wrapper answers as a random wallet with a restore height, "Cannot specify restore height when creating
+         * random wallet"), a private view key without the address, or keys that do not match the address
          */
         fun createWalletFromKeys(config: MoneroWalletConfig): MoneroWalletFull {
             val path = config.path ?: throw MoneroError("Must provide wallet path")
