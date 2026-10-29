@@ -26,6 +26,9 @@ import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxSetsResult
 import monero.wallet.model.MoneroTxWallet
+import monero.wallet.model.MoneroMultisigInfo
+import monero.wallet.model.MoneroMultisigInitResult
+import monero.wallet.model.MoneroMultisigSignResult
 import monero.wallet.model.MoneroWalletBlocksResult
 import monero.wallet.model.MoneroWalletConfig
 
@@ -680,6 +683,179 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     override fun close() {
         close(false)
+    }
+
+    // ------------------------------- MULTISIG ------------------------------------
+
+    /**
+     * Check if the wallet is a multisig wallet (monero_c_wallet.h:334).
+     *
+     * @return true if the wallet is multisig, false otherwise
+     * @throws MoneroError if the wallet is closed
+     */
+    fun isMultisig(): Boolean {
+        checkNotClosed()
+        return run { lib, h ->
+            val multisig = ByteByReference()
+            MoneroNative.ok(lib.monero_wallet_is_multisig(h, multisig))
+            multisig.value.toInt() != 0
+        }
+    }
+
+    /**
+     * Check if the wallet needs the multisig hexes of its participants to show the outputs that it received after the
+     * last import (monero_c_wallet.h:1453).
+     *
+     * @return true if an import is needed, false otherwise
+     * @throws MoneroError if the wallet is closed
+     */
+    fun isMultisigImportNeeded(): Boolean {
+        checkNotClosed()
+        return run { lib, h ->
+            val needed = ByteByReference()
+            MoneroNative.ok(lib.monero_wallet_is_multisig_import_needed(h, needed))
+            needed.value.toInt() != 0
+        }
+    }
+
+    /**
+     * Get the multisig information of the wallet, which a wallet that is not multisig carries without its threshold
+     * and its number of participants (monero_c_wallet.h:1462).
+     *
+     * @return the multisig information
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getMultisigInfo(): MoneroMultisigInfo {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_get_multisig_info(h, out), out, MoneroMultisigInfo::class.java)
+        }
+    }
+
+    /**
+     * Start a multisig wallet from this wallet, which returns the hex that the other participants make their wallets
+     * multisig with. The wallet stays multisig-in-progress until enough key exchanges finalize it
+     * (monero_c_wallet.h:1471).
+     *
+     * @return the multisig hex of this wallet
+     * @throws MoneroError if the wallet is closed, or it is not a wallet that a multisig can start from
+     */
+    fun prepareMultisig(): String {
+        checkNotClosed()
+        return string { lib, h, out -> lib.monero_wallet_prepare_multisig(h, out) }
+    }
+
+    /**
+     * Make this wallet a part of a multisig wallet from the prepared hexes of the other participants, which returns
+     * the hex that the key exchanges of a threshold below the number of participants carry (monero_c_wallet.h:1484).
+     *
+     * @param multisigHexes are the prepared hexes of the other participants
+     * @param threshold is the number of participants that a transfer needs the signature of
+     * @param password encrypts the wallet files
+     * @return the multisig hex of this wallet for the key exchanges
+     * @throws MoneroError if the wallet is closed, or a hex is not a prepared multisig hex
+     */
+    fun makeMultisig(multisigHexes: List<String>, threshold: Int, password: String): String {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.text(lib.monero_wallet_make_multisig(h, multisigHexes.toTypedArray(), multisigHexes.size.toLong(), threshold, password, out), out)
+                ?: throw MoneroError("monero-c returned no string")
+        }
+    }
+
+    /**
+     * Exchange the multisig keys of the participants, which a threshold below the number of participants needs one or
+     * more rounds of before the wallet is final (monero_c_wallet.h:1497). The last round returns the address of the
+     * multisig wallet.
+     *
+     * @param multisigHexes are the hexes of the other participants
+     * @param password encrypts the wallet files
+     * @return the state of the wallet after the exchange, which carries the address once the wallet is final
+     * @throws MoneroError if the wallet is closed, or a hex is not a multisig hex of this round
+     */
+    fun exchangeMultisigKeys(multisigHexes: List<String>, password: String): MoneroMultisigInitResult {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_exchange_multisig_keys(h, multisigHexes.toTypedArray(), multisigHexes.size.toLong(), password, out), out, MoneroMultisigInitResult::class.java)
+        }
+    }
+
+    /**
+     * Export the multisig hex of this wallet, which the other participants import to see the outputs that it knows
+     * (monero_c_wallet.h:1506).
+     *
+     * @return the multisig hex of this wallet
+     * @throws MoneroError if the wallet is closed, or the wallet is not a final multisig wallet
+     */
+    fun exportMultisigHex(): String {
+        checkNotClosed()
+        return string { lib, h, out -> lib.monero_wallet_export_multisig_hex(h, out) }
+    }
+
+    /**
+     * Import the multisig hexes of the other participants, which shows this wallet the outputs that they know
+     * (monero_c_wallet.h:1518).
+     *
+     * @param multisigHexes are the hexes of the other participants
+     * @param refreshAfterImport is whether to sync with the daemon after the import
+     * @return the number of outputs that the import showed
+     * @throws MoneroError if the wallet is closed, or a hex is not a multisig hex
+     */
+    fun importMultisigHex(multisigHexes: List<String>, refreshAfterImport: Boolean): Int {
+        checkNotClosed()
+        return run { lib, h ->
+            val numImported = IntByReference()
+            MoneroNative.ok(lib.monero_wallet_import_multisig_hex(h, multisigHexes.toTypedArray(), multisigHexes.size.toLong(), refreshAfterImport, numImported))
+            numImported.value
+        }
+    }
+
+    /**
+     * Sign a multisig transaction from its hex, which a transfer between the participants of a threshold wallet makes
+     * (monero_c_wallet.h:1528). The signatures of enough participants turn the hex into a signed one.
+     *
+     * @param multisigTxHex is the hex of the transaction to sign
+     * @return the signed hex once enough participants signed, and the hashes of the transaction
+     * @throws MoneroError if the wallet is closed, the hex is not a multisig transaction, or the wallet already
+     * signed it
+     */
+    fun signMultisigTxHex(multisigTxHex: String): MoneroMultisigSignResult {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_sign_multisig_tx_hex(h, multisigTxHex, out), out, MoneroMultisigSignResult::class.java)
+        }
+    }
+
+    /**
+     * Submit a signed multisig transaction to the network (monero_c_wallet.h:1538).
+     *
+     * @param signedMultisigTxHex is the hex of the signed transaction
+     * @return the hashes of the transaction
+     * @throws MoneroError if the wallet is closed, the hex is not a signed multisig transaction, or the network
+     * refuses it
+     */
+    fun submitMultisigTxHex(signedMultisigTxHex: String): List<String> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.strings(lib.monero_wallet_submit_multisig_tx_hex(h, signedMultisigTxHex, out), out)
+        }
+    }
+
+    /**
+     * Ask a running sync or a background sync of the wallet to stop, which is the one call that any thread can make
+     * on a wallet: the others run one after the other on the thread of the wallet, and a sync that is running on it
+     * would never let them (monero_c_wallet.h:298).
+     *
+     * @throws MoneroError if the wallet is closed
+     */
+    fun requestShutdown() {
+        checkNotClosed()
+        MoneroNative.ok(MoneroNative.lib.monero_wallet_request_shutdown(handle))
     }
 
     // ------------------------------- PRIVATE ------------------------------------

@@ -391,6 +391,29 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_is_synced(wallet: Pointer, synced: ByteByReference): Int
 
+    // the one call that any thread can make on a wallet, which the others can not (monero_c_wallet.h:49-53)
+    fun monero_wallet_request_shutdown(wallet: Pointer): Int
+
+    fun monero_wallet_is_multisig(wallet: Pointer, multisig: ByteByReference): Int
+
+    fun monero_wallet_is_multisig_import_needed(wallet: Pointer, needed: ByteByReference): Int
+
+    fun monero_wallet_get_multisig_info(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_prepare_multisig(wallet: Pointer, multisigHex: PointerByReference): Int
+
+    fun monero_wallet_make_multisig(wallet: Pointer, multisigHexes: Array<String>, numMultisigHexes: Long, threshold: Int, password: String, multisigHex: PointerByReference): Int
+
+    fun monero_wallet_exchange_multisig_keys(wallet: Pointer, multisigHexes: Array<String>, numMultisigHexes: Long, password: String, json: PointerByReference): Int
+
+    fun monero_wallet_export_multisig_hex(wallet: Pointer, multisigHex: PointerByReference): Int
+
+    fun monero_wallet_import_multisig_hex(wallet: Pointer, multisigHexes: Array<String>, numMultisigHexes: Long, refreshAfterImport: Boolean, numImported: IntByReference): Int
+
+    fun monero_wallet_sign_multisig_tx_hex(wallet: Pointer, multisigTxHex: String, json: PointerByReference): Int
+
+    fun monero_wallet_submit_multisig_tx_hex(wallet: Pointer, signedMultisigTxHex: String, json: PointerByReference): Int
+
     fun monero_wallet_get_daemon_height(wallet: Pointer, height: LongByReference): Int
 }
 
