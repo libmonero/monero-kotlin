@@ -6,6 +6,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Path
+import java.io.IOException
 import java.time.Duration
 import kotlin.io.path.exists
 import kotlin.math.min
@@ -268,7 +269,10 @@ class MoneroWalletFullIntegrationTest {
             try {
                 post("""{"jsonrpc": "2.0", "id": "0", "method": "get_info"}""").contains("\"height\"")
                 true
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                Thread.sleep(1000)
+                false
+            } catch (e: MoneroError) {
                 Thread.sleep(1000)
                 false
             }
