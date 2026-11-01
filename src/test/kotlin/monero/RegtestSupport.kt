@@ -28,6 +28,19 @@ object RegtestSupport {
     fun assumeAvailable() {
         NativeTestSupport.assumeAvailable()
         assumeTrue(isDaemonUp(), "no monerod at $daemonUri: start the compose of monero-c, or set MONERO_C_TEST_DAEMON_URI")
+        startChain()
+    }
+
+    /**
+     * Mine a block if the chain is only its genesis block. A wallet that is created on such a chain keeps the height
+     * that it found, which is the one that it has scanned, so a sync after the blocks that the test mines for it
+     * fetches nothing.
+     */
+    private fun startChain() {
+        val request = HttpRequest.newBuilder(URI.create(daemonUri + "/get_height")).timeout(Duration.ofSeconds(2)).GET().build()
+        val body = http.send(request, HttpResponse.BodyHandlers.ofString()).body()
+        val height = Regex("\"height\":\\s*(\\d+)").find(body)?.groupValues?.get(1)?.toLong()
+        if (height != null && height <= 1) mineBlocks(1)
     }
 
     fun isDaemonUp(): Boolean {
