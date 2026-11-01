@@ -17,6 +17,9 @@ import monero.common.MoneroError
 import monero.common.MoneroRpcConnection
 import monero.daemon.MoneroDaemonRpc
 import monero.daemon.model.MoneroNetworkType
+import monero.wallet.model.MoneroDestination
+import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.io.TempDir
@@ -140,6 +143,104 @@ class MoneroWalletFullIntegrationTest {
         assertTrue(wallet.isClosed())
     }
 
+    // Two transfers move exactly their amounts and their fees between two wallets: the first relays from the metadata
+    // of its transaction, and the second from the transaction
+    @Test
+    fun testSendBetweenWallets() {
+        val senderConfig = config()
+        val sender = MoneroWalletFull.createWallet(senderConfig)
+        val receiver = createWallet()
+        try {
+            // five coinbases fund the sender. A coinbase of a regtest chain spends after 60 blocks, and every ring
+            // that the wallet builds needs sixteen decoys that spend, so the chain grows past that with blocks that no
+            // wallet of the test watches
+            RegtestSupport.mineBlocks(5, sender.getPrimaryAddress())
+            RegtestSupport.mineBlocks(130)
+            sender.sync()
+            val funds = sender.getBalance()
+            assertTrue(funds.signum() > 0, "the sender has no funds")
+            assertEquals(funds, sender.getUnlockedBalance(), "the coinbases of the sender are still locked")
+
+            // a destination that is not an address is refused before the daemon is asked anything
+            val badAddress = assertFailsWith<MoneroError> { sender.createTxs(txConfig("notanaddress", amount)) }
+            assertEquals("Invalid destination address", badAddress.message)
+
+            // the first transfer is created without relaying, and relays from its metadata
+            val first = sender.createTxs(txConfig(receiver.getPrimaryAddress(), amount)).single()
+            val firstFee = assertNotNull(first.fee)
+            assertTrue(firstFee.signum() > 0)
+            val firstHash = assertNotNull(first.hash)
+            assertEquals(firstHash, sender.relayTx(assertNotNull(first.metadata)))
+
+            // a block holds the transaction, and the receiver reads exactly what was sent
+            RegtestSupport.mineBlocks(1)
+            receiver.sync()
+            assertEquals(amount, receiver.getBalance())
+            val received = receiver.getTxs().single { it.hash == firstHash }
+            assertEquals(true, received.isIncoming)
+            assertEquals(amount, received.incomingTransfers!!.single().amount)
+
+            // the sender is down by the amount and the fee
+            sender.sync()
+            assertEquals(funds - amount - firstFee, sender.getBalance())
+            val sent = sender.getTxs().single { it.hash == firstHash }
+            assertEquals(firstFee, sent.fee)
+            assertEquals(false, sent.isIncoming)
+
+            // the change of the first transfer spends after 10 blocks, and the second transfer needs it
+            RegtestSupport.mineBlocks(10)
+            sender.sync()
+            val second = sender.createTxs(txConfig(receiver.getPrimaryAddress(), smallAmount)).single()
+            val secondFee = assertNotNull(second.fee)
+            assertEquals(assertNotNull(second.hash), sender.relayTx(second))
+            RegtestSupport.mineBlocks(1)
+            receiver.sync()
+            sender.sync()
+            assertEquals(amount + smallAmount, receiver.getBalance())
+            assertEquals(funds - amount - firstFee - smallAmount - secondFee, sender.getBalance())
+
+            // a query reads the transactions by their hashes
+            val query = MoneroTxQuery()
+            query.hashes = listOf(firstHash)
+            assertEquals(listOf(firstHash), sender.getTxs(query).map { it.hash })
+        } finally {
+            sender.close()
+            receiver.close()
+        }
+    }
+
+    // A wallet that is saved after it spent keeps its balance when it is opened again
+    @Test
+    fun testSavedWalletKeepsWhatItSpent() {
+        val senderConfig = config()
+        val sender = MoneroWalletFull.createWallet(senderConfig)
+        val receiver = createWallet()
+        val expected: BigInteger
+        try {
+            RegtestSupport.mineBlocks(5, sender.getPrimaryAddress())
+            RegtestSupport.mineBlocks(130)
+            sender.sync()
+            val funds = sender.getBalance()
+            val tx = sender.createTxs(txConfig(receiver.getPrimaryAddress(), amount)).single()
+            sender.relayTx(assertNotNull(tx.metadata))
+            RegtestSupport.mineBlocks(1)
+            sender.sync()
+            expected = funds - amount - assertNotNull(tx.fee)
+            assertEquals(expected, sender.getBalance())
+            sender.close(true)
+        } finally {
+            sender.close()
+            receiver.close()
+        }
+
+        // the connection is not in the files, so the wallet that is opened connects again
+        MoneroWalletFull.openWallet(senderConfig).use { wallet ->
+            wallet.setDaemonConnection(MoneroRpcConnection(RegtestSupport.daemonUri))
+            wallet.sync()
+            assertEquals(expected, wallet.getBalance())
+        }
+    }
+
     // A wallet that is reopened keeps what it scanned, so it does not scan the chain again
     @Test
     fun testReopenKeepsTheChain() {
@@ -167,6 +268,17 @@ class MoneroWalletFullIntegrationTest {
     }
 
     // ------------------------------- PRIVATE ------------------------------------
+
+    private val amount = BigInteger.valueOf(5_000_000_000_000L)
+    private val smallAmount = BigInteger.valueOf(3_000_000_000_000L)
+
+    private fun txConfig(address: String, amount: BigInteger): MoneroTxConfig {
+        val config = MoneroTxConfig()
+        config.accountIndex = 0
+        config.destinations = listOf(MoneroDestination(address, amount))
+        config.relay = false
+        return config
+    }
 
     private fun config(): MoneroWalletConfig {
         val config = MoneroWalletConfig()

@@ -337,6 +337,14 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_daemon_height(wallet: Pointer, height: LongByReference): Int
 
+    fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
+
+    fun monero_wallet_create_txs(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_relay_tx(wallet: Pointer, txMetadata: String, out: PointerByReference): Int
+
+    fun monero_wallet_relay_tx_json(wallet: Pointer, txJson: String, out: PointerByReference): Int
+
     fun monero_wallet_wait_for_next_block_timeout(wallet: Pointer, timeoutMs: Int, height: LongByReference, timedOut: ByteByReference): Int
 
     // the one call that any thread can make on a wallet, which the others can not

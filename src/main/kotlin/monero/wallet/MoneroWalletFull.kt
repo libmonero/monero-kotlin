@@ -24,6 +24,10 @@ import monero.wallet.model.MoneroMessageSignatureType
 import monero.wallet.model.MoneroSubaddress
 import monero.wallet.model.MoneroSyncResult
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxQuery
+import monero.wallet.model.MoneroTxSetsResult
+import monero.wallet.model.MoneroTxWallet
+import monero.wallet.model.MoneroWalletBlocksResult
 import monero.wallet.model.MoneroWalletConfig
 
 /**
@@ -307,6 +311,70 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     fun changePassword(oldPassword: String, newPassword: String) {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_change_password(h, oldPassword, newPassword)) }
+    }
+
+    // ------------------------------- TRANSACTIONS ----------------------------------
+
+    /**
+     * Get the transactions of the wallet. A block of the answer holds its miner transaction twice, in its transactions
+     * and as its miner transaction, which is the block model of monero-cpp: this flattens the transactions of the
+     * blocks. While a sync runs, the call waits for it.
+     *
+     * @param query is the query that the transactions have to match, or null for all of them
+     * @return the transactions of the wallet
+     * @throws MoneroError if the wallet is closed, or it is not connected to a daemon
+     */
+    fun getTxs(query: MoneroTxQuery? = null): List<MoneroTxWallet> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val result = MoneroNative.json(lib.monero_wallet_get_txs(h, query?.let { MoneroJson.serialize(it) }, out), out, MoneroWalletBlocksResult::class.java)
+            result.getTxs()
+        }
+    }
+
+    /**
+     * Create one or more transactions that transfer funds from the wallet. The transactions are relayed only when the
+     * config says so: a transaction that is not relayed carries the metadata that [relayTx] takes.
+     *
+     * @param config is the configuration of the transfer, which names the account to send from and the
+     * destinations, and says whether to relay
+     * @return the transactions that the config makes, with their fee and their metadata
+     * @throws MoneroError if the wallet is closed, it is not connected to the daemon, the configuration is invalid,
+     * or the wallet has less unlocked money than the transfer and its fee need
+     */
+    fun createTxs(config: MoneroTxConfig): List<MoneroTxWallet> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val result = MoneroNative.json(lib.monero_wallet_create_txs(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+            result.getTxs()
+        }
+    }
+
+    /**
+     * Relay a transaction that [createTxs] made without relaying, from its metadata.
+     *
+     * @param txMetadata is the metadata of the transaction, which a transaction of [createTxs] carries
+     * @return the hash of the relayed transaction
+     * @throws MoneroError if the wallet is closed, the metadata is not the metadata of a transaction, or the daemon
+     * refuses the transaction
+     */
+    fun relayTx(txMetadata: String): String {
+        return string { lib, h, out -> lib.monero_wallet_relay_tx(h, txMetadata, out) }
+    }
+
+    /**
+     * Relay a transaction that [createTxs] made without relaying, from the transaction itself: the C ABI reads the
+     * metadata from the JSON of the transaction.
+     *
+     * @param tx is the transaction to relay, which [createTxs] returned
+     * @return the hash of the relayed transaction
+     * @throws MoneroError if the wallet is closed, the transaction has no metadata, or the daemon refuses the
+     * transaction
+     */
+    fun relayTx(tx: MoneroTxWallet): String {
+        return string { lib, h, out -> lib.monero_wallet_relay_tx_json(h, MoneroJson.serialize(tx), out) }
     }
 
     // ------------------------------- THE DAEMON ----------------------------------

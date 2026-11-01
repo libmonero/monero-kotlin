@@ -23,6 +23,8 @@ import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxQuery
+import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.io.TempDir
 
@@ -860,6 +862,59 @@ class MoneroWalletFullTest {
         }
     }
 
+    // ------------------------------- TRANSACTIONS ----------------------------------
+
+    @Test
+    fun getTxs_OfAWalletThatIsNotConnected_IsAnError() {
+        testWallet().use { wallet ->
+            assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTxs() }.message)
+            assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTxs(MoneroTxQuery()) }.message)
+        }
+    }
+
+    @Test
+    fun createTxs_OfAWalletThatIsNotConnected_IsAnError() {
+        testWallet().use { wallet ->
+            val config = MoneroTxConfig()
+            config.accountIndex = 0
+            config.destinations = listOf(MoneroDestination(primaryAddress, BigInteger.valueOf(1000000000000L)))
+            config.relay = false
+            val error = assertFailsWith<MoneroError> { wallet.createTxs(config) }
+            assertEquals("Failed to get height", error.message)
+        }
+    }
+
+    @Test
+    fun createTxs_WithoutAnAccount_IsAnError() {
+        testWallet().use { wallet ->
+            val config = MoneroTxConfig()
+            config.destinations = listOf(MoneroDestination(primaryAddress, BigInteger.valueOf(1000000000000L)))
+            val error = assertFailsWith<MoneroError> { wallet.createTxs(config) }
+            assertEquals("Must specify account index to send from", error.message)
+        }
+    }
+
+    @Test
+    fun createTxs_WithoutADestination_IsAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.createTxs(MoneroTxConfig()) }
+        }
+    }
+
+    @Test
+    fun relayTx_OfMetadataThatIsNotOne_IsAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.relayTx("this is not the metadata of a transaction") }
+        }
+    }
+
+    @Test
+    fun relayTx_OfATxWithoutMetadata_IsAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.relayTx(MoneroTxWallet()) }
+        }
+    }
+
     // ------------------------------- THE LIFECYCLE ----------------------------------
 
     @Test
@@ -885,6 +940,10 @@ class MoneroWalletFullTest {
             { wallet.startSyncing(5000) },
             { wallet.stopSyncing() },
             { wallet.waitForNextBlock(100) },
+            { wallet.getTxs() },
+            { wallet.createTxs(MoneroTxConfig()) },
+            { wallet.relayTx("metadata") },
+            { wallet.relayTx(MoneroTxWallet()) },
             { wallet.changePassword(password, "a new password") },
             { wallet.save() }
         )) {
