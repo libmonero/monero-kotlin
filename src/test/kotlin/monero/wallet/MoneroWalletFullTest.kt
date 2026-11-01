@@ -9,11 +9,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.ModelTestSupport.assertSameJson
 import monero.NativeTestSupport
 import monero.common.MoneroError
 import monero.common.MoneroJson
+import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
@@ -47,6 +49,9 @@ class MoneroWalletFullTest {
 
     // the seed of monero-python's test_monero_wallet_common.ini, which is two words short of a mnemonic
     private val brokenSeed = "memoir desk algebra inbound innocent unplugs fully okay five inflamed giant factual ritual toyed topic snake unhappy guarded tweezers haunted inundate giant"
+
+    // the server that python gives a wallet which must not reach a daemon
+    private val offlineServerUri = "offline_server_uri"
 
     // the password that the wallet files of the tests are written with
     private val password = "supersecretpassword123"
@@ -646,6 +651,97 @@ class MoneroWalletFullTest {
         }
     }
 
+    // ------------------------------- THE DAEMON CONNECTION ----------------------------------
+
+    @Test
+    fun theDaemonConnection_IsNoneUntilItIsSet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertNull(wallet.getDaemonConnection())
+
+            wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri))
+            assertEquals(offlineServerUri, wallet.getDaemonConnection()?.uri)
+        }
+    }
+
+    @Test
+    fun setDaemonConnection_WithNoUriOrNull_DisconnectsTheWallet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri))
+            assertNotNull(wallet.getDaemonConnection())
+
+            wallet.setDaemonConnection(MoneroRpcConnection(""))
+            assertNull(wallet.getDaemonConnection())
+
+            wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri))
+            wallet.setDaemonConnection(null)
+            assertNull(wallet.getDaemonConnection())
+        }
+    }
+
+    @Test
+    fun setDaemonConnection_KeepsTheCredentials() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val connection = MoneroRpcConnection(offlineServerUri)
+            connection.username = "superuser"
+            connection.password = "abctesting123"
+            wallet.setDaemonConnection(connection)
+
+            val read = wallet.getDaemonConnection()!!
+            assertEquals(offlineServerUri, read.uri)
+            assertEquals("superuser", read.username)
+            assertEquals("abctesting123", read.password)
+        }
+    }
+
+    @Test
+    fun theDaemonConnection_IsNotKeptInTheFiles() {
+        val path = walletPath()
+        MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
+            wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri))
+            wallet.save()
+        }
+
+        MoneroWalletFull.openWallet(config(path)).use { wallet ->
+            assertNull(wallet.getDaemonConnection())
+        }
+    }
+
+    @Test
+    fun createWallet_WithAServer_ConnectsTheWallet() {
+        val config = config()
+        config.server = MoneroRpcConnection(offlineServerUri)
+        MoneroWalletFull.createWallet(config).use { wallet ->
+            assertEquals(offlineServerUri, wallet.getDaemonConnection()?.uri)
+        }
+    }
+
+    @Test
+    fun theTrustOfTheDaemon_IsWhatTheConfigAndTheConnectionSay() {
+        val config = config()
+        config.server = MoneroRpcConnection(offlineServerUri)
+        config.isTrustedDaemon = true
+        MoneroWalletFull.createWallet(config).use { wallet ->
+            assertTrue(wallet.isDaemonTrusted())
+
+            wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri), false)
+            assertFalse(wallet.isDaemonTrusted())
+
+            wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri), true)
+            assertTrue(wallet.isDaemonTrusted())
+        }
+    }
+
+    @Test
+    fun aDaemonOnALocalAddress_IsTrustedWhenTheTrustIsNotSet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            wallet.setDaemonConnection(MoneroRpcConnection("http://127.0.0.1:18081"))
+            assertTrue(wallet.isDaemonTrusted())
+
+            wallet.setDaemonConnection(MoneroRpcConnection("http://daemon.example.org:18081"))
+            assertFalse(wallet.isDaemonTrusted())
+        }
+    }
+
     // ------------------------------- THE LIFECYCLE ----------------------------------
 
     @Test
@@ -660,6 +756,9 @@ class MoneroWalletFullTest {
             { wallet.getVersion() },
             { wallet.getRestoreHeight() },
             { wallet.setRestoreHeight(10) },
+            { wallet.getDaemonConnection() },
+            { wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri)) },
+            { wallet.isDaemonTrusted() },
             { wallet.changePassword(password, "a new password") },
             { wallet.save() }
         )) {

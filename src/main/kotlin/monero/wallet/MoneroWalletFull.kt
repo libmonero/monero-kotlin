@@ -8,6 +8,7 @@ import com.sun.jna.ptr.LongByReference
 import com.sun.jna.ptr.PointerByReference
 import monero.common.MoneroError
 import monero.common.MoneroJson
+import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.daemon.model.MoneroVersion
 import monero.internal.MoneroC
@@ -297,6 +298,60 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     fun changePassword(oldPassword: String, newPassword: String) {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_change_password(h, oldPassword, newPassword)) }
+    }
+
+    // ------------------------------- THE DAEMON ----------------------------------
+
+    /**
+     * Set the connection of the daemon of the wallet, which it can be at any time. The connection is not held in the
+     * wallet files, so it is set again on a wallet that is opened. A connection with no URI, or null, disconnects the
+     * wallet.
+     *
+     * @param connection is the connection to the daemon, or null to disconnect it
+     * @param isTrusted is whether the daemon is trusted for spend results, or null to trust a daemon on a local
+     * address only, which is the default of wallet2
+     * @throws MoneroError if the wallet is closed
+     */
+    fun setDaemonConnection(connection: MoneroRpcConnection?, isTrusted: Boolean? = null) {
+        checkNotClosed()
+        run { lib, h ->
+            val uri = connection?.uri ?: ""
+            val username = connection?.username ?: ""
+            val password = connection?.password ?: ""
+            val proxyUri = connection?.proxyUri ?: ""
+            val trusted = isTrusted?.let { ByteByReference().apply { value = if (it) 1 else 0 } }
+            MoneroNative.ok(lib.monero_wallet_set_daemon_connection(h, uri, username, password, proxyUri, trusted, connection?.sslVerify ?: true))
+        }
+    }
+
+    /**
+     * Get the connection of the daemon of the wallet.
+     *
+     * @return the connection, or null if the wallet has none
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getDaemonConnection(): MoneroRpcConnection? {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val json = MoneroNative.text(lib.monero_wallet_get_daemon_connection(h, out), out) ?: return@run null
+            MoneroJson.deserialize(json, MoneroRpcConnection::class.java)
+        }
+    }
+
+    /**
+     * Check if the daemon of the wallet is trusted.
+     *
+     * @return true if the daemon is trusted, false otherwise
+     * @throws MoneroError if the wallet is closed
+     */
+    fun isDaemonTrusted(): Boolean {
+        checkNotClosed()
+        return run { lib, h ->
+            val trusted = ByteByReference()
+            MoneroNative.ok(lib.monero_wallet_is_daemon_trusted(h, trusted))
+            trusted.value.toInt() != 0
+        }
     }
 
     // ------------------------------- STATE ----------------------------------

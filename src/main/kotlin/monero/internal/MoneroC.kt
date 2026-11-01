@@ -311,6 +311,12 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_change_password(wallet: Pointer, oldPassword: String, newPassword: String): Int
 
+    fun monero_wallet_set_daemon_connection(wallet: Pointer, uri: String, username: String, password: String, proxyUri: String, isTrusted: ByteByReference?, sslVerify: Boolean): Int
+
+    fun monero_wallet_get_daemon_connection(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_is_daemon_trusted(wallet: Pointer, trusted: ByteByReference): Int
+
     // wallet: keys and full
 
     fun monero_wallet_close(wallet: Pointer, save: Boolean): Int
