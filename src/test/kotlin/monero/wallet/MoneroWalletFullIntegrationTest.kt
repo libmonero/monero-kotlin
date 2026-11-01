@@ -8,6 +8,8 @@ import java.net.http.HttpResponse
 import java.nio.file.Path
 import java.io.IOException
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
 import kotlin.math.min
 import kotlin.test.AfterTest
@@ -158,6 +160,63 @@ class MoneroWalletFullIntegrationTest {
                 assertEquals(random.getDaemonHeight(), random.getHeight())
             } finally {
                 random.close()
+            }
+        } finally {
+            fromSeed.close()
+        }
+    }
+
+    // The timeout wait returns null when no block arrives in the time
+    @Test
+    fun testWaitForNextBlockTimesOut() {
+        val path = walletPath()
+        val walletConfig = config(path)
+        walletConfig.seed = seed
+        val fromSeed = MoneroWalletFull.createWalletFromSeed(walletConfig)
+        try {
+            fromSeed.setDaemonConnection(connection)
+            fromSeed.sync()
+            fromSeed.startSyncing(20)
+            try {
+                assertEquals(null, fromSeed.waitForNextBlock(150), "no block is mined while the wallet waits")
+            } finally {
+                fromSeed.stopSyncing()
+            }
+        } finally {
+            fromSeed.close()
+        }
+    }
+
+    // The timeout wait returns the height of the block that is mined while it waits
+    @Test
+    fun testWaitForNextBlock() {
+        val path = walletPath()
+        val walletConfig = config(path)
+        walletConfig.seed = seed
+        val fromSeed = MoneroWalletFull.createWalletFromSeed(walletConfig)
+        try {
+            fromSeed.setDaemonConnection(connection)
+            fromSeed.sync()
+            fromSeed.startSyncing(20)
+            try {
+                val arrived = CompletableFuture<Long?>()
+                Thread {
+                    try {
+                        arrived.complete(fromSeed.waitForNextBlock(30000))
+                    } catch (e: Throwable) {
+                        arrived.completeExceptionally(e)
+                    }
+                }.apply { isDaemon = true; start() }
+
+                // give the wait the time to register its listener, then mine a block for the sync to see
+                Thread.sleep(500)
+                mineBlocks(2, unwatchedAddress())
+
+                val height = arrived.get(35, TimeUnit.SECONDS)
+                assertNotNull(height, "a block was mined while the wallet waited")
+                assertTrue(height!! > 0, "the height of a mined block is positive")
+            } finally {
+                fromSeed.stopSyncing()
             }
         } finally {
             fromSeed.close()
