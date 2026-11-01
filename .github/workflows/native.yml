@@ -272,6 +272,7 @@ jobs:
           ./configure --prefix="$(brew --prefix)" --with-libexpat="$(brew --prefix expat)" --with-ssl="$OPENSSL_ROOT_DIR" --enable-static --disable-shared --with-pic
           make -j3
           sudo make install
+          test -s "$(brew --prefix)/lib/libunbound.a"
 
       - name: Install libusb 1.0.27
         if: steps.cache.outputs.cache-hit != 'true'
