@@ -267,10 +267,88 @@ class MoneroWalletFullIntegrationTest {
         }
     }
 
+    // A 2 of 2 multisig wallet is funded, and pays a wallet that is not one of its participants with the signatures of
+    // both of them
+    @Test
+    fun testSendFromMultisig2Of2() {
+        testSendFromMultisig(2, 2)
+    }
+
+    // A 2 of 3 multisig wallet pays with the signatures of two of its three participants, and the third one sees it
+    @Test
+    fun testSendFromMultisig2Of3() {
+        testSendFromMultisig(2, 3)
+    }
+
     // ------------------------------- PRIVATE ------------------------------------
 
+    private val password = "supersecretpassword123"
     private val amount = BigInteger.valueOf(5_000_000_000_000L)
     private val smallAmount = BigInteger.valueOf(3_000_000_000_000L)
+
+    private fun testSendFromMultisig(m: Int, n: Int) {
+        val receiver = createWallet()
+        try {
+            MultisigSupport.create(m, n, ::config, password).use { setup ->
+                val participants = setup.participants
+                val creator = participants.first()
+
+                // five coinbases fund the multisig wallet, which spends them after the same blocks as any other
+                RegtestSupport.mineBlocks(5, setup.address)
+                RegtestSupport.mineBlocks(130)
+                for (participant in participants) participant.sync()
+                val funds = creator.getBalance()
+                assertTrue(funds.signum() > 0, "the multisig wallet has no funds")
+                for (participant in participants) assertEquals(funds, participant.getBalance())
+
+                // a participant can not spend what it has not exchanged the key images of with the others
+                assertTrue(creator.isMultisigImportNeeded())
+                assertFailsWith<MoneroError> { creator.createTxs(txConfig(receiver.getPrimaryAddress(), amount)) }
+                exchangeKeyImages(participants)
+                assertFalse(creator.isMultisigImportNeeded())
+
+                // the creator makes the transaction, which already has its signature, and the others up to the threshold
+                // sign it one after the other
+                val tx = creator.createTxs(txConfig(receiver.getPrimaryAddress(), amount)).single()
+                val fee = assertNotNull(tx.fee)
+                var signedHex = assertNotNull(tx.txSet?.multisigTxHex, "the multisig transaction has no hex to sign")
+                var txHashes: List<String>? = null
+                for (signer in participants.drop(1).take(m - 1)) {
+                    val result = signer.signMultisigTxHex(signedHex)
+                    signedHex = assertNotNull(result.signedMultisigTxHex)
+                    txHashes = result.txHashes
+                }
+
+                // the signatures of the threshold are in the hex, so any participant can submit it
+                val submitted = participants.last().submitMultisigTxHex(signedHex)
+                assertEquals(1, submitted.size)
+                assertEquals(txHashes, submitted)
+                RegtestSupport.mineBlocks(1)
+
+                receiver.sync()
+                assertEquals(amount, receiver.getBalance())
+                assertEquals(submitted.single(), receiver.getTxs().single().hash)
+
+                // every participant sees what the transaction spent, once it has the key images of the others
+                for (participant in participants) participant.sync()
+                exchangeKeyImages(participants)
+                for (participant in participants) {
+                    assertEquals(funds - amount - fee, participant.getBalance())
+                    assertEquals(submitted.single(), participant.getTxs().single { it.isOutgoing == true }.hash)
+                }
+            }
+        } finally {
+            receiver.close()
+        }
+    }
+
+    // every participant imports what the others export, which tells it which outputs they spent
+    private fun exchangeKeyImages(participants: List<MoneroWalletFull>) {
+        val hexes = participants.map { it.exportMultisigHex() }
+        for ((i, participant) in participants.withIndex()) {
+            participant.importMultisigHex(hexes.filterIndexed { j, _ -> j != i }, true)
+        }
+    }
 
     private fun txConfig(address: String, amount: BigInteger): MoneroTxConfig {
         val config = MoneroTxConfig()
@@ -283,7 +361,7 @@ class MoneroWalletFullIntegrationTest {
     private fun config(): MoneroWalletConfig {
         val config = MoneroWalletConfig()
         config.path = tempDir.resolve("wallet-${System.nanoTime()}").toString()
-        config.password = "supersecretpassword123"
+        config.password = password
         config.networkType = MoneroNetworkType.MAINNET
         config.server = MoneroRpcConnection(RegtestSupport.daemonUri)
         config.regtest = true

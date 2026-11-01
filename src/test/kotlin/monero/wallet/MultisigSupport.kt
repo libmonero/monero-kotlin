@@ -25,22 +25,29 @@ object MultisigSupport {
      * @param m is the number of signatures that a transfer needs
      * @param n is the number of participants
      * @param newConfig makes the config of a participant
+     * @param password is the password of the participants, which the key setup asks for again
      * @param prepare is called on each participant as it is created, for the daemon connection of a test that spends
      * @return the participants, final and with the same address
      */
-    fun create(m: Int, n: Int, newConfig: () -> MoneroWalletConfig, prepare: (MoneroWalletFull) -> Unit = {}): Setup {
+    fun create(
+        m: Int,
+        n: Int,
+        newConfig: () -> MoneroWalletConfig,
+        password: String = "",
+        prepare: (MoneroWalletFull) -> Unit = {}
+    ): Setup {
         val participants = (0 until n).map { MoneroWalletFull.createWallet(newConfig()).also(prepare) }
         try {
             val prepared = participants.map { it.prepareMultisig() }
             var hexes = participants.mapIndexed { i, wallet ->
-                wallet.makeMultisig(prepared.filterIndexed { j, _ -> j != i }, m, "")
+                wallet.makeMultisig(prepared.filterIndexed { j, _ -> j != i }, m, password)
             }
 
             var address: String? = null
             repeat(n - m + 1) { round ->
                 val nextHexes = mutableListOf<String>()
                 for (i in participants.indices) {
-                    val result = participants[i].exchangeMultisigKeys(hexes.filterIndexed { j, _ -> j != i }, "")
+                    val result = participants[i].exchangeMultisigKeys(hexes.filterIndexed { j, _ -> j != i }, password)
                     val resultHex = assertNotNull(result.multisigHex, "the exchange round returned no hex")
                     assertTrue(resultHex.isNotEmpty())
                     if (round == n - m) {
