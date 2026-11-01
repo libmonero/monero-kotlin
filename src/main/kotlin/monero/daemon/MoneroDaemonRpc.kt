@@ -9,6 +9,7 @@ import com.sun.jna.ptr.PointerByReference
 import java.math.BigInteger
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
@@ -69,7 +70,12 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
     private val waiters = ArrayList<CompletableFuture<MoneroBlockHeader>>()
     private var events: DaemonEvents? = null
     private var nativeListenerAdded = false
+    @Volatile
     private var closed = false
+
+    // the read lock of a timeout wait keeps close() from freeing the handle while the wait runs on the thread of its
+    // caller: the C ABI lets other calls on a daemon handle run meanwhile, so the worker does not order that wait
+    private val shutdownLock = ReentrantReadWriteLock()
 
     /**
      * Construct a daemon RPC client that connects to the given URI.
@@ -274,6 +280,30 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
             }
             Thread.currentThread().interrupt()
             throw MoneroError("Interrupted while waiting for the next block header", e)
+        }
+    }
+
+    /**
+     * Wait until the next block is added to the chain, for at most a number of milliseconds. A caller that waits in a
+     * loop can be cancelled between the waits, which [waitForNextBlockHeader] can not. The wait blocks only the calling
+     * thread, so the other calls of the daemon run meanwhile, but [close] waits for it until a block arrives or the time
+     * is out: pick the timeout with that in mind.
+     *
+     * @param timeoutMs is the longest time to wait, from 1 to 2147483647
+     * @return the header of the block, or null if no block arrived in the time
+     * @throws MoneroError if the daemon is closed, or the timeout is out of range
+     */
+    fun waitForNextBlockHeader(timeoutMs: Int): MoneroBlockHeader? {
+        shutdownLock.readLock().lock()
+        try {
+            checkNotClosed()
+            val out = PointerByReference()
+            val timedOut = ByteByReference()
+            MoneroNative.ok(MoneroNative.lib.monero_daemon_wait_for_next_block_header_timeout(handle, timeoutMs, out, timedOut))
+            if (timedOut.value.toInt() != 0) return null
+            return MoneroNative.json(0, out, MoneroBlockHeader::class.java)
+        } finally {
+            shutdownLock.readLock().unlock()
         }
     }
 
@@ -606,19 +636,25 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
         }
         for (waiter in released) waiter.completeExceptionally(MoneroError("The daemon is closed"))
 
-        // the calls that were in the queue run first, then the listener goes, then the handle
-        worker.call {
-            if (nativeListenerAdded) {
-                try {
-                    MoneroNative.lib.monero_daemon_remove_listener(handle, events!!.handle)
-                } catch (_: Throwable) {
-                    // the daemon is going away anyway
+        // the write lock waits for the timeout waits that are running, and keeps new ones out while the handle dies
+        shutdownLock.writeLock().lock()
+        try {
+            // the calls that were in the queue run first, then the listener goes, then the handle
+            worker.call {
+                if (nativeListenerAdded) {
+                    try {
+                        MoneroNative.lib.monero_daemon_remove_listener(handle, events!!.handle)
+                    } catch (_: Throwable) {
+                        // the daemon is going away anyway
+                    }
                 }
             }
+            events?.close()
+            worker.close()
+            MoneroNative.lib.monero_daemon_free(handle)
+        } finally {
+            shutdownLock.writeLock().unlock()
         }
-        events?.close()
-        worker.close()
-        MoneroNative.lib.monero_daemon_free(handle)
     }
 
     // ------------------------------- PRIVATE ------------------------------------

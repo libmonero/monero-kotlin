@@ -159,6 +159,8 @@ internal interface MoneroC : Library {
 
     fun monero_daemon_get_block_header_by_height(daemon: Pointer, height: Long, json: PointerByReference): Int
 
+    fun monero_daemon_wait_for_next_block_header_timeout(daemon: Pointer, timeoutMs: Int, outJson: PointerByReference, outTimedOut: ByteByReference): Int
+
     fun monero_daemon_get_block_headers_by_range(daemon: Pointer, startHeight: Long, endHeight: Long, json: PointerByReference): Int
 
     fun monero_daemon_get_block_by_hash(daemon: Pointer, blockHash: String, json: PointerByReference): Int
