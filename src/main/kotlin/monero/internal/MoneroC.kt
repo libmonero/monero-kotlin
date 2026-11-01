@@ -287,6 +287,32 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_seed_languages(json: PointerByReference): Int
 
+    // wallet: full
+
+    fun monero_wallet_create_random(path: String, password: String?, networkType: Int, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_create_from_seed(path: String, password: String?, networkType: Int, seed: String, seedOffset: String?, restoreHeight: Long, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_create_from_keys(path: String, password: String?, networkType: Int, address: String, privateViewKey: String, privateSpendKey: String?, restoreHeight: Long, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_create(configJson: String, out: PointerByReference): Int
+
+    fun monero_wallet_open(path: String, password: String?, networkType: Int, out: PointerByReference): Int
+
+    fun monero_wallet_exists(path: String, exists: ByteByReference): Int
+
+    fun monero_wallet_save(wallet: Pointer): Int
+
+    fun monero_wallet_get_path(wallet: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_get_restore_height(wallet: Pointer, height: LongByReference): Int
+
+    fun monero_wallet_set_restore_height(wallet: Pointer, restoreHeight: Long): Int
+
+    fun monero_wallet_change_password(wallet: Pointer, oldPassword: String, newPassword: String): Int
+
+    // wallet: keys and full
+
     fun monero_wallet_close(wallet: Pointer, save: Boolean): Int
 
     fun monero_wallet_free(wallet: Pointer)
