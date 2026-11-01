@@ -6,6 +6,7 @@ import com.sun.jna.ptr.ByteByReference
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
 import com.sun.jna.ptr.PointerByReference
+import java.math.BigInteger
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
@@ -20,6 +21,7 @@ import monero.wallet.model.MoneroIntegratedAddress
 import monero.wallet.model.MoneroMessageSignatureResult
 import monero.wallet.model.MoneroMessageSignatureType
 import monero.wallet.model.MoneroSubaddress
+import monero.wallet.model.MoneroSyncResult
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroWalletConfig
 
@@ -354,6 +356,128 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         }
     }
 
+    // ------------------------------- SYNC AND THE CHAIN ----------------------------------
+
+    /**
+     * Synchronize the wallet with its daemon, on the thread of the wallet's calls: the other calls of the wallet wait
+     * until the sync is done.
+     *
+     * @param startHeight is the height to sync from, ignored when it is less than the height that the wallet has
+     * already scanned
+     * @return the result of the sync
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
+     */
+    fun sync(startHeight: Long? = null): MoneroSyncResult {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_sync(h, startHeight?.let { LongByReference(it) }, null, out) }
+    }
+
+    /**
+     * Start a thread of the wallet that syncs it with its daemon, over and over. It succeeds while the wallet is not
+     * connected, and syncs when a daemon becomes reachable. Stop it with [stopSyncing].
+     *
+     * @param syncPeriodMs is the most time that the wallet waits between two syncs, in milliseconds, from 1 to
+     * 2147483647
+     * @throws MoneroError if the wallet is closed, or the period is out of range
+     */
+    fun startSyncing(syncPeriodMs: Long) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_start_syncing(h, syncPeriodMs)) }
+    }
+
+    /**
+     * Stop the thread of the wallet that syncs it.
+     *
+     * @throws MoneroError if the wallet is closed
+     */
+    fun stopSyncing() {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_stop_syncing(h)) }
+    }
+
+    /**
+     * Check if the wallet is connected to a daemon.
+     *
+     * @return true if the wallet is connected, false otherwise
+     * @throws MoneroError if the wallet is closed
+     */
+    fun isConnectedToDaemon(): Boolean {
+        return flag { lib, h, out -> lib.monero_wallet_is_connected_to_daemon(h, out) }
+    }
+
+    /**
+     * Check if the daemon of the wallet is synced with the network.
+     *
+     * @return true if the daemon is synced, false otherwise
+     * @throws MoneroError if the wallet is closed, or it can not reach the daemon
+     */
+    fun isDaemonSynced(): Boolean {
+        return flag { lib, h, out -> lib.monero_wallet_is_daemon_synced(h, out) }
+    }
+
+    /**
+     * Check if the wallet is synced with its daemon.
+     *
+     * @return true if the wallet is synced, false otherwise
+     * @throws MoneroError if the wallet is closed
+     */
+    fun isSynced(): Boolean {
+        return flag { lib, h, out -> lib.monero_wallet_is_synced(h, out) }
+    }
+
+    /**
+     * Get the height that the wallet has scanned to, which is the next block to scan. A wallet that has not scanned
+     * starts at 1.
+     *
+     * @return the height
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getHeight(): Long {
+        return height { lib, h, out -> lib.monero_wallet_get_height(h, out) }
+    }
+
+    /**
+     * Get the height that the daemon of the wallet is synced to.
+     *
+     * @return the height
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
+     */
+    fun getDaemonHeight(): Long {
+        return height { lib, h, out -> lib.monero_wallet_get_daemon_height(h, out) }
+    }
+
+    /**
+     * Get the balance of the wallet, including the funds that are still locked. While a sync runs, the call waits for
+     * it.
+     *
+     * @return the balance in atomic units
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getBalance(): BigInteger {
+        checkNotClosed()
+        return run { lib, h ->
+            val balance = LongByReference()
+            MoneroNative.ok(lib.monero_wallet_get_balance(h, balance))
+            MoneroNative.unsigned(balance.value)
+        }
+    }
+
+    /**
+     * Get the unlocked balance of the wallet, which is the balance without the funds that are still locked. While a
+     * sync runs, the call waits for it.
+     *
+     * @return the unlocked balance in atomic units
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getUnlockedBalance(): BigInteger {
+        checkNotClosed()
+        return run { lib, h ->
+            val balance = LongByReference()
+            MoneroNative.ok(lib.monero_wallet_get_unlocked_balance(h, balance))
+            MoneroNative.unsigned(balance.value)
+        }
+    }
+
     // ------------------------------- STATE ----------------------------------
 
     /**
@@ -484,6 +608,24 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         return run { lib, h ->
             val out = PointerByReference()
             MoneroNative.text(call(lib, h, out), out) ?: throw MoneroError("monero-c returned no string")
+        }
+    }
+
+    private fun flag(call: (MoneroC, Pointer, ByteByReference) -> Int): Boolean {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = ByteByReference()
+            MoneroNative.ok(call(lib, h, out))
+            out.value.toInt() != 0
+        }
+    }
+
+    private fun height(call: (MoneroC, Pointer, LongByReference) -> Int): Long {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = LongByReference()
+            MoneroNative.ok(call(lib, h, out))
+            out.value
         }
     }
 

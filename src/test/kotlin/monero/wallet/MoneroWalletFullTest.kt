@@ -742,6 +742,65 @@ class MoneroWalletFullTest {
         }
     }
 
+    // ------------------------------- SYNC AND THE CHAIN ----------------------------------
+
+    @Test
+    fun aNewWallet_HasNotScanned() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertFalse(wallet.isConnectedToDaemon())
+            assertFalse(wallet.isSynced())
+
+            // wallet2 starts the height of a wallet that has not scanned at 1
+            assertEquals(1L, wallet.getHeight())
+            assertEquals(BigInteger.ZERO, wallet.getBalance())
+            assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance())
+        }
+    }
+
+    @Test
+    fun aWalletWithAnOfflineServer_IsNotConnected() {
+        val config = config()
+        config.server = MoneroRpcConnection(offlineServerUri)
+        MoneroWalletFull.createWallet(config).use { wallet ->
+            assertFalse(wallet.isConnectedToDaemon())
+            assertFalse(wallet.isSynced())
+        }
+    }
+
+    @Test
+    fun theCallsThatAskTheDaemon_OfAWalletThatIsNotConnected_AreAnError() {
+        val config = config()
+        config.server = MoneroRpcConnection(offlineServerUri)
+        MoneroWalletFull.createWallet(config).use { wallet ->
+            // wallet2 masks the errors of a daemon that it does not trust
+            assertEquals("daemon error", assertFailsWith<MoneroError> { wallet.getDaemonHeight() }.message)
+            assertEquals("daemon error", assertFailsWith<MoneroError> { wallet.isDaemonSynced() }.message)
+        }
+    }
+
+    @Test
+    fun sync_OfAWalletThatIsNotConnected_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.sync() }
+            assertEquals("Wallet is not connected to daemon", error.message)
+        }
+    }
+
+    @Test
+    fun startSyncing_SucceedsWhileTheWalletIsNotConnected() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            wallet.startSyncing(1000)
+            wallet.stopSyncing()
+        }
+    }
+
+    @Test
+    fun startSyncing_WithAPeriodOutOfRange_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertFailsWith<MoneroError> { wallet.startSyncing(0) }
+        }
+    }
+
     // ------------------------------- THE LIFECYCLE ----------------------------------
 
     @Test
@@ -759,6 +818,13 @@ class MoneroWalletFullTest {
             { wallet.getDaemonConnection() },
             { wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri)) },
             { wallet.isDaemonTrusted() },
+            { wallet.getHeight() },
+            { wallet.getBalance() },
+            { wallet.getUnlockedBalance() },
+            { wallet.isSynced() },
+            { wallet.sync() },
+            { wallet.startSyncing(5000) },
+            { wallet.stopSyncing() },
             { wallet.changePassword(password, "a new password") },
             { wallet.save() }
         )) {

@@ -317,6 +317,26 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_is_daemon_trusted(wallet: Pointer, trusted: ByteByReference): Int
 
+    fun monero_wallet_get_height(wallet: Pointer, height: LongByReference): Int
+
+    fun monero_wallet_get_balance(wallet: Pointer, balance: LongByReference): Int
+
+    fun monero_wallet_get_unlocked_balance(wallet: Pointer, balance: LongByReference): Int
+
+    fun monero_wallet_sync(wallet: Pointer, startHeight: LongByReference?, listener: Pointer?, json: PointerByReference): Int
+
+    fun monero_wallet_start_syncing(wallet: Pointer, syncPeriodMs: Long): Int
+
+    fun monero_wallet_stop_syncing(wallet: Pointer): Int
+
+    fun monero_wallet_is_connected_to_daemon(wallet: Pointer, connected: ByteByReference): Int
+
+    fun monero_wallet_is_daemon_synced(wallet: Pointer, synced: ByteByReference): Int
+
+    fun monero_wallet_is_synced(wallet: Pointer, synced: ByteByReference): Int
+
+    fun monero_wallet_get_daemon_height(wallet: Pointer, height: LongByReference): Int
+
     // wallet: keys and full
 
     fun monero_wallet_close(wallet: Pointer, save: Boolean): Int
