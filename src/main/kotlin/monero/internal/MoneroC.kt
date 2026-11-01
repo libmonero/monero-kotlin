@@ -25,6 +25,8 @@ internal interface MoneroC : Library {
 
     fun monero_utils_free(ptr: Pointer?)
 
+    fun monero_utils_free_secret(secret: Pointer)
+
     fun monero_utils_get_abi_version(major: IntByReference, minor: IntByReference, patch: IntByReference): Int
 
     fun monero_utils_xmr_to_atomic_units(amountXmr: Double, atomicUnits: LongByReference): Int
