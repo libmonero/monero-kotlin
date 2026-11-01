@@ -30,8 +30,10 @@ internal object MoneroNative {
     const val LIBRARY_ENVIRONMENT = "MONERO_C_LIBRARY"
 
     /**
-     * The version of the C ABI that this code was written for. The minor version grows when functions are added, and
-     * a library with a greater one has everything that this code calls, so it is the minimum, not the exact version.
+     * The version of the C ABI that this code was written for. While the major version is 0, a change of the minor
+     * version can break callers, so the minor version has to match exactly; from 1, only the major version breaks
+     * callers, and the minor version grows when functions are added, so a greater one is accepted
+     * (monero_c_utils.h:155-158).
      */
     const val ABI_MAJOR = 0
     const val ABI_MINOR = 3
@@ -53,7 +55,6 @@ internal object MoneroNative {
             synchronized(lock) {
                 loaded?.let { return it }
                 val library = load()
-                checkAbi(library)
                 loaded = library
                 return library
             }
@@ -62,23 +63,36 @@ internal object MoneroNative {
     private fun load(): MoneroC {
         val path = System.getProperty(LIBRARY_PROPERTY) ?: System.getenv(LIBRARY_ENVIRONMENT) ?: "monero_c"
         try {
-            return Native.load(path, MoneroC::class.java, mapOf(Library.OPTION_STRING_ENCODING to ENCODING, Library.OPTION_TYPE_MAPPER to BooleanTypeMapper()))
+            val library = Native.load(path, MoneroC::class.java, mapOf(Library.OPTION_STRING_ENCODING to ENCODING, Library.OPTION_TYPE_MAPPER to BooleanTypeMapper()))
+            checkAbi(library, path)
+            return library
         } catch (e: UnsatisfiedLinkError) {
             throw MoneroError("The native library monero_c is not found, or it can not be loaded. Set the system property $LIBRARY_PROPERTY or the environment variable $LIBRARY_ENVIRONMENT to its path, or put it in the library path: ${e.message}", e)
         }
     }
 
-    private fun checkAbi(library: MoneroC) {
+    /**
+     * Compare the version of the ABI of the library with the one that this code was written for.
+     *
+     * @param library is the loaded library
+     * @param path is the path that the library was loaded from, for the messages
+     * @throws MoneroError if the library has no version of its ABI, or it is not the version that is needed
+     */
+    internal fun checkAbi(library: MoneroC, path: String) {
         val major = IntByReference()
         val minor = IntByReference()
         val patch = IntByReference()
         try {
             ok(library, library.monero_utils_get_abi_version(major, minor, patch))
         } catch (e: UnsatisfiedLinkError) {
-            throw MoneroError("The native library monero_c is too old: it has no version of its ABI", e)
+            throw MoneroError("The native library $path is too old: it has no version of its ABI", e)
         }
-        if (major.value != ABI_MAJOR || minor.value < ABI_MINOR) {
-            throw MoneroError("The version of the ABI of monero-c is ${major.value}.${minor.value}.${patch.value}, and $ABI_MAJOR.$ABI_MINOR.x or newer is needed")
+
+        // while the major version is 0, a change of the minor version can break callers, so it has to match exactly;
+        // from 1, a greater minor only adds functions (monero_c_utils.h:155-158)
+        val wrongMinor = if (ABI_MAJOR == 0) minor.value != ABI_MINOR else minor.value < ABI_MINOR
+        if (major.value != ABI_MAJOR || wrongMinor) {
+            throw MoneroError("The version of the ABI of $path is ${major.value}.${minor.value}.${patch.value}, and the major version $ABI_MAJOR with the minor version $ABI_MINOR is needed")
         }
     }
 
