@@ -9,6 +9,7 @@ import com.sun.jna.ptr.PointerByReference
 import java.math.BigInteger
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
@@ -70,6 +71,10 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
     private var events: DaemonEvents? = null
     private var nativeListenerAdded = false
     private var closed = false
+
+    // the write lock of close() holds the timeout wait of waitForNextBlockHeader off the handle while it dies,
+    // since the worker can not order that call (a wait that takes the whole timeout is what it exists for)
+    private val shutdownLock = ReentrantReadWriteLock()
 
     /**
      * Construct a daemon RPC client that connects to the given URI.
@@ -297,18 +302,28 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
 
     /**
      * Wait until the next block is added to the chain, for at most a number of milliseconds (monero_c_daemon.h:552).
-     * A wallet that waits in a loop can be cancelled between the waits, which the wait without a timeout can not.
+     * A caller that waits in a loop can be cancelled between the waits, which the wait without a timeout can not.
      *
      * @param timeoutMs is the longest time to wait, from 1 to 2147483647
      * @return the header of the block, or null if no block arrived in the time
      * @throws MoneroError if the daemon is closed
      */
     fun waitForNextBlockHeader(timeoutMs: Int): MoneroBlockHeader? {
-        val out = PointerByReference()
-        val timedOut = ByteByReference()
-        MoneroNative.ok(MoneroNative.lib.monero_daemon_wait_for_next_block_header_timeout(handle, timeoutMs, out, timedOut))
-        if (timedOut.value.toInt() != 0) return null
-        return MoneroNative.json(0, out, MoneroBlockHeader::class.java)
+        checkNotClosed()
+
+        // the read lock holds close() off the handle while the wait runs on this thread: the worker can not order
+        // this call, because the calls of the handle may run meanwhile (monero_c_daemon.h:542-543)
+        shutdownLock.readLock().lock()
+        try {
+            if (closed) throw MoneroError("The daemon is closed")
+            val out = PointerByReference()
+            val timedOut = ByteByReference()
+            MoneroNative.ok(MoneroNative.lib.monero_daemon_wait_for_next_block_header_timeout(handle, timeoutMs, out, timedOut))
+            if (timedOut.value.toInt() != 0) return null
+            return MoneroNative.json(0, out, MoneroBlockHeader::class.java)
+        } finally {
+            shutdownLock.readLock().unlock()
+        }
     }
 
     override fun getBlockHeadersByRange(startHeight: Long, endHeight: Long): List<MoneroBlockHeader> {
@@ -622,19 +637,27 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
         }
         for (waiter in released) waiter.completeExceptionally(MoneroError("The daemon is closed"))
 
-        // the calls that were in the queue run first, then the listener goes, then the handle
-        worker.call {
-            if (nativeListenerAdded) {
-                try {
-                    MoneroNative.lib.monero_daemon_remove_listener(handle, events!!.handle)
-                } catch (_: Throwable) {
-                    // the daemon is going away anyway
+        // the write lock holds the timeout wait of waitForNextBlockHeader off the handle while it dies: its read
+        // lock around the native call is what keeps the one caller-thread call off a freed handle, since the worker
+        // can not order it (a wait that takes the whole timeout is what it exists for)
+        shutdownLock.writeLock().lock()
+        try {
+            // the calls that were in the queue run first, then the listener goes, then the handle
+            worker.call {
+                if (nativeListenerAdded) {
+                    try {
+                        MoneroNative.lib.monero_daemon_remove_listener(handle, events!!.handle)
+                    } catch (_: Throwable) {
+                        // the daemon is going away anyway
+                    }
                 }
             }
+            events?.close()
+            worker.close()
+            MoneroNative.lib.monero_daemon_free(handle)
+        } finally {
+            shutdownLock.writeLock().unlock()
         }
-        events?.close()
-        worker.close()
-        MoneroNative.lib.monero_daemon_free(handle)
     }
 
     // ------------------------------- PRIVATE ------------------------------------
