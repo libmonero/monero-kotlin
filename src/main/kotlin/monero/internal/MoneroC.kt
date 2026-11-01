@@ -353,8 +353,15 @@ internal interface DaemonBlockHeaderCallback : Callback {
 /**
  * The callbacks of a daemon listener. monero-c copies the struct when the listener is created.
  */
-@Structure.FieldOrder("userData", "onBlockHeader")
+@Structure.FieldOrder("structSize", "userData", "onBlockHeader")
 internal class DaemonListenerCallbacks : Structure() {
+    /**
+     * The size of the struct as this code was built with it, which the program sets before the create call: the C ABI
+     * copies only that many bytes, and fails if it does not reach the user data (monero_c_daemon.h, struct_size).
+     */
+    @JvmField
+    var structSize: Int = 0
+
     @JvmField
     var userData: Pointer? = null
 
