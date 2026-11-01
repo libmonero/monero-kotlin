@@ -7,6 +7,7 @@ import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
 import com.sun.jna.ptr.PointerByReference
 import java.math.BigInteger
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
@@ -36,12 +37,18 @@ import monero.wallet.model.MoneroWalletConfig
  * the chain again. A wallet that a config creates without a path stays in memory.
  *
  * The calls of a wallet run one after the other on a thread of their own, since the C ABI allows one thread per wallet
- * handle.
+ * handle. [requestShutdown] is the one call that any thread can make, to stop a sync that is running.
  */
 class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCloseable {
 
     private val worker = NativeWorker("MoneroWalletFull")
+
+    // volatile: requestShutdown reads it from any thread, and the read/write lock below orders that read against the
+    // free of the handle, which the threading contract of the c abi allows no second thread on
+    @Volatile
     private var closed = false
+
+    private val shutdownLock = ReentrantReadWriteLock()
 
     // ------------------------------- SEED, KEYS AND ADDRESSES ----------------------------------
 
@@ -396,6 +403,29 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
+     * Wait until the next block is added to the chain, for at most a number of milliseconds. The wallet must be
+     * syncing in the background ([startSyncing]), or no block comes. A caller that waits in a loop can be cancelled
+     * between the waits, which a wait without a timeout can not.
+     *
+     * Unlike the wait of a daemon, this one runs on the thread of the wallet's calls, since the C ABI allows no second
+     * thread on a wallet handle: every other call of the wallet, and [close], wait for it until a block arrives or the
+     * time is out. Pick the timeout with that in mind.
+     *
+     * @param timeoutMs is the longest time to wait, from 1 to 2147483647
+     * @return the height of the block, or null if no block arrived in the time
+     * @throws MoneroError if the wallet is closed, or the timeout is out of range
+     */
+    fun waitForNextBlock(timeoutMs: Int): Long? {
+        checkNotClosed()
+        return run { lib, h ->
+            val height = LongByReference()
+            val timedOut = ByteByReference()
+            MoneroNative.ok(lib.monero_wallet_wait_for_next_block_timeout(h, timeoutMs, height, timedOut))
+            if (timedOut.value.toInt() != 0) null else height.value
+        }
+    }
+
+    /**
      * Check if the wallet is connected to a daemon.
      *
      * @return true if the wallet is connected, false otherwise
@@ -562,7 +592,8 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Close the wallet, writing it to its files first when a save is asked for. Every call of a closed wallet fails
-     * with "Wallet is closed", and closing it again does nothing.
+     * with "Wallet is closed", and closing it again does nothing. The close runs after the calls that are in flight, so
+     * a sync that runs on the wallet has to be stopped with [requestShutdown] from another thread first.
      *
      * @param save is whether to save the wallet before closing it
      * @throws MoneroError if a save is asked for and the wallet has no path to write to, in which case it stays open
@@ -573,12 +604,38 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         if (save) requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
         closed = true
-        worker.close()
-        MoneroNative.lib.monero_wallet_free(handle)
+
+        // the write lock holds requestShutdown out while the handle dies: its read lock around the native call is what
+        // keeps the one any-thread call off a freed handle, since the worker can not order it (a sync that is stuck on
+        // the worker is what it exists to stop)
+        shutdownLock.writeLock().lock()
+        try {
+            worker.close()
+            MoneroNative.lib.monero_wallet_free(handle)
+        } finally {
+            shutdownLock.writeLock().unlock()
+        }
     }
 
     override fun close() {
         close(false)
+    }
+
+    /**
+     * Ask a running sync, or a request to the daemon, to stop, which is the one call that any thread can make on a
+     * wallet: the others run one after the other on the thread of the wallet, and a sync that is running on it would
+     * never let them. The calls that need the daemon fail from then on, so close the wallet after it.
+     *
+     * @throws MoneroError if the wallet is closed
+     */
+    fun requestShutdown() {
+        checkNotClosed()
+        shutdownLock.readLock().lock()
+        try {
+            if (!closed) MoneroNative.ok(MoneroNative.lib.monero_wallet_request_shutdown(handle))
+        } finally {
+            shutdownLock.readLock().unlock()
+        }
     }
 
     // ------------------------------- PRIVATE ------------------------------------

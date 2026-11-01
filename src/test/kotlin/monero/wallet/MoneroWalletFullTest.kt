@@ -6,6 +6,8 @@ import java.nio.file.Path
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -801,6 +803,63 @@ class MoneroWalletFullTest {
         }
     }
 
+    @Test
+    fun waitForNextBlock_OfAWalletThatIsNotConnected_TimesOut() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertNull(wallet.waitForNextBlock(100))
+        }
+    }
+
+    @Test
+    fun waitForNextBlock_WithATimeoutOutOfRange_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertFailsWith<MoneroError> { wallet.waitForNextBlock(0) }
+        }
+    }
+
+    // ------------------------------- THE SHUTDOWN ----------------------------------
+
+    @Test
+    fun requestShutdown_OfAWalletThatIsNotSyncing_Succeeds() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            wallet.requestShutdown()
+            wallet.requestShutdown()
+        }
+    }
+
+    @Test
+    fun requestShutdown_OfAClosedWallet_IsAnError() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        val error = assertFailsWith<MoneroError> { wallet.requestShutdown() }
+        assertEquals("Wallet is closed", error.message)
+    }
+
+    // The call of another thread never reaches a handle that the close has freed: it ends with the error of a closed
+    // wallet, and the process stays up
+    @Test
+    fun requestShutdown_WhileTheWalletCloses_NeverReachesAFreedHandle() {
+        repeat(20) {
+            val wallet = testWallet()
+            val ended = CompletableFuture<Throwable?>()
+            val caller = Thread {
+                try {
+                    while (true) wallet.requestShutdown()
+                } catch (e: Throwable) {
+                    ended.complete(e)
+                }
+            }.apply { isDaemon = true; start() }
+            Thread.sleep(5)
+
+            wallet.close()
+
+            val error = ended.get(10, TimeUnit.SECONDS)
+            assertTrue(error is MoneroError, "the caller ends with the error of a closed wallet, not $error")
+            assertEquals("Wallet is closed", error.message)
+            caller.join(1000)
+        }
+    }
+
     // ------------------------------- THE LIFECYCLE ----------------------------------
 
     @Test
@@ -825,6 +884,7 @@ class MoneroWalletFullTest {
             { wallet.sync() },
             { wallet.startSyncing(5000) },
             { wallet.stopSyncing() },
+            { wallet.waitForNextBlock(100) },
             { wallet.changePassword(password, "a new password") },
             { wallet.save() }
         )) {

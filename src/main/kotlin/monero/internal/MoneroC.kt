@@ -337,6 +337,11 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_daemon_height(wallet: Pointer, height: LongByReference): Int
 
+    fun monero_wallet_wait_for_next_block_timeout(wallet: Pointer, timeoutMs: Int, height: LongByReference, timedOut: ByteByReference): Int
+
+    // the one call that any thread can make on a wallet, which the others can not
+    fun monero_wallet_request_shutdown(wallet: Pointer): Int
+
     // wallet: keys and full
 
     fun monero_wallet_close(wallet: Pointer, save: Boolean): Int

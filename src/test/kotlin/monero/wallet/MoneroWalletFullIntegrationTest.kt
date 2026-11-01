@@ -5,7 +5,12 @@ import java.nio.file.Path
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroError
@@ -87,6 +92,52 @@ class MoneroWalletFullIntegrationTest {
                 wallet.stopSyncing()
             }
         }
+    }
+
+    // The wait for the next block returns the height of the block that is mined while the wallet syncs
+    @Test
+    fun testWaitForNextBlock() {
+        createWallet().use { wallet ->
+            wallet.sync()
+            wallet.startSyncing(500)
+            try {
+                assertNull(wallet.waitForNextBlock(300), "no block is mined while the wallet waits")
+
+                // the wait holds the thread of the wallet, so the block is mined from another one
+                val mined = CompletableFuture.runAsync {
+                    Thread.sleep(500)
+                    RegtestSupport.mineBlocks(1)
+                }
+                val height = wallet.waitForNextBlock(30_000)
+                mined.get(60, TimeUnit.SECONDS)
+
+                assertNotNull(height, "a block was mined while the wallet waited")
+                assertTrue(height > 0)
+            } finally {
+                wallet.stopSyncing()
+            }
+        }
+    }
+
+    // A sync that runs is asked to stop from another thread, and the wallet closes after it
+    @Test
+    fun testRequestShutdownStopsASync() {
+        val config = config()
+        val wallet = MoneroWalletFull.createWallet(config)
+        try {
+            RegtestSupport.mineBlocks(300, wallet.getPrimaryAddress())
+            val sync = CompletableFuture.supplyAsync { wallet.sync() }
+            Thread.sleep(100)
+
+            wallet.requestShutdown()
+
+            // the sync ends, whether it was stopped or it had finished, and the calls that need the daemon fail from then on
+            runCatching { sync.get(60, TimeUnit.SECONDS) }
+            assertFailsWith<MoneroError> { wallet.sync() }
+        } finally {
+            wallet.close()
+        }
+        assertTrue(wallet.isClosed())
     }
 
     // A wallet that is reopened keeps what it scanned, so it does not scan the chain again
