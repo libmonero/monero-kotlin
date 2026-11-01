@@ -716,14 +716,20 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Get the multisig information of the wallet. A wallet that is not multisig answers whatever its memory holds in
-     * the threshold and the number of participants, so read them only when [isMultisig] is true.
+     * Get the multisig information of the wallet. A wallet that is not multisig has no threshold and no participants:
+     * monero-c answers whatever its memory holds in them, so they are not read and stay null.
      *
      * @return the multisig information
      * @throws MoneroError if the wallet is closed
      */
     fun getMultisigInfo(): MoneroMultisigInfo {
         checkNotClosed()
+        if (!isMultisig()) {
+            val info = MoneroMultisigInfo()
+            info.isMultisig = false
+            info.isReady = false
+            return info
+        }
         return json { lib, h, out -> lib.monero_wallet_get_multisig_info(h, out) }
     }
 

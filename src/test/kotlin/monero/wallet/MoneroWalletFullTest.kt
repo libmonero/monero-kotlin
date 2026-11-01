@@ -922,7 +922,11 @@ class MoneroWalletFullTest {
         testWallet().use { wallet ->
             assertFalse(wallet.isMultisig())
             assertFalse(wallet.isMultisigImportNeeded())
-            assertEquals(false, wallet.getMultisigInfo().isMultisig)
+            val info = wallet.getMultisigInfo()
+            assertEquals(false, info.isMultisig)
+            assertEquals(false, info.isReady)
+            assertNull(info.threshold)
+            assertNull(info.numParticipants)
         }
     }
 
