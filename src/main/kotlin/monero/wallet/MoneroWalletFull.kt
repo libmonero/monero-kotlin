@@ -36,8 +36,8 @@ import monero.wallet.model.MoneroWalletConfig
 /**
  * Implements a full Monero wallet: the keys and the addresses of an account, the chain of a daemon, and its own wallet
  * files on disk. It is the full wallet of monero-cpp behind the C ABI of monero-c, created with one of its three
- * constructors or from a config (monero_c_wallet.h:144,159,176,205), and opened from its files
- * (monero_c_wallet.h:216). Close it to release the native handle.
+ * constructors or from a config (monero_c_wallet.h:158,159,176,205), and opened from its files
+ * (monero_c_wallet.h:230). Close it to release the native handle.
  *
  * The wallet files hold the chain that the wallet has scanned: [save] writes them, [close] with a save writes them
  * before closing, and a wallet that is opened again reads its chain from them, which is why it does not have to scan
@@ -46,7 +46,7 @@ import monero.wallet.model.MoneroWalletConfig
  * (monero_c_wallet.h:925).
  *
  * The calls of a wallet run one after the other on a thread of their own, since the C ABI allows one thread per wallet
- * handle (monero_c_wallet.h:49-53).
+ * handle (monero_c_wallet.h:50-53).
  */
 class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCloseable {
 
@@ -64,7 +64,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the mnemonic seed of the wallet.
      *
      * @return the 25 words of the seed
-     * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed (monero_c_wallet.h:342)
+     * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed (monero_c_wallet.h:356)
      */
     fun getSeed(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_seed(h, out) }
@@ -74,7 +74,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the language that the seed of the wallet is written in.
      *
      * @return the name of the language
-     * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed (monero_c_wallet.h:351)
+     * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed (monero_c_wallet.h:365)
      */
     fun getSeedLanguage(): String {
         return string { lib, h, out -> lib.monero_wallet_get_seed_language(h, out) }
@@ -82,7 +82,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get the languages that a seed can be written in. The call needs no wallet, since monero-c has the list of the
-     * languages itself (monero_c_wallet.h:232).
+     * languages itself (monero_c_wallet.h:246).
      *
      * @return the names of the languages
      * @throws MoneroError if the native library fails
@@ -99,7 +99,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the private view key of the wallet.
      *
      * @return the key in hexadecimal
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:369)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:383)
      */
     fun getPrivateViewKey(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_private_view_key(h, out) }
@@ -109,7 +109,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the private spend key of the wallet.
      *
      * @return the key in hexadecimal
-     * @throws MoneroError if the wallet is closed, or it is view-only, which has no spend key (monero_c_wallet.h:378)
+     * @throws MoneroError if the wallet is closed, or it is view-only, which has no spend key (monero_c_wallet.h:392)
      */
     fun getPrivateSpendKey(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_private_spend_key(h, out) }
@@ -119,7 +119,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the public view key of the wallet.
      *
      * @return the key in hexadecimal
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:754)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:768)
      */
     fun getPublicViewKey(): String {
         return string { lib, h, out -> lib.monero_wallet_get_public_view_key(h, out) }
@@ -129,7 +129,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the public spend key of the wallet.
      *
      * @return the key in hexadecimal
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:763)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:777)
      */
     fun getPublicSpendKey(): String {
         return string { lib, h, out -> lib.monero_wallet_get_public_spend_key(h, out) }
@@ -139,7 +139,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the primary address of the wallet, which is the address of account 0 and subaddress 0.
      *
      * @return the primary address
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:360)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:374)
      */
     fun getPrimaryAddress(): String {
         return string { lib, h, out -> lib.monero_wallet_get_primary_address(h, out) }
@@ -151,7 +151,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param accountIdx is the account index
      * @param subaddressIdx is the subaddress index within the account
      * @return the address
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:470)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:484)
      */
     fun getAddress(accountIdx: Int, subaddressIdx: Int): String {
         return string { lib, h, out -> lib.monero_wallet_get_address(h, accountIdx, subaddressIdx, out) }
@@ -165,7 +165,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param accountIdx is the account index
      * @param includeSubaddresses is whether to include the subaddresses of the account
      * @return the account
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:502)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:516)
      */
     fun getAccount(accountIdx: Int, includeSubaddresses: Boolean = false): MoneroAccount {
         checkNotClosed()
@@ -174,7 +174,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get a subaddress of an account. The C ABI has a function for it that a full wallet does not answer
-     * (monero_c_wallet.h:648), so this reads the subaddress through the plural call.
+     * (monero_c_wallet.h:662), so this reads the subaddress through the plural call.
      *
      * @param accountIdx is the account index
      * @param subaddressIdx is the subaddress index within the account
@@ -191,7 +191,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param accountIdx is the account index
      * @param subaddressIndices are the subaddress indices within the account, or null for all of them
      * @return the subaddresses, in the order of the indices
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:515)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:529)
      */
     fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>?): List<MoneroSubaddress> {
         checkNotClosed()
@@ -211,7 +211,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param paymentId is the payment ID in hexadecimal, or null or "" for a random one
      * @return the integrated address
      * @throws MoneroError if the wallet is closed, the address is not a standard one of the network, or the payment
-     * ID is not a payment ID (monero_c_wallet.h:481)
+     * ID is not a payment ID (monero_c_wallet.h:495)
      */
     fun getIntegratedAddress(standardAddress: String? = null, paymentId: String? = null): MoneroIntegratedAddress {
         checkNotClosed()
@@ -224,7 +224,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param integratedAddress is the integrated address
      * @return the integrated address with its standard address and its payment ID
      * @throws MoneroError if the wallet is closed, or the address is not an integrated address of the network
-     * (monero_c_wallet.h:491)
+     * (monero_c_wallet.h:505)
      */
     fun decodeIntegratedAddress(integratedAddress: String): MoneroIntegratedAddress {
         checkNotClosed()
@@ -241,7 +241,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param accountIdx is the account index
      * @param subaddressIdx is the subaddress index within the account
      * @return the signature
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:528)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:542)
      */
     fun signMessage(message: String, signatureType: MoneroMessageSignatureType, accountIdx: Int, subaddressIdx: Int): String {
         checkNotClosed()
@@ -250,7 +250,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Verify a signature that [signMessage] made for an address. A signature that does not match is not an error: the
-     * result says it is not good (monero_c_wallet.h:541).
+     * result says it is not good (monero_c_wallet.h:555).
      *
      * @param message is the signed message
      * @param address is the address that signed the message
@@ -269,7 +269,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param config is the transaction config, whose first destination holds the address and the amount
      * @return the payment URI
      * @throws MoneroError if the wallet is closed, or the config has no address to build the URI from
-     * (monero_c_wallet.h:1326)
+     * (monero_c_wallet.h:1355)
      */
     fun getPaymentUri(config: MoneroTxConfig): String {
         checkNotClosed()
@@ -281,7 +281,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      *
      * @param uri is the payment URI
      * @return the transaction config that the URI holds
-     * @throws MoneroError if the wallet is closed, or the URI is not a payment URI (monero_c_wallet.h:1336)
+     * @throws MoneroError if the wallet is closed, or the URI is not a payment URI (monero_c_wallet.h:1365)
      */
     fun parsePaymentUri(uri: String): MoneroTxConfig {
         checkNotClosed()
@@ -305,7 +305,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Start a thread of the wallet that syncs it with its daemon, over and over. Stop it with [stopSyncing]
-     * (monero_c_wallet.h:1011).
+     * (monero_c_wallet.h:1025).
      *
      * @param syncPeriodMs is the most time that the wallet waits between two syncs, in milliseconds
      * @throws MoneroError if the wallet is closed
@@ -316,7 +316,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Stop the thread of the wallet that syncs it (monero_c_wallet.h:1019).
+     * Stop the thread of the wallet that syncs it (monero_c_wallet.h:1033).
      *
      * @throws MoneroError if the wallet is closed
      */
@@ -348,7 +348,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Check if the wallet is connected to a daemon.
      *
      * @return true if the wallet is connected, false otherwise
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:1028)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:1042)
      */
     fun isConnectedToDaemon(): Boolean {
         checkNotClosed()
@@ -363,7 +363,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Check if the daemon of the wallet is synced with the network.
      *
      * @return true if the daemon is synced, false otherwise
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:1037)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:1051)
      */
     fun isDaemonSynced(): Boolean {
         checkNotClosed()
@@ -378,7 +378,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Check if the wallet is synced with its daemon.
      *
      * @return true if the wallet is synced, false otherwise
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:1046)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:1060)
      */
     fun isSynced(): Boolean {
         checkNotClosed()
@@ -390,7 +390,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Get the height that the wallet has scanned to, which is the next block to scan (monero_c_wallet.h:387).
+     * Get the height that the wallet has scanned to, which is the next block to scan (monero_c_wallet.h:401).
      *
      * @return the height
      * @throws MoneroError if the wallet is closed
@@ -405,7 +405,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Get the height that the daemon of the wallet is synced to (monero_c_wallet.h:1055).
+     * Get the height that the daemon of the wallet is synced to (monero_c_wallet.h:1069).
      *
      * @return the height
      * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
@@ -420,7 +420,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Get the balance of the wallet, including the funds that are still locked (monero_c_wallet.h:397).
+     * Get the balance of the wallet, including the funds that are still locked (monero_c_wallet.h:411).
      *
      * @return the balance in atomic units
      * @throws MoneroError if the wallet is closed
@@ -436,7 +436,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get the unlocked balance of the wallet, which is the balance without the funds that are still locked
-     * (monero_c_wallet.h:405).
+     * (monero_c_wallet.h:419).
      *
      * @return the unlocked balance in atomic units
      * @throws MoneroError if the wallet is closed
@@ -451,7 +451,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Get the transactions of the wallet (monero_c_wallet.h:1162). A block of the answer holds its miner
+     * Get the transactions of the wallet (monero_c_wallet.h:1191). A block of the answer holds its miner
      * transaction twice, in its transactions and as its miner transaction, which is the block model of monero-cpp:
      * this flattens the transactions of the blocks.
      *
@@ -473,7 +473,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     /**
      * Create one or more transactions that transfer funds from the wallet, through the RingCT construction of
      * monero-cpp. The transactions are relayed only when the config says so: a transaction that is not relayed
-     * carries the metadata that [relayTx] takes (monero_c_wallet.h:1203).
+     * carries the metadata that [relayTx] takes (monero_c_wallet.h:1232).
      *
      * @param config is the configuration of the transfer, which names the account to send from and the
      * destinations, and says whether to relay
@@ -491,7 +491,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Relay a transaction that [createTxs] made without relaying, from its metadata (monero_c_wallet.h:1213).
+     * Relay a transaction that [createTxs] made without relaying, from its metadata (monero_c_wallet.h:1242).
      *
      * @param txMetadata is the metadata of the transaction, which a transaction of [createTxs] carries
      * @return the hash of the relayed transaction
@@ -504,7 +504,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Relay a transaction that [createTxs] made without relaying, from the transaction itself: the C ABI reads the
-     * metadata of the JSON of the transaction (monero_c_wallet.h:1224).
+     * metadata of the JSON of the transaction (monero_c_wallet.h:1253).
      *
      * @param tx is the transaction to relay, which [createTxs] returned
      * @return the hash of the relayed transaction
@@ -544,7 +544,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Get the connection of the daemon of the wallet (monero_c_wallet.h:934).
+     * Get the connection of the daemon of the wallet (monero_c_wallet.h:948).
      *
      * @return the connection, or null if the wallet is not connected to a daemon
      * @throws MoneroError if the wallet is closed
@@ -563,7 +563,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Check if the daemon of the wallet is trusted.
      *
      * @return true if the daemon is trusted, false otherwise
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:943)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:957)
      */
     fun isDaemonTrusted(): Boolean {
         checkNotClosed()
@@ -580,7 +580,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the network of the wallet.
      *
      * @return the network type
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:314)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:328)
      */
     fun getNetworkType(): MoneroNetworkType {
         checkNotClosed()
@@ -595,7 +595,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Check if the wallet is view-only, which means it has no private spend key.
      *
      * @return true if the wallet is view-only, false otherwise
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:323)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:337)
      */
     fun isViewOnly(): Boolean {
         checkNotClosed()
@@ -610,7 +610,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the version of the wallet library.
      *
      * @return the version
-     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:772)
+     * @throws MoneroError if the wallet is closed (monero_c_wallet.h:786)
      */
     fun getVersion(): MoneroVersion {
         checkNotClosed()
@@ -619,7 +619,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get the path of the wallet file, which the wallet was created with, or "" when it stays in memory
-     * (monero_c_wallet.h:746).
+     * (monero_c_wallet.h:760).
      *
      * @return the path
      * @throws MoneroError if the wallet is closed
@@ -630,7 +630,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get the height that the wallet scans from when it is created or restored, which is the first block that it
-     * scans (monero_c_wallet.h:782).
+     * scans (monero_c_wallet.h:796).
      *
      * @return the restore height
      * @throws MoneroError if the wallet is closed
@@ -646,7 +646,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Set the height that the wallet scans from, which it does before its next scan: a height that it has already
-     * scanned makes it scan the chain from it again (monero_c_wallet.h:791).
+     * scanned makes it scan the chain from it again (monero_c_wallet.h:805).
      *
      * @param restoreHeight is the height to scan from
      * @throws MoneroError if the wallet is closed
@@ -658,7 +658,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Change the password of the wallet files, which are written with it, and which the wallet opens with from then
-     * on (monero_c_wallet.h:604).
+     * on (monero_c_wallet.h:618).
      *
      * @param oldPassword is the password of the files, which has to be the one that they are written with
      * @param newPassword is the password to write the files with
@@ -670,7 +670,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Write the wallet to its files, which a wallet that stays in memory has none of (monero_c_wallet.h:277).
+     * Write the wallet to its files, which a wallet that stays in memory has none of (monero_c_wallet.h:291).
      *
      * @throws MoneroError if the wallet is closed, or it has no path to write to
      */
@@ -691,7 +691,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Close the wallet, writing it to its files first when a save is asked for. Every call of a closed wallet fails
-     * with "Wallet is closed", and closing it again does nothing (monero_c_wallet.h:286).
+     * with "Wallet is closed", and closing it again does nothing (monero_c_wallet.h:300).
      *
      * @param save is whether to save the wallet before closing it
      * @throws MoneroError if the wallet is closed, or a save is asked for and the wallet has no path to write to
@@ -722,7 +722,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     // ------------------------------- MULTISIG ------------------------------------
 
     /**
-     * Check if the wallet is a multisig wallet (monero_c_wallet.h:334).
+     * Check if the wallet is a multisig wallet (monero_c_wallet.h:348).
      *
      * @return true if the wallet is multisig, false otherwise
      * @throws MoneroError if the wallet is closed
@@ -738,7 +738,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Check if the wallet needs the multisig hexes of its participants to show the outputs that it received after the
-     * last import (monero_c_wallet.h:1453).
+     * last import (monero_c_wallet.h:1482).
      *
      * @return true if an import is needed, false otherwise
      * @throws MoneroError if the wallet is closed
@@ -754,7 +754,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get the multisig information of the wallet, which a wallet that is not multisig carries without its threshold
-     * and its number of participants (monero_c_wallet.h:1462).
+     * and its number of participants (monero_c_wallet.h:1491).
      *
      * @return the multisig information
      * @throws MoneroError if the wallet is closed
@@ -770,7 +770,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     /**
      * Start a multisig wallet from this wallet, which returns the hex that the other participants make their wallets
      * multisig with. The wallet stays multisig-in-progress until enough key exchanges finalize it
-     * (monero_c_wallet.h:1471).
+     * (monero_c_wallet.h:1500).
      *
      * @return the multisig hex of this wallet
      * @throws MoneroError if the wallet is closed, or it is not a wallet that a multisig can start from
@@ -782,7 +782,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Make this wallet a part of a multisig wallet from the prepared hexes of the other participants, which returns
-     * the hex that the key exchanges of a threshold below the number of participants carry (monero_c_wallet.h:1484).
+     * the hex that the key exchanges of a threshold below the number of participants carry (monero_c_wallet.h:1513).
      *
      * @param multisigHexes are the prepared hexes of the other participants
      * @param threshold is the number of participants that a transfer needs the signature of
@@ -801,7 +801,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Exchange the multisig keys of the participants, which a threshold below the number of participants needs one or
-     * more rounds of before the wallet is final (monero_c_wallet.h:1497). The last round returns the address of the
+     * more rounds of before the wallet is final (monero_c_wallet.h:1526). The last round returns the address of the
      * multisig wallet.
      *
      * @param multisigHexes are the hexes of the other participants
@@ -819,7 +819,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Export the multisig hex of this wallet, which the other participants import to see the outputs that it knows
-     * (monero_c_wallet.h:1506).
+     * (monero_c_wallet.h:1535).
      *
      * @return the multisig hex of this wallet
      * @throws MoneroError if the wallet is closed, or the wallet is not a final multisig wallet
@@ -831,7 +831,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Import the multisig hexes of the other participants, which shows this wallet the outputs that they know
-     * (monero_c_wallet.h:1518).
+     * (monero_c_wallet.h:1547).
      *
      * @param multisigHexes are the hexes of the other participants
      * @param refreshAfterImport is whether to sync with the daemon after the import
@@ -849,7 +849,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Sign a multisig transaction from its hex, which a transfer between the participants of a threshold wallet makes
-     * (monero_c_wallet.h:1528). The signatures of enough participants turn the hex into a signed one.
+     * (monero_c_wallet.h:1557). The signatures of enough participants turn the hex into a signed one.
      *
      * @param multisigTxHex is the hex of the transaction to sign
      * @return the signed hex once enough participants signed, and the hashes of the transaction
@@ -865,7 +865,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
-     * Submit a signed multisig transaction to the network (monero_c_wallet.h:1538).
+     * Submit a signed multisig transaction to the network (monero_c_wallet.h:1567).
      *
      * @param signedMultisigTxHex is the hex of the signed transaction
      * @return the hashes of the transaction
@@ -883,7 +883,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     /**
      * Ask a running sync or a background sync of the wallet to stop, which is the one call that any thread can make
      * on a wallet: the others run one after the other on the thread of the wallet, and a sync that is running on it
-     * would never let them (monero_c_wallet.h:298).
+     * would never let them (monero_c_wallet.h:312).
      *
      * @throws MoneroError if the wallet is closed
      */
@@ -947,7 +947,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         const val DEFAULT_LANGUAGE = "English"
 
         /**
-         * Create a wallet with a new random seed, and write it to its files (monero_c_wallet.h:144). The keys are
+         * Create a wallet with a new random seed, and write it to its files (monero_c_wallet.h:158). The keys are
          * written to path + ".keys".
          *
          * @param config is the configuration of the wallet, which needs its path and its network type, and can name
@@ -963,7 +963,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         }
 
         /**
-         * Restore a wallet from its mnemonic seed, and write it to its files (monero_c_wallet.h:159).
+         * Restore a wallet from its mnemonic seed, and write it to its files (monero_c_wallet.h:173).
          *
          * @param config is the configuration of the wallet, which needs its path, its network type and its seed, and
          * can give the seed an offset, which is a passphrase that extends the seed, name the password of the files
@@ -980,7 +980,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         }
 
         /**
-         * Restore a wallet from its keys, and write it to its files (monero_c_wallet.h:176). Without a private spend
+         * Restore a wallet from its keys, and write it to its files (monero_c_wallet.h:190). Without a private spend
          * key the wallet is view-only.
          *
          * @param config is the configuration of the wallet, which needs its path, its network type and its keys,
@@ -1007,7 +1007,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
          * Create a wallet from a config, which the other constructors cannot: it can connect the wallet to a daemon
          * when it is created, set the trust in the daemon, scan more accounts and subaddresses than the 50 and 200 of
          * wallet2, restore a multisig wallet, and leave the wallet in memory, which it is without a path
-         * (monero_c_wallet.h:205).
+         * (monero_c_wallet.h:219).
          *
          * @param config is the configuration of the wallet, which needs its network type
          * @return the new wallet
@@ -1020,7 +1020,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         }
 
         /**
-         * Open a wallet from its files on disk (monero_c_wallet.h:216).
+         * Open a wallet from its files on disk (monero_c_wallet.h:230).
          *
          * @param config is the configuration of the wallet, which needs its path and its network type, and can name
          * the password of the files
@@ -1034,7 +1034,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         }
 
         /**
-         * Check if a wallet is at a path. It looks for the keys file, path + ".keys" (monero_c_wallet.h:225).
+         * Check if a wallet is at a path. It looks for the keys file, path + ".keys" (monero_c_wallet.h:239).
          *
          * @param path is the path of the wallet file
          * @return true if the wallet exists, false otherwise
