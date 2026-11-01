@@ -13,6 +13,13 @@ import monero.daemon.model.MoneroVersion
 import monero.internal.MoneroC
 import monero.internal.MoneroNative
 import monero.internal.NativeWorker
+import monero.internal.SizeT
+import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroIntegratedAddress
+import monero.wallet.model.MoneroMessageSignatureResult
+import monero.wallet.model.MoneroMessageSignatureType
+import monero.wallet.model.MoneroSubaddress
+import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroWalletConfig
 
 /**
@@ -32,6 +39,229 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
 
     private val worker = NativeWorker("MoneroWalletFull")
     private var closed = false
+
+    // ------------------------------- SEED, KEYS AND ADDRESSES ----------------------------------
+
+    /**
+     * Get the mnemonic seed of the wallet.
+     *
+     * @return the 25 words of the seed
+     * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed
+     */
+    fun getSeed(): String {
+        return secret { lib, h, out -> lib.monero_wallet_get_seed(h, out) }
+    }
+
+    /**
+     * Get the language that the seed of the wallet is written in.
+     *
+     * @return the name of the language
+     * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed
+     */
+    fun getSeedLanguage(): String {
+        return string { lib, h, out -> lib.monero_wallet_get_seed_language(h, out) }
+    }
+
+    /**
+     * Get the languages that a seed can be written in. The call needs no wallet, since monero-c has the list of the
+     * languages itself, so it answers on a closed wallet too.
+     *
+     * @return the names of the languages
+     * @throws MoneroError if the native library fails
+     */
+    fun getSeedLanguages(): List<String> {
+        val out = PointerByReference()
+        return MoneroNative.strings(MoneroNative.lib.monero_wallet_get_seed_languages(out), out)
+    }
+
+    /**
+     * Get the private view key of the wallet.
+     *
+     * @return the key in hexadecimal
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getPrivateViewKey(): String {
+        return secret { lib, h, out -> lib.monero_wallet_get_private_view_key(h, out) }
+    }
+
+    /**
+     * Get the private spend key of the wallet.
+     *
+     * @return the key in hexadecimal
+     * @throws MoneroError if the wallet is closed, or it is view-only, which has no spend key
+     */
+    fun getPrivateSpendKey(): String {
+        return secret { lib, h, out -> lib.monero_wallet_get_private_spend_key(h, out) }
+    }
+
+    /**
+     * Get the public view key of the wallet.
+     *
+     * @return the key in hexadecimal
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getPublicViewKey(): String {
+        return string { lib, h, out -> lib.monero_wallet_get_public_view_key(h, out) }
+    }
+
+    /**
+     * Get the public spend key of the wallet.
+     *
+     * @return the key in hexadecimal
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getPublicSpendKey(): String {
+        return string { lib, h, out -> lib.monero_wallet_get_public_spend_key(h, out) }
+    }
+
+    /**
+     * Get the primary address of the wallet, which is the address of account 0 and subaddress 0.
+     *
+     * @return the primary address
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getPrimaryAddress(): String {
+        return string { lib, h, out -> lib.monero_wallet_get_primary_address(h, out) }
+    }
+
+    /**
+     * Get the address of an account and subaddress.
+     *
+     * @param accountIdx is the account index
+     * @param subaddressIdx is the subaddress index within the account
+     * @return the address
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getAddress(accountIdx: Int, subaddressIdx: Int): String {
+        return string { lib, h, out -> lib.monero_wallet_get_address(h, accountIdx, subaddressIdx, out) }
+    }
+
+    // ------------------------------- ACCOUNTS AND SUBADDRESSES ----------------------------------
+
+    /**
+     * Get an account of the wallet, with its subaddresses when they are asked for.
+     *
+     * @param accountIdx is the account index
+     * @param includeSubaddresses is whether to include the subaddresses of the account
+     * @return the account
+     * @throws MoneroError if the wallet is closed, or it has no such account
+     */
+    fun getAccount(accountIdx: Int, includeSubaddresses: Boolean = false): MoneroAccount {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_get_account(h, accountIdx, includeSubaddresses, out) }
+    }
+
+    /**
+     * Get a subaddress of an account. The C ABI has a function for it that a full wallet does not answer, so this reads
+     * the subaddress through the plural call.
+     *
+     * @param accountIdx is the account index
+     * @param subaddressIdx is the subaddress index within the account
+     * @return the subaddress
+     * @throws MoneroError if the wallet is closed, or it has no such subaddress
+     */
+    fun getSubaddress(accountIdx: Int, subaddressIdx: Int): MoneroSubaddress {
+        return getSubaddresses(accountIdx, listOf(subaddressIdx))[0]
+    }
+
+    /**
+     * Get the subaddresses of an account at the given indices, or all of them when no indices are given.
+     *
+     * @param accountIdx is the account index
+     * @param subaddressIndices are the subaddress indices within the account, or null or empty for all of them
+     * @return the subaddresses, in the order of the indices
+     * @throws MoneroError if the wallet is closed, or it has no such account or subaddress
+     */
+    fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>? = null): List<MoneroSubaddress> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val indices = subaddressIndices?.toIntArray()
+            MoneroNative.json(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT((indices?.size ?: 0).toLong()), out), out, object : TypeReference<List<MoneroSubaddress>>() {})
+        }
+    }
+
+    // ------------------------------- INTEGRATED ADDRESSES ----------------------------------
+
+    /**
+     * Get the integrated address of a standard address and a payment ID.
+     *
+     * @param standardAddress is the standard address, or null or "" for the primary address of the wallet
+     * @param paymentId is the payment ID in hexadecimal, or null or "" for a random one
+     * @return the integrated address
+     * @throws MoneroError if the wallet is closed, the address is not a standard one of the network, or the payment
+     * ID is not a payment ID
+     */
+    fun getIntegratedAddress(standardAddress: String? = null, paymentId: String? = null): MoneroIntegratedAddress {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_get_integrated_address(h, standardAddress, paymentId, out) }
+    }
+
+    /**
+     * Decode an integrated address into its standard address and its payment ID.
+     *
+     * @param integratedAddress is the integrated address
+     * @return the integrated address with its standard address and its payment ID
+     * @throws MoneroError if the wallet is closed, or the address is not an integrated address of the network
+     */
+    fun decodeIntegratedAddress(integratedAddress: String): MoneroIntegratedAddress {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_decode_integrated_address(h, integratedAddress, out) }
+    }
+
+    // ------------------------------- MESSAGES AND PAYMENT URIS ----------------------------------
+
+    /**
+     * Sign a message with the spend key or the view key of an account and subaddress.
+     *
+     * @param message is the message to sign
+     * @param signatureType is the key that signs the message
+     * @param accountIdx is the account index
+     * @param subaddressIdx is the subaddress index within the account
+     * @return the signature
+     * @throws MoneroError if the wallet is closed
+     */
+    fun signMessage(message: String, signatureType: MoneroMessageSignatureType, accountIdx: Int, subaddressIdx: Int): String {
+        return string { lib, h, out -> lib.monero_wallet_sign_message(h, message, signatureType.ordinal, accountIdx, subaddressIdx, out) }
+    }
+
+    /**
+     * Verify a signature that [signMessage] made for an address. A signature that does not match is not an error: the
+     * result says it is not good.
+     *
+     * @param message is the signed message
+     * @param address is the address that signed the message
+     * @param signature is the signature
+     * @return the result of the verification
+     * @throws MoneroError if the wallet is closed, or the address is not an address of the network
+     */
+    fun verifyMessage(message: String, address: String, signature: String): MoneroMessageSignatureResult {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_verify_message(h, message, address, signature, out) }
+    }
+
+    /**
+     * Convert a transaction config to a payment URI.
+     *
+     * @param config is the transaction config, whose first destination holds the address and the amount
+     * @return the payment URI
+     * @throws MoneroError if the wallet is closed, or the config has no address to build the URI from
+     */
+    fun getPaymentUri(config: MoneroTxConfig): String {
+        return string { lib, h, out -> lib.monero_wallet_get_payment_uri(h, MoneroJson.serialize(config), out) }
+    }
+
+    /**
+     * Parse a payment URI into a transaction config.
+     *
+     * @param uri is the payment URI
+     * @return the transaction config that the URI holds
+     * @throws MoneroError if the wallet is closed, or the URI is not a payment URI
+     */
+    fun parsePaymentUri(uri: String): MoneroTxConfig {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_parse_payment_uri(h, uri, out) }
+    }
 
     // ------------------------------- THE FILES ----------------------------------
 
@@ -199,6 +429,18 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         return run { lib, h ->
             val out = PointerByReference()
             MoneroNative.text(call(lib, h, out), out) ?: throw MoneroError("monero-c returned no string")
+        }
+    }
+
+    /**
+     * Call the c abi for a secret of the wallet, which it wipes when it frees the string: the seed and the private
+     * keys.
+     */
+    private fun secret(call: (MoneroC, Pointer, PointerByReference) -> Int): String {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.secret(call(lib, h, out), out) ?: throw MoneroError("monero-c returned no string")
         }
     }
 
