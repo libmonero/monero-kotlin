@@ -915,6 +915,110 @@ class MoneroWalletFullTest {
         }
     }
 
+    // ------------------------------- MULTISIG ----------------------------------
+
+    @Test
+    fun aWalletThatIsNotMultisig_SaysSo() {
+        testWallet().use { wallet ->
+            assertFalse(wallet.isMultisig())
+            assertFalse(wallet.isMultisigImportNeeded())
+            assertEquals(false, wallet.getMultisigInfo().isMultisig)
+        }
+    }
+
+    @Test
+    fun prepareMultisig_ReturnsTheHexOfTheWallet() {
+        MoneroWalletFull.createWallet(config()).use { first ->
+            MoneroWalletFull.createWallet(config()).use { second ->
+                val hex = first.prepareMultisig()
+                assertTrue(hex.isNotEmpty())
+                assertTrue(hex != second.prepareMultisig(), "each wallet prepares a hex of its own")
+            }
+        }
+    }
+
+    @Test
+    fun makeMultisig_WithHexesThatAreNotPrepared_IsAnError() {
+        MoneroWalletFull.createWallet(config()).use { wallet ->
+            wallet.prepareMultisig()
+            val error = assertFailsWith<MoneroError> { wallet.makeMultisig(listOf("asd", "dsa"), 2, "") }
+            assertEquals("Kex message unexpectedly small.", error.message)
+        }
+    }
+
+    @Test
+    fun aWalletInTheMiddleOfTheSetup_IsMultisigButNotReady() {
+        MoneroWalletFull.createWallet(config()).use { first ->
+            MoneroWalletFull.createWallet(config()).use { second ->
+                val prepared = second.prepareMultisig()
+                first.prepareMultisig()
+                first.makeMultisig(listOf(prepared), 2, "")
+
+                assertTrue(first.isMultisig())
+                assertEquals(false, first.getMultisigInfo().isReady)
+
+                // a multisig wallet that is not final has no seed to read
+                val error = assertFailsWith<MoneroError> { first.getSeed() }
+                assertEquals("This wallet is multisig, but not yet finalized", error.message)
+            }
+        }
+    }
+
+    @Test
+    fun exchangeMultisigKeys_WithHexesThatAreNotOfTheRound_IsAnError() {
+        MoneroWalletFull.createWallet(config()).use { wallet ->
+            wallet.prepareMultisig()
+            assertTrue(assertFailsWith<MoneroError> { wallet.exchangeMultisigKeys(listOf("asd", "dsa"), "") }.message!!.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun theSetup_Of2Of2_MakesAFinalMultisigWallet() {
+        assertFinalMultisig(2, 2)
+    }
+
+    @Test
+    fun theSetup_Of2Of3_MakesAFinalMultisigWallet() {
+        assertFinalMultisig(2, 3)
+    }
+
+    @Test
+    fun aFinalMultisigWallet_ExportsItsHex() {
+        MultisigSupport.create(2, 2, { config() }).use { setup ->
+            val hex = setup.participants[0].exportMultisigHex()
+            assertTrue(hex.isNotEmpty())
+            assertTrue(hex != setup.participants[1].exportMultisigHex(), "each participant exports a hex of its own")
+        }
+    }
+
+    @Test
+    fun exportMultisigHex_OfAWalletThatIsNotMultisig_IsAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.exportMultisigHex() }
+        }
+    }
+
+    @Test
+    fun importMultisigHex_OfHexesThatAreNotOnes_IsAnError() {
+        MultisigSupport.create(2, 2, { config() }).use { setup ->
+            assertFailsWith<MoneroError> { setup.participants[0].importMultisigHex(listOf("asd", "dsa"), false) }
+        }
+    }
+
+    @Test
+    fun signMultisigTxHex_OfAHexThatIsNotATx_IsAnError() {
+        MultisigSupport.create(2, 2, { config() }).use { setup ->
+            assertFailsWith<MoneroError> { setup.participants[0].signMultisigTxHex("this is not a multisig transaction") }
+        }
+    }
+
+    @Test
+    fun submitMultisigTxHex_OfAHexThatIsNotATx_IsAnError() {
+        MultisigSupport.create(2, 2, { config() }).use { setup ->
+            assertFailsWith<MoneroError> { setup.participants[0].submitMultisigTxHex("this is not a signed multisig transaction") }
+        }
+    }
+
     // ------------------------------- THE LIFECYCLE ----------------------------------
 
     @Test
@@ -944,6 +1048,16 @@ class MoneroWalletFullTest {
             { wallet.createTxs(MoneroTxConfig()) },
             { wallet.relayTx("metadata") },
             { wallet.relayTx(MoneroTxWallet()) },
+            { wallet.isMultisig() },
+            { wallet.isMultisigImportNeeded() },
+            { wallet.getMultisigInfo() },
+            { wallet.prepareMultisig() },
+            { wallet.makeMultisig(listOf("hex"), 2, "") },
+            { wallet.exchangeMultisigKeys(listOf("hex"), "") },
+            { wallet.exportMultisigHex() },
+            { wallet.importMultisigHex(listOf("hex"), false) },
+            { wallet.signMultisigTxHex("hex") },
+            { wallet.submitMultisigTxHex("hex") },
             { wallet.changePassword(password, "a new password") },
             { wallet.save() }
         )) {
@@ -1079,6 +1193,25 @@ class MoneroWalletFullTest {
         // a standard address of mainnet starts with 4, a subaddress with 8, and both are 95 characters
         assertEquals(95, address.length, address)
         assertTrue(address.startsWith("4") || address.startsWith("8"), address)
+    }
+
+    // the participants make a wallet that is final: it has the address of the setup, answers its threshold and its
+    // participants, and has a seed, which is the multisig data of the wallet
+    private fun assertFinalMultisig(m: Int, n: Int) {
+        MultisigSupport.create(m, n, { config() }).use { setup ->
+            validateAddress(setup.address)
+            for (wallet in setup.participants) {
+                assertEquals(setup.address, wallet.getPrimaryAddress())
+                val info = wallet.getMultisigInfo()
+                assertEquals(true, info.isMultisig)
+                assertEquals(true, info.isReady)
+                assertEquals(m, info.threshold)
+                assertEquals(n, info.numParticipants)
+                assertTrue(wallet.isMultisig())
+                assertTrue(wallet.getSeed().isNotEmpty())
+                assertFalse(wallet.isViewOnly())
+            }
+        }
     }
 
     private fun deleteTheCache(path: String) {
