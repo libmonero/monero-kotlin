@@ -1001,7 +1001,8 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
         }
 
         /**
-         * Check if a wallet is at a path. It looks for the keys file, path + ".keys".
+         * Check if a wallet is at a path. It looks for the keys file, path + ".keys". The call needs no wallet, so
+         * it runs on the thread of the caller: there is no worker to order it.
          *
          * @param path is the path of the wallet file
          * @return true if the wallet exists, false otherwise
