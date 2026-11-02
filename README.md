@@ -61,6 +61,78 @@ val fee = block.txs?.first()?.fee      // atomic units
 val written = MoneroJson.serialize(block)
 ```
 
+### Wallets
+
+Three wallets share one surface: the keys wallet, the full wallet and the light wallet.
+
+The keys wallet holds the keys, the seed and the addresses of an account, with no files, no
+chain and no transactions, so it needs no daemon:
+
+```kotlin
+val config = MoneroWalletConfig()
+config.networkType = MoneroNetworkType.MAINNET
+config.seed = "vortex degrees outbreak teeming gimmick school rounded tonic observant injury leech ought problems ahead upcoming ledge textbook cigar atrium trash dunes eavesdrop dullness evolved vortex"
+
+val keys = MoneroWalletKeys.createWalletFromSeed(config)
+keys.use {
+    println(it.getPrimaryAddress())
+    println(it.getPrivateViewKey())
+    println(it.getSeed())
+}
+```
+
+The full wallet is the wallet of monero-cpp with its files and its daemon:
+
+```kotlin
+val config = MoneroWalletConfig()
+config.networkType = MoneroNetworkType.REGTEST
+config.seed = seed
+
+val wallet = MoneroWalletFull.createWalletFromSeed(config)
+wallet.use {
+    it.setDaemonConnection(MoneroRpcConnection("http://localhost:28081"))
+    it.sync()
+    val balance = it.getBalance()                              // atomic units
+    val unlocked = it.getUnlockedBalance()
+
+    // send to an address, without relaying
+    val txConfig = MoneroTxConfig()
+    txConfig.accountIndex = 0
+    txConfig.destinations = listOf(MoneroDestination(address, amount))
+    txConfig.relay = false
+    val txs = it.createTxs(txConfig)
+    val metadata = txs[0].metadata
+    val hash = it.relayTx(metadata)
+}
+// the wallet is saved and closed by use, and it can be opened again
+val reopened = MoneroWalletFull.openWallet(config)
+reopened.close()
+```
+
+The light wallet is the wallet of a [monero-lws](https://github.com/vtnerd/monero-lws) server,
+which scans the chain for it, so it holds no files and no chain either:
+
+```kotlin
+val config = MoneroWalletConfig()
+config.networkType = MoneroNetworkType.MAINNET
+config.primaryAddress = address
+config.privateViewKey = viewKey
+
+val connection = MoneroRpcConnection("http://localhost:8443")
+val wallet = MoneroWalletLight.createWallet(config, connection)
+wallet.use {
+    it.sync()
+    val balance = it.getBalance()                              // atomic units
+
+    // send the way the full wallet does, from its spend key
+    val txs = it.createTxs(txConfig)
+    val hash = it.relayTx(txs[0].metadata)
+}
+```
+
+The calls of a wallet run one after the other on a thread of their own, like the calls of a
+daemon. The wallets are closed once, and the full wallet saves its files when it is.
+
 ## Documentation
 
 * [Data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf)
@@ -69,7 +141,35 @@ val written = MoneroJson.serialize(block)
 
 ## Using monero-kotlin in your project
 
-monero-kotlin is not published to a repository yet, so until then build it from source as described below and add the jar from `build/libs` to your project, with its dependencies, for Gradle:
+monero-kotlin is not published to a repository yet, so until then build it from source as described below and take it from the local repository of Maven, which Gradle reads:
+
+```sh
+./gradlew publishToMavenLocal
+```
+
+```kotlin
+repositories {
+    mavenLocal()
+}
+
+dependencies {
+    implementation("org.libmonero:monero-kotlin:0.1.0-SNAPSHOT")
+}
+```
+
+The POM carries the dependencies of the library (Jackson and JNA), so nothing else is needed. For Android, [the android module](android/README.md) publishes an AAR with the native library of arm64-v8a in it:
+
+```sh
+ANDROID_HOME=<sdk> ./gradlew -Pandroid :android:publishToMavenLocal
+```
+
+```kotlin
+dependencies {
+    implementation("org.libmonero:monero-kotlin-android:0.1.0-SNAPSHOT")
+}
+```
+
+Alternatively, add the jar from `build/libs` to your project, with its dependencies, for Gradle:
 
 ```kotlin
 dependencies {
@@ -194,7 +294,7 @@ MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so .
 
 Otherwise it is looked for as `monero_c` by [JNA](https://github.com/java-native-access/jna): in `jna.library.path`, in the library path of the system, and in the resources of the classpath (e.g. `linux-x86-64/libmonero_c.so`).
 
-When it is loaded, the version of its ABI is compared with the one that monero-kotlin was written for (0.1.x), and a `MoneroError` is thrown if it is not the same.
+When it is loaded, the version of its ABI is compared with the one that monero-kotlin was written for: while the major version is 0, the minor version has to match exactly, and a `MoneroError` is thrown if it does not.
 
 ## Running tests
 
