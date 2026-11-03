@@ -186,7 +186,7 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     /**
      * Create one or more transactions that transfer funds from the wallet, through the RingCT construction of
      * monero-cpp. The transactions are relayed only when the config says so: a transaction that is not relayed
-     * carries the metadata that [relayTx] takes (monero_c_wallet.h:1203). A light wallet server does not sync the
+     * carries the metadata that [relayTx] takes (monero_c_wallet.h:1231). A light wallet server does not sync the
      * pool of its daemon, so a relayed transaction reaches the wallets when a block holds it.
      *
      * @param config is the configuration of the transfer, which names the account to send from and the
@@ -205,7 +205,7 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     }
 
     /**
-     * Relay a transaction that [createTxs] made without relaying, from its metadata (monero_c_wallet.h:1213).
+     * Relay a transaction that [createTxs] made without relaying, from its metadata (monero_c_wallet.h:1241).
      *
      * @param txMetadata is the metadata of the transaction, which a transaction of [createTxs] carries
      * @return the hash of the relayed transaction
@@ -218,7 +218,7 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
 
     /**
      * Relay a transaction that [createTxs] made without relaying, from the transaction itself: the C ABI reads the
-     * metadata of the JSON of the transaction (monero_c_wallet.h:1224).
+     * metadata of the JSON of the transaction (monero_c_wallet.h:1252).
      *
      * @param tx is the transaction to relay, which [createTxs] returned
      * @return the hash of the relayed transaction
