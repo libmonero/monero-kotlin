@@ -77,7 +77,7 @@ val stageMoneroCLibrary by tasks.registering(Sync::class) {
         }
 
         // the light wallet of the sources needs the light functions of the C ABI, which the
-        // monero-c of the submodule pin does not have yet: an AAR without them loads fine and
+        // submodule pin has but a monero-c release does not: an AAR without them loads fine and
         // fails on the phone with an UnsatisfiedLinkError, so check before packaging. The
         // exported names live in the dynamic symbol table, whose strings are in the file
         // (ISO_8859_1 keeps the bytes one to one).
@@ -90,8 +90,8 @@ val stageMoneroCLibrary by tasks.registering(Sync::class) {
         if (missing.isNotEmpty()) {
             throw GradleException(
                 "$library has no light wallet functions (${missing.joinToString()}): the library needs a " +
-                    "monero-c with the light wallet surface of the C ABI, which the submodule pin does not " +
-                    "have yet — build it from the light wallet branch of monero-c and point " +
+                    "monero-c with the light wallet surface of the C ABI, which the submodule pin has; " +
+                    "build it from the light wallet branch of monero-c and point " +
                     "-Pmonero.c.android.library at that build"
             )
         }

@@ -1,7 +1,7 @@
 // The example of the android module: an application that opens the light wallet of a
 // regtest account on a light wallet server and reads its balance, through the AAR of
-// the android module — the JNA layer of the library into libmonero_c.so, and the
-// light wallet REST API of the server behind it.
+// the android module (the JNA layer of the library into libmonero_c.so, and the
+// light wallet REST API of the server behind it).
 //
 // The server, the account and its view key are build fields, so the example runs
 // against a real stack without mock data: the defaults are the throwaway regtest

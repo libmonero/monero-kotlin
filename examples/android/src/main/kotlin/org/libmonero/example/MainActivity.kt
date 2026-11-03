@@ -17,8 +17,8 @@ import monero.wallet.model.MoneroWalletConfig
 
 /**
  * The example of the android module: opens the light wallet of an account on a light wallet
- * server, syncs it, and reads its balance, through the AAR — the JNA layer of the library into
- * the libmonero_c.so the AAR carries, and the REST API of the server behind it.
+ * server, syncs it, and reads its balance, through the AAR (the JNA layer of the library into
+ * the libmonero_c.so the AAR carries, and the REST API of the server behind it).
  *
  * The server, the account and its view key come from the build fields, which the defaults fill
  * with the throwaway regtest account of the integration tests and the light wallet server of the
