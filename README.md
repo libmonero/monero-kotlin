@@ -228,9 +228,9 @@ with `./gradlew -Pandroid :examples:android:assembleDebug` and read `android/REA
 the native library is pointed at, since it is not part of the repository.
 
 The light wallet calls above need a `libmonero_c.so` that has the light wallet functions of the C
-ABI, which the submodule pin does not have yet: the PR that adds them to monero-c is queued for
-review. Until it lands, build the artifact of the android job from the light wallet branch of
-monero-c, or point `-Pmonero.c.android.library` at a cross-build of it.
+ABI, which the submodule pin has: they are not in a released monero-c yet, so until the PR that
+adds them merges, build the artifact of the android job from the light wallet branch of monero-c,
+or point `-Pmonero.c.android.library` at a cross-build of it.
 
 ## Building monero-kotlin from source
 
@@ -319,7 +319,7 @@ MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so .
 docker compose -f src/test/integration/docker-compose.yml down -v
 ```
 
-The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The monero-lws server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The light wallet tests need a monero-c with the light wallet surface, which the submodule does not have yet: they skip with a message when the library has no light wallet.
+The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The monero-lws server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The light wallet tests need a monero-c with the light wallet surface, which the submodule has: they skip with a message when the library has none.
 
 To get the coverage of the library:
 
