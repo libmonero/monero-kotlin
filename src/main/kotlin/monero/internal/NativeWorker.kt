@@ -12,7 +12,7 @@ import monero.common.MoneroError
  * The stack is 8 MB, as the main thread of Linux: the default of a thread of the JVM is 1 MB, and monero-cpp parses
  * JSON by recursion.
  */
-internal class NativeWorker(name: String) : AutoCloseable {
+internal class NativeWorker(private val name: String) : AutoCloseable {
 
     private val executor = Executors.newSingleThreadExecutor { task ->
         Thread(null, task, name, STACK_SIZE).apply { isDaemon = true }
@@ -25,7 +25,10 @@ internal class NativeWorker(name: String) : AutoCloseable {
         val future = try {
             executor.submit(Callable { task() })
         } catch (e: RejectedExecutionException) {
-            throw MoneroError("The daemon is closed", e)
+
+            // the name of the worker is the class of its owner, which tells whether the call that is too
+            // late reached a closed wallet or a closed daemon
+            throw MoneroError("The ${if (name.startsWith("MoneroWallet")) "wallet" else "daemon"} is closed", e)
         }
         try {
             return future.get()
