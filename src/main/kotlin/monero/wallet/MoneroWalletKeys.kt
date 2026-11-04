@@ -330,8 +330,18 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      */
     fun close(save: Boolean) {
         if (closed) return
-        run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
+        if (save) {
+
+            // a keys-only wallet lives in memory: the c abi refuses the save and the wallet stays open,
+            // which the flag below must not forget
+            run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
+            return
+        }
+
+        // the calls of a closing wallet are refused before its handle dies, so a call that races the close
+        // fails cleanly instead of reaching a closed handle
         closed = true
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
         worker.close()
         MoneroNative.lib.monero_wallet_free(handle)
     }

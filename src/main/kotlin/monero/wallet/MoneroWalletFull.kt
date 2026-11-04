@@ -673,8 +673,11 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     fun close(save: Boolean) {
         if (closed) return
         if (save) requirePath()
-        run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
+
+        // the calls of a closing wallet are refused before its handle dies, so a call that races the close
+        // fails cleanly instead of reaching a closed handle
         closed = true
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
 
         // the write lock holds requestShutdown out while the handle dies: its read lock around the native call is what
         // keeps the one any-thread call off a freed handle, since the worker can not order it (a sync that is stuck on
