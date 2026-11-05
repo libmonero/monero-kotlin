@@ -37,8 +37,16 @@ object RegtestSupport {
      * fetches nothing.
      */
     private fun startChain() {
-        val request = HttpRequest.newBuilder(URI.create(daemonUri + "/get_height")).timeout(Duration.ofSeconds(2)).GET().build()
-        val body = http.send(request, HttpResponse.BodyHandlers.ofString()).body()
+
+        // a daemon that goes away between the check of assumeAvailable and this call skips the test,
+        // it does not error it
+        val body = try {
+            val request = HttpRequest.newBuilder(URI.create(daemonUri + "/get_height")).timeout(Duration.ofSeconds(2)).GET().build()
+            http.send(request, HttpResponse.BodyHandlers.ofString()).body()
+        } catch (e: java.io.IOException) {
+            assumeTrue(false, "the daemon at $daemonUri went away: $e")
+            return
+        }
         val height = Regex("\"height\":\\s*(\\d+)").find(body)?.groupValues?.get(1)?.toLong()
         if (height != null && height <= 1) mineBlocks(1)
     }
