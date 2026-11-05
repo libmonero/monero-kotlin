@@ -76,6 +76,29 @@ val stageMoneroCLibrary by tasks.registering(Sync::class) {
             )
         }
 
+        // the library has to be an arm64 ELF for Android: a library of another architecture
+        // carries the same names, so the checks below would pass and the app would die at its
+        // first dlopen. The magic is at the head of the file and the machine at offset 18.
+        library.inputStream().use { input ->
+            val header = ByteArray(20)
+            var read = 0
+            while (read < header.size) {
+                val n = input.read(header, read, header.size - read)
+                if (n < 0) throw GradleException("$library is shorter than an ELF header")
+                read += n
+            }
+            if (!(header[0] == 0x7F.toByte() && header[1] == 'E'.code.toByte() && header[2] == 'L'.code.toByte() && header[3] == 'F'.code.toByte())) {
+                throw GradleException("$library is not an ELF library")
+            }
+            val machine = (header[19].toInt() and 0xFF shl 8) or (header[18].toInt() and 0xFF)
+            if (machine != 0xB7) {
+                throw GradleException(
+                    "$library is not an arm64 library (e_machine 0x" + machine.toString(16) +
+                        "): stage the Android arm64 build of monero-c"
+                )
+            }
+        }
+
         // the light wallet of the sources needs the light functions of the C ABI, which the
         // submodule pin has but a monero-c release does not: an AAR without them loads fine and
         // fails on the phone with an UnsatisfiedLinkError, so check before packaging. The
