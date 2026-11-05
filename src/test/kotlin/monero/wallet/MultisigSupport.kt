@@ -18,9 +18,9 @@ object MultisigSupport {
     }
 
     /**
-     * Create n wallets in memory and make them the participants of an m of n multisig wallet, the way the multisig
-     * suite of monero-java does: each one prepares its hex, makes its wallet multisig from the hexes of the others,
-     * and the participants exchange keys n - m + 1 times, the last of which returns the address.
+     * Create n wallets in memory and make them the participants of an m of n multisig wallet, the way
+     * MultisigSampleCodeTester of monero-python does: each one prepares its hex, makes its wallet multisig from the
+     * hexes of the others, and the participants exchange keys n - m + 1 times, the last of which returns the address.
      *
      * @param m is the number of signatures that a transfer needs
      * @param n is the number of participants
