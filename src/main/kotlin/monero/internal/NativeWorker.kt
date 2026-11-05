@@ -4,6 +4,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
 import monero.common.MoneroError
 
 /**
@@ -39,10 +40,20 @@ internal class NativeWorker(name: String) : AutoCloseable {
     }
 
     /**
-     * Stop the thread after the calls that are in the queue.
+     * Stop the thread after the calls that are in the queue, and wait until it has run them: the owner frees its handle
+     * right after the close, and a call that is still queued would run on a freed handle.
+     *
+     * @throws MoneroError if the thread that closes is interrupted while it waits
      */
     override fun close() {
         executor.shutdown()
+        try {
+            // unbounded, since the calls of a worker end and freeing the handle under one of them does not
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw MoneroError("Interrupted while waiting for the calls of monero-c to end", e)
+        }
     }
 
     companion object {
