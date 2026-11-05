@@ -6,6 +6,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 import monero.common.MoneroError
+import org.junit.jupiter.api.Assumptions.abort
 import org.junit.jupiter.api.Assumptions.assumeTrue
 
 /**
@@ -38,7 +39,13 @@ object RegtestSupport {
      */
     private fun startChain() {
         val request = HttpRequest.newBuilder(URI.create(daemonUri + "/get_height")).timeout(Duration.ofSeconds(2)).GET().build()
-        val body = http.send(request, HttpResponse.BodyHandlers.ofString()).body()
+
+        // a node that goes away after the check of assumeAvailable skips the test, it does not fail it
+        val body = try {
+            http.send(request, HttpResponse.BodyHandlers.ofString()).body()
+        } catch (e: java.io.IOException) {
+            abort("the node at $daemonUri went away: $e")
+        }
         val height = Regex("\"height\":\\s*(\\d+)").find(body)?.groupValues?.get(1)?.toLong()
         if (height != null && height <= 1) mineBlocks(1)
     }
