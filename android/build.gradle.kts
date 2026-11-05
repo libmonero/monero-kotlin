@@ -92,7 +92,7 @@ val stageMoneroC by tasks.registering(Sync::class) {
         from(zipTree(moneroCNative)) {
             include("jni/*/libmonero_c.so")
             // jni/<abi>/libmonero_c.so is <abi>/libmonero_c.so
-            eachFile { relativePath = RelativePath(true, *relativePath.segments.drop(1).toTypedArray()) }
+            eachFile { path = path.removePrefix("jni/") }
         }
     } else if (moneroCNative != null) {
         from(moneroCNative) {
