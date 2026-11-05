@@ -1,3 +1,17 @@
+// The Android Gradle plugin of the android module is on the classpath of the root build, where the Kotlin plugin is, because the Kotlin plugin
+// has to see its classes. It is added only with -Pandroid, so the build of the JVM library resolves nothing from the Google repository
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        if (project.hasProperty("android")) {
+            classpath("com.android.tools.build:gradle:8.13.0")
+        }
+    }
+}
+
 plugins {
     kotlin("jvm") version "2.1.20"
     `java-library`
