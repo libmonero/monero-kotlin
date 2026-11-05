@@ -99,6 +99,33 @@ val stageMoneroC by tasks.registering(Sync::class) {
             include("*/libmonero_c.so")
         }
     }
+
+    // A library of another architecture has the same name, so it would be packaged and the app would die at its first load, and so would one
+    // that is not the C ABI of monero-c. The ELF header has the magic number, the class (2 is 64 bits), the byte order (1 is little endian)
+    // and, at offset 18, the machine; the exported names are in the strings of the file, which ISO_8859_1 reads one byte to one char
+    doLast {
+        val machines = mapOf("arm64-v8a" to 0xB7, "x86_64" to 0x3E)
+        for (abi in destinationDir.listFiles { file -> file.isDirectory }.orEmpty()) {
+            val machine = machines[abi.name]
+                ?: throw GradleException("monero-c is built for ${machines.keys.joinToString()}, and ${abi.name} is none of them")
+            val library = File(abi, "libmonero_c.so")
+            val bytes = library.readBytes()
+            if (bytes.size < 20 || bytes[0] != 0x7F.toByte() || bytes[1] != 'E'.code.toByte() || bytes[2] != 'L'.code.toByte() ||
+                bytes[3] != 'F'.code.toByte() || bytes[4].toInt() != 2 || bytes[5].toInt() != 1
+            ) {
+                throw GradleException("${abi.name}/libmonero_c.so is not a 64-bit little endian ELF library")
+            }
+            val found = (bytes[19].toInt() and 0xFF shl 8) or (bytes[18].toInt() and 0xFF)
+            if (found != machine) {
+                throw GradleException(
+                    "${abi.name}/libmonero_c.so is for the machine 0x${found.toString(16)}, and ${abi.name} is 0x${machine.toString(16)}"
+                )
+            }
+            if (!String(bytes, Charsets.ISO_8859_1).contains("monero_utils_get_abi_version")) {
+                throw GradleException("${abi.name}/libmonero_c.so does not export the C ABI of monero-c (monero_utils_get_abi_version)")
+            }
+        }
+    }
 }
 
 // the staging feeds the merge of the native libraries of every variant
