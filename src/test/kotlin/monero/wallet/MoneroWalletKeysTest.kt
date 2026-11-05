@@ -1,6 +1,9 @@
 package monero.wallet
 
 import java.math.BigInteger
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -542,6 +545,31 @@ class MoneroWalletKeysTest {
         assertTrue(error.message!!.contains("does not support saving"), error.message)
         assertFalse(wallet.isClosed())
         wallet.close()
+    }
+
+    // Threads that close the same wallet at once close it once: a second close of the native handle is an error, and
+    // freeing it twice is worse
+    @Test
+    fun close_FromManyThreadsAtOnce_ClosesOnce() {
+        repeat(5) {
+            val wallet = MoneroWalletKeys.createWalletRandom(config())
+            val threads = 8
+            val start = CountDownLatch(1)
+            val pool = Executors.newFixedThreadPool(threads)
+            try {
+                val closes = (0 until threads).map {
+                    pool.submit {
+                        start.await()
+                        wallet.close()
+                    }
+                }
+                start.countDown()
+                for (close in closes) close.get(30, TimeUnit.SECONDS)
+            } finally {
+                pool.shutdownNow()
+            }
+            assertTrue(wallet.isClosed())
+        }
     }
 
     // ------------------------------- PRIVATE ------------------------------------
