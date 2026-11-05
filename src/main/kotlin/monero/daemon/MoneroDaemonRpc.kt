@@ -64,7 +64,7 @@ import monero.internal.SizeT
 class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoCloseable {
 
     private val handle: Pointer
-    private val worker = NativeWorker("MoneroDaemonRpc")
+    private val worker = NativeWorker("MoneroDaemonRpc", "The daemon is closed")
     private val lock = Any()
     private val listeners = ArrayList<MoneroDaemonListener>()
     private val waiters = ArrayList<CompletableFuture<MoneroBlockHeader>>()

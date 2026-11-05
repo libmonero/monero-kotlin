@@ -8,12 +8,13 @@ import java.util.concurrent.TimeUnit
 import monero.common.MoneroError
 
 /**
- * One thread for the calls of a daemon or a wallet, which run one after the other.
+ * One thread for the calls of a daemon or a wallet, which run one after the other. A call that reaches the worker after
+ * its close fails with the message of the owner, since a wallet and a daemon say that they are closed in their own words.
  *
  * The stack is 8 MB, as the main thread of Linux: the default of a thread of the JVM is 1 MB, and monero-cpp parses
  * JSON by recursion.
  */
-internal class NativeWorker(name: String) : AutoCloseable {
+internal class NativeWorker(name: String, private val closedMessage: String) : AutoCloseable {
 
     private val executor = Executors.newSingleThreadExecutor { task ->
         Thread(null, task, name, STACK_SIZE).apply { isDaemon = true }
@@ -26,7 +27,7 @@ internal class NativeWorker(name: String) : AutoCloseable {
         val future = try {
             executor.submit(Callable { task() })
         } catch (e: RejectedExecutionException) {
-            throw MoneroError("The daemon is closed", e)
+            throw MoneroError(closedMessage, e)
         }
         try {
             return future.get()

@@ -48,7 +48,7 @@ import monero.wallet.model.MoneroWalletConfig
  */
 class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCloseable {
 
-    private val worker = NativeWorker("MoneroWalletFull")
+    private val worker = NativeWorker("MoneroWalletFull", "Wallet is closed")
 
     // volatile: requestShutdown reads it from any thread, and the read/write lock below orders that read against the
     // free of the handle, which the threading contract of the c abi allows no second thread on

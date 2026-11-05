@@ -15,14 +15,14 @@ class NativeWorkerTest {
 
     @Test
     fun call_ReturnsTheResultOfTheTask() {
-        NativeWorker("test").use { worker ->
+        NativeWorker("test", "The test is closed").use { worker ->
             assertEquals(42, worker.call { 42 })
         }
     }
 
     @Test
     fun call_ThrowsTheErrorOfTheTaskAsItIs() {
-        NativeWorker("test").use { worker ->
+        NativeWorker("test", "The test is closed").use { worker ->
             val error = assertThrows(MoneroError::class.java) { worker.call { throw MoneroError("it failed") } }
             assertEquals("it failed", error.message)
         }
@@ -30,16 +30,17 @@ class NativeWorkerTest {
 
     @Test
     fun call_OfAClosedWorker_Fails() {
-        val worker = NativeWorker("test")
+        val worker = NativeWorker("test", "The test is closed")
         worker.close()
 
-        assertThrows(MoneroError::class.java) { worker.call { 1 } }
+        val error = assertThrows(MoneroError::class.java) { worker.call { 1 } }
+        assertEquals("The test is closed", error.message)
     }
 
     // The owner of a worker frees its handle as soon as the close returns
     @Test
     fun close_WaitsForTheCallThatIsRunning() {
-        val worker = NativeWorker("test")
+        val worker = NativeWorker("test", "The test is closed")
         val started = CountDownLatch(1)
         val finished = AtomicBoolean(false)
         val call = CompletableFuture.runAsync {
@@ -59,7 +60,7 @@ class NativeWorkerTest {
 
     @Test
     fun close_WaitsForTheCallsInTheQueue() {
-        val worker = NativeWorker("test")
+        val worker = NativeWorker("test", "The test is closed")
         val started = CountDownLatch(1)
         val queuedRan = AtomicBoolean(false)
         val running = CompletableFuture.runAsync {
