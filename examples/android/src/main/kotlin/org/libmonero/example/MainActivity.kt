@@ -112,10 +112,6 @@ class MainActivity : Activity() {
             // the calls of the wallet fail with this, a malformed field of the screen with the illegal argument
             Log.e(TAG, "the light wallet call failed", e)
             report("failed: $e")
-        } catch (e: IllegalArgumentException) {
-            // the fields of the screen are user input, and a malformed server or address is one
-            Log.e(TAG, "the input of the screen is not a wallet", e)
-            report("failed: $e")
         } finally {
             runOnUiThread {
                 open.isEnabled = true

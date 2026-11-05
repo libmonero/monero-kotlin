@@ -38,6 +38,14 @@ android {
         jvmTarget = "17"
     }
 
+    buildTypes {
+        release {
+            // the rules a consumer of the AAR needs under minification: JNA marshals through
+            // reflection, which minification would strip
+            consumerProguardFiles("consumer-rules.pro")
+        }
+    }
+
     sourceSets {
         getByName("main") {
             // the sources of the library, the same ones the JVM build compiles
@@ -63,11 +71,11 @@ val moneroCLibrary = providers.gradleProperty("monero.c.android.library")
 // stages the native library in the layout of jniLibs: arm64-v8a/libmonero_c.so
 val stageMoneroCLibrary by tasks.registering(Sync::class) {
     into(layout.buildDirectory.dir("jniLibs/arm64-v8a"))
-    from(moneroCLibrary.map { file(it) }) {
+    from(moneroCLibrary.map { File(it) }) {
         rename { "libmonero_c.so" }
     }
     doFirst {
-        val library = file(moneroCLibrary.get())
+        val library = File(moneroCLibrary.get())
         if (!library.isFile) {
             throw GradleException(
                 "libmonero_c.so is not at $library: set -Pmonero.c.android.library (or the environment " +
@@ -104,12 +112,27 @@ val stageMoneroCLibrary by tasks.registering(Sync::class) {
         // fails on the phone with an UnsatisfiedLinkError, so check before packaging. The
         // exported names live in the dynamic symbol table, whose strings are in the file
         // (ISO_8859_1 keeps the bytes one to one).
-        val text = String(library.readBytes(), Charsets.ISO_8859_1)
         val lightFunctions = listOf(
             "monero_wallet_light_create", "monero_wallet_light_open",
             "monero_wallet_light_wallet_exists", "monero_wallet_light_get_unrefined_spend_count"
         )
-        val missing = lightFunctions.filter { function -> text.indexOf(function) < 0 }
+        val found = HashSet<String>()
+        library.inputStream().use { input ->
+            val chunk = ByteArray(1 shl 20)
+            val overlap = 128
+            var carry = ByteArray(0)
+            while (true) {
+                val n = input.read(chunk)
+                if (n < 0) break
+                val window = ByteArray(carry.size + n)
+                carry.copyInto(window)
+                chunk.copyInto(window, carry.size, 0, n)
+                val text = String(window, Charsets.ISO_8859_1)
+                for (function in lightFunctions) if (text.indexOf(function) >= 0) found.add(function)
+                carry = window.copyOfRange(maxOf(0, window.size - overlap), window.size)
+            }
+        }
+        val missing = lightFunctions.filter { it !in found }
         if (missing.isNotEmpty()) {
             throw GradleException(
                 "$library has no light wallet functions (${missing.joinToString()}): the library needs a " +

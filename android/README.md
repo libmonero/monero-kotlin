@@ -41,7 +41,25 @@ dependencies {
 ```
 
 The library loads on Android unchanged: `MoneroNative` asks JNA for `monero_c`, and JNA
-resolves it from the `lib/arm64-v8a` of the app, where the AAR put it.
+resolves it from the `lib/arm64-v8a` of the app, where the AAR put it. The AAR carries the
+arm64-v8a library only: an app that runs on an x86_64 emulator needs the second ABI from the
+monero-c android build too, which the CI of monero-c produces.
+
+A consumer that bundles its own `libmonero_c.so` next to the AAR meets a duplicate file at the
+merge of the native libraries, which the packaging of the app resolves:
+
+```kotlin
+android {
+    packaging {
+        jniLibs {
+            pickFirsts += "**/libmonero_c.so"
+        }
+    }
+}
+```
+
+An app that minifies needs the consumer rules of the AAR, which Gradle applies on its own: JNA
+marshals through reflection, which minification would strip.
 
 ## Requirements
 
