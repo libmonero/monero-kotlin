@@ -59,16 +59,14 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
 
     /**
      * Get the languages that a seed can be written in. The call needs no wallet, since monero-c has the list of the
-     * languages itself (monero_c_wallet.h:232).
+     * languages itself, so it runs on the thread of the caller, and answers on a closed wallet too.
      *
      * @return the names of the languages
      * @throws MoneroError if the native library fails
      */
     fun getSeedLanguages(): List<String> {
-        return run { lib, _ ->
-            val out = PointerByReference()
-            MoneroNative.strings(lib.monero_wallet_get_seed_languages(out), out)
-        }
+        val out = PointerByReference()
+        return MoneroNative.strings(MoneroNative.lib.monero_wallet_get_seed_languages(out), out)
     }
 
     /**

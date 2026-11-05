@@ -239,6 +239,15 @@ class MoneroWalletKeysTest {
         }
     }
 
+    // The list of the languages is the one of monero-c, so a wallet that is closed lists them too
+    @Test
+    fun getSeedLanguages_OfAClosedWallet_ListsTheLanguages() {
+        val wallet = MoneroWalletKeys.createWalletRandom(config())
+        wallet.close()
+
+        assertTrue(wallet.getSeedLanguages().contains(MoneroWalletKeys.DEFAULT_LANGUAGE))
+    }
+
     @Test
     fun getPrivateViewKey_ReadsTheTestWallet() {
         testWallet().use { wallet ->
