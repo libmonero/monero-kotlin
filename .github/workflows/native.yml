@@ -4,6 +4,11 @@
 # The library and the libusb that it needs are uploaded as monero-c-<platform> and also kept in the cache of Actions with the commit of the submodule
 # in the key, so the runs that do not change the submodule do not build it again. To update the recipes: copy the changes of build-linux.yml,
 # build-macos.yml and build-windows.yml of monero-c, which are in external/monero-c/.github/workflows
+#
+# The compilation is cached with ccache, which every project gets as its compiler launcher: the sources of monero-project and monero-cpp
+# are the same from one commit of monero-c to the next, so a build that is needed has most of its objects. Only the runs on main save the
+# cache, so that the caches of the pull requests don't evict the one that every pull request restores, and only a run that builds restores
+# or saves it
 name: Native
 
 on:
@@ -29,6 +34,14 @@ jobs:
     timeout-minutes: 120
     # debian:12 provides a supported build environment. The library needs glibc 2.34, see the unbound step
     container: debian:12
+
+    env:
+      # the job runs as root in the container, and github.workspace is not the path of the workspace in it
+      CCACHE_DIR: /root/.ccache
+      # every project gets ccache as the compiler launcher, and monero-project's own detection of it is turned off, so that it is not wrapped twice
+      CMAKE_CCACHE: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "1"
 
     strategy:
       fail-fast: false
@@ -77,6 +90,20 @@ jobs:
           apt-get install -y build-essential cmake pkg-config file perl wget libzmq3-dev libunbound-dev libsodium-dev libunwind-dev liblzma-dev libreadline-dev libexpat1-dev libpgm-dev libhidapi-dev libusb-1.0-0-dev libprotobuf-dev protobuf-compiler libudev-dev python3 ccache git curl autoconf libtool gperf bison flex nettle-dev libevent-dev
           # record versions of the distro libraries that get statically linked into the shipped binary
           dpkg -s libsodium-dev libprotobuf-dev | grep -E '^(Package|Version)'
+
+      - name: Restore ccache
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: /root/.ccache
+          key: ccache-${{ matrix.arch }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.arch }}-
+
+      # the statistics are kept in the cache directory, so reset them to see what this run did
+      - name: Reset the ccache statistics
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ccache --zero-stats
 
       - name: Install openssl
         if: steps.cache.outputs.cache-hit != 'true'
@@ -161,7 +188,9 @@ jobs:
           cd external/monero-cpp/external/monero-project
           mkdir -p build/release
           cd build/release
-          cmake -DSTATIC=ON -DBUILD_64=ON -DARCH="${{ matrix.march }}" -DCMAKE_BUILD_TYPE=Release -DUSE_DEVICE_TREZOR=OFF ../../
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DSTATIC=ON -DBUILD_64=ON -DARCH="${{ matrix.march }}" -DCMAKE_BUILD_TYPE=Release -DUSE_DEVICE_TREZOR=OFF $CMAKE_CCACHE -DUSE_CCACHE=OFF ../../
           make -j3 wallet cryptonote_protocol
           cd ../../../../../../
 
@@ -172,7 +201,9 @@ jobs:
           cd external/monero-cpp
           mkdir -p build
           cd build
-          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON ..
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON $CMAKE_CCACHE ..
           cmake --build . --target monero-cpp-static -j3
           cd ../../..
 
@@ -182,7 +213,9 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.so -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON ..
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.so -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON $CMAKE_CCACHE ..
           grep -Fxq 'MONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.so' CMakeCache.txt
           cmake --build . -j3
           cd ..
@@ -203,6 +236,18 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Show the ccache statistics
+        if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
+        run: ccache --show-stats
+
+      # only main saves, and a run that did not build has nothing new to save
+      - name: Save ccache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: /root/.ccache
+          key: ccache-${{ matrix.arch }}-${{ github.run_id }}
+
   macos:
     name: macOS ${{ matrix.cpu }}
     runs-on: ${{ matrix.os }}
@@ -210,6 +255,11 @@ jobs:
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      # every project gets ccache as the compiler launcher, and monero-project's own detection of it is turned off, so that it is not wrapped twice
+      CMAKE_CCACHE: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "1"
 
     strategy:
       fail-fast: false
@@ -249,7 +299,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         working-directory: external/monero-c
         run: |
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install libsodium openssl@3 zmq libpgm miniupnpc expat libunwind-headers protobuf libevent libnghttp2
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache libsodium openssl@3 zmq libpgm miniupnpc expat libunwind-headers protobuf libevent libnghttp2
           # openssl is openssl@4 on newer images, which Boost.Asio does not build with, and monero-project and monero-cpp take the prefix of openssl
           # from brew unless it is given (build-macos.yml of monero-c)
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
@@ -258,6 +308,20 @@ jobs:
           brew unlink openssl@4 || true
           # record versions of the brew libraries that get statically linked into the shipped binary
           brew list --versions | sort
+
+      - name: Restore ccache
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.arch }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.arch }}-
+
+      # the statistics are kept in the cache directory, so reset them to see what this run did
+      - name: Reset the ccache statistics
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ccache --zero-stats
 
       - name: Install unbound
         if: steps.cache.outputs.cache-hit != 'true'
@@ -320,7 +384,9 @@ jobs:
           cd external/monero-cpp/external/monero-project
           mkdir -p build/release
           cd build/release
-          cmake -DSTATIC=ON -DBUILD_64=ON -DARCH="${{ matrix.march }}" -DCMAKE_BUILD_TYPE=Release -DUSE_DEVICE_TREZOR=OFF -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" ../../
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DSTATIC=ON -DBUILD_64=ON -DARCH="${{ matrix.march }}" -DCMAKE_BUILD_TYPE=Release -DUSE_DEVICE_TREZOR=OFF -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" $CMAKE_CCACHE -DUSE_CCACHE=OFF ../../
           make -j3 wallet cryptonote_protocol
           cd ../../../../../../
 
@@ -331,7 +397,9 @@ jobs:
           cd external/monero-cpp
           mkdir -p build
           cd build
-          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" ..
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" $CMAKE_CCACHE ..
           cmake --build . --target monero-cpp-static -j3
           cd ../../..
 
@@ -341,7 +409,9 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.0.dylib -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" ..
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.0.dylib -DBOOST_ROOT=/usr/local -DBoost_NO_SYSTEM_PATHS=ON -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" $CMAKE_CCACHE ..
           grep -Fxq 'MONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=/usr/local/lib/libusb-1.0.0.dylib' CMakeCache.txt
           cmake --build . -j3
           cd ..
@@ -370,10 +440,29 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Show the ccache statistics
+        if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
+        run: ccache --show-stats
+
+      # only main saves, and a run that did not build has nothing new to save
+      - name: Save ccache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.arch }}-${{ github.run_id }}
+
   windows:
     name: Windows x86_64
     runs-on: windows-latest
     timeout-minutes: 120
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      # every project gets ccache as the compiler launcher, and monero-project's own detection of it is turned off, so that it is not wrapped twice
+      CMAKE_CCACHE: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "1"
 
     strategy:
       matrix:
@@ -416,6 +505,7 @@ jobs:
           install: >-
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ccache
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-zeromq
             mingw-w64-x86_64-libsodium
@@ -431,6 +521,20 @@ jobs:
             automake
             libtool
             wget
+
+      - name: Restore ccache
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ccache-windows-${{ github.run_id }}
+          restore-keys: |
+            ccache-windows-
+
+      # the statistics are kept in the cache directory, so reset them to see what this run did
+      - name: Reset the ccache statistics
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ccache --zero-stats
 
       - name: Install ICU v76.1
         if: steps.cache.outputs.cache-hit != 'true'
@@ -503,6 +607,8 @@ jobs:
             -D CMAKE_TOOLCHAIN_FILE="../../cmake/64-bit-toolchain.cmake" \
             -D MSYS2_FOLDER=$(cd $MINGW_PREFIX/.. && pwd -W) \
             -D USE_DEVICE_TREZOR=OFF \
+            -D USE_CCACHE=OFF \
+            $CMAKE_CCACHE \
             ../../
           make wallet cryptonote_protocol
 
@@ -514,7 +620,9 @@ jobs:
           cd external/monero-cpp
           mkdir -p build
           cd build
-          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF ..
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DBUILD_LIBRARY=ON -DBUILD_SAMPLE=OFF -DBUILD_SCRATCHPAD=OFF -DBUILD_TESTS=OFF $CMAKE_CCACHE ..
           cmake --build . --target monero-cpp-static
           cd ../../..
 
@@ -526,7 +634,9 @@ jobs:
           mkdir -p build
           cd build
           libusb_import=$(cygpath -m "$MINGW_PREFIX/lib/libusb-1.0.dll.a")
-          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH="$libusb_import" ..
+          # CMAKE_CCACHE holds two options, so it is not quoted
+          # shellcheck disable=SC2086
+          cmake -DBUILD_TESTS=OFF -DMONERO_C_STATIC_DEPENDENCIES=ON -DMONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH="$libusb_import" $CMAKE_CCACHE ..
           grep -Fxq "MONERO_C_LIBUSB_SHARED_LIBRARY:FILEPATH=$libusb_import" CMakeCache.txt
           cmake --build .
           cd ..
@@ -546,3 +656,15 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 7
+
+      - name: Show the ccache statistics
+        if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
+        run: ccache --show-stats
+
+      # only main saves, and a run that did not build has nothing new to save
+      - name: Save ccache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ccache-windows-${{ github.run_id }}
