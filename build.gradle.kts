@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.1.20"
     `java-library`
+    `maven-publish`
     jacoco
 }
 
@@ -23,6 +24,14 @@ dependencies {
 
 kotlin {
     jvmToolchain(21)
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
 }
 
 // The tests that need a node are tagged integration: they are not run by test, but by integrationTest, which needs the node of
