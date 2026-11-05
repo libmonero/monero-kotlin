@@ -328,6 +328,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @param save is whether to save the wallet before closing it, which must be false
      * @throws MoneroError if a save is asked for, which a keys-only wallet does not support
      */
+    @Synchronized
     fun close(save: Boolean) {
         if (closed) return
         if (save) {
