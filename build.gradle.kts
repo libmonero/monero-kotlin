@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.1.20"
     `java-library`
+    `maven-publish`
     jacoco
 }
 
@@ -23,6 +24,15 @@ dependencies {
 
 kotlin {
     jvmToolchain(21)
+}
+
+// publishToMavenLocal puts the library in the local repository of Maven, which a Gradle project reads with mavenLocal()
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
 }
 
 // The tests that need a node are tagged integration: they are not run by test, but by integrationTest, which needs the node of
