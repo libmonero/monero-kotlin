@@ -16,11 +16,13 @@
 A Kotlin library for creating Monero applications using RPC and a C ABI to [monero v0.18.5.3 'Fluorine Fermi'](https://github.com/monero-project/monero/tree/v0.18.5.3).
 
 * Supports a daemon RPC client.
+* Supports a keys-only wallet, and a full wallet with its files, sync, transactions and multisig.
 * Daemon implementations are interchangeable by conforming to a [common interface](src/main/kotlin/monero/daemon/MoneroDaemon.kt).
 * Uses a clearly defined [data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
 * Fetch and process binary data from the daemon (e.g. raw blocks).
 * Receive notifications when blocks are added to the chain.
-* Over 800 passing unit tests of the data model.
+* Has an [Android module](android/README.md) that packages it with monero-c as an AAR.
+* Over 1,000 passing unit tests.
 
 ## Architecture
 
@@ -29,9 +31,11 @@ A Kotlin library for creating Monero applications using RPC and a C ABI to [mone
 	<i>Build Kotlin applications using RPC or the C ABI of <a href="https://github.com/libmonero/monero-c">monero-c</a> to <a href="https://github.com/monero-project/monero">monero-project/monero</a>.  Daemon implementations are interchangeable by conforming to a common interface, <a href="src/main/kotlin/monero/daemon/MoneroDaemon.kt">MoneroDaemon</a>.</i>
 </p>
 
-The calls are blocking. The call itself is made by monero-c, and the library runs the calls of a daemon one after the other on a thread of its own, so a call does not depend on the thread that makes it. A daemon holds a native handle: close it to release it.
+The calls are blocking. The call itself is made by monero-c, and the library runs the calls of a daemon or a wallet one after the other on a thread of its own, so a call does not depend on the thread that makes it. A daemon and a wallet hold a native handle: close them to release it.
 
 ## Sample code
+
+### Daemon
 
 ```kotlin
 // connect to daemon
@@ -61,6 +65,59 @@ val fee = block.txs?.first()?.fee      // atomic units
 val written = MoneroJson.serialize(block)
 ```
 
+### Wallets
+
+A keys wallet has the keys, the seed and the addresses of an account, and nothing else: no files, no chain, no daemon.
+
+```kotlin
+// restore a keys wallet from a seed
+val config = MoneroWalletConfig()
+config.networkType = MoneroNetworkType.MAINNET
+config.seed = seed
+
+MoneroWalletKeys.createWalletFromSeed(config).use { wallet ->
+    val primaryAddress = wallet.getPrimaryAddress()
+    val subaddress = wallet.getAddress(0, 1)
+
+    // sign a message and verify it
+    val signature = wallet.signMessage("hello", MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY, 0, 0)
+    val verified = wallet.verifyMessage("hello", primaryAddress, signature).isGood
+}
+```
+
+A full wallet has its files, syncs with a daemon, and creates and relays transactions. It can also be a multisig wallet. `use` closes the wallet without saving it, so `save()` it first. The connection to the daemon is not in the files, so a wallet that is opened has to be connected again.
+
+```kotlin
+// create a wallet with its files, connected to a daemon
+val config = MoneroWalletConfig()
+config.path = "mywallet"
+config.password = "abctesting123"
+config.networkType = MoneroNetworkType.STAGENET
+config.server = MoneroRpcConnection("http://localhost:38081")
+
+MoneroWalletFull.createWallet(config).use { wallet ->
+    wallet.sync()
+    val balance = wallet.getBalance()                  // atomic units
+    val unlocked = wallet.getUnlockedBalance()
+
+    // create a transaction, and relay it
+    val txConfig = MoneroTxConfig()
+    txConfig.accountIndex = 0
+    txConfig.destinations = listOf(MoneroDestination(address, amount))
+    txConfig.relay = false
+    val tx = wallet.createTxs(txConfig).first()
+    val hash = wallet.relayTx(tx)
+
+    wallet.save()
+}
+
+// open it again
+MoneroWalletFull.openWallet(config).use { wallet ->
+    wallet.setDaemonConnection(MoneroRpcConnection("http://localhost:38081"))
+    wallet.sync()
+}
+```
+
 ## Documentation
 
 * [Data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf)
@@ -69,7 +126,27 @@ val written = MoneroJson.serialize(block)
 
 ## Using monero-kotlin in your project
 
-monero-kotlin is not published to a repository yet, so until then build it from source as described below and add the jar from `build/libs` to your project, with its dependencies, for Gradle:
+monero-kotlin is not published to a repository yet. Build it from source as described below and publish it to the local repository of Maven, which Gradle reads:
+
+```sh
+./gradlew publishToMavenLocal
+```
+
+```kotlin
+repositories {
+    mavenLocal()
+}
+
+dependencies {
+    implementation("org.libmonero:monero-kotlin:0.1.0-SNAPSHOT")
+}
+```
+
+The POM has the dependencies of the library (Jackson and JNA). The shared library of monero-c has to be loadable too, see [Loading the native library](#loading-the-native-library).
+
+For Android there is an AAR with the native library in it, see [android/README.md](android/README.md).
+
+You can also add the jar from `build/libs` to your project, with its dependencies:
 
 ```kotlin
 dependencies {
@@ -78,8 +155,6 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.15.0")
 }
 ```
-
-The shared library of monero-c has to be loadable too, see below.
 
 You need a daemon to connect to:
 
@@ -96,11 +171,13 @@ cd monero-kotlin
 ./gradlew build
 ```
 
-The jar is in `build/libs`. The build does not need monero-c, so it does not need the submodule: `external/monero-c` is [monero-c](https://github.com/libmonero/monero-c), the C library that `MoneroDaemonRpc` calls.
+The jar is in `build/libs`. The build does not need monero-c, so it does not need the submodule: `external/monero-c` is [monero-c](https://github.com/libmonero/monero-c), the C library that the daemon and the wallets call.
 
 ## Downloading monero-c
 
 The [releases of monero-c](https://github.com/libmonero/monero-c/releases) have the library of every platform: Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64). Download the archive of your platform and unpack it: the library is `libmonero_c.so`, `libmonero_c.dylib` or `libmonero_c.dll` in the directory of the archive, which also has the libraries that it needs, e.g. libusb.
+
+The release also has `monero-native-jvm-<version>.jar`, with the library of every platform as resources, and `monero-native-android-<version>.aar` for Android (see [android/README.md](android/README.md)).
 
 ## Building monero-c from source
 
@@ -140,7 +217,7 @@ The library is left in `external/monero-c/build`: `libmonero_c.so` on Linux and 
 
 ### Loading the native library
 
-The library is loaded the first time that a daemon is made. Set the system property `monero.c.library` or the environment variable `MONERO_C_LIBRARY` to the path of the library, e.g.:
+The library is loaded the first time that a daemon or a wallet is made. Set the system property `monero.c.library` or the environment variable `MONERO_C_LIBRARY` to the path of the library, e.g.:
 
 ```sh
 MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./myapp
@@ -150,7 +227,7 @@ Otherwise, if the classpath has the `monero-native-jvm` jar of a release of mone
 
 If there is no such jar, the library is looked for as `monero_c` by [JNA](https://github.com/java-native-access/jna): in `jna.library.path` and in the library path of the system.
 
-When it is loaded, the version of its ABI is compared with the one that monero-kotlin was written for (0.1.x), and a `MoneroError` is thrown if it is not the same.
+When it is loaded, the version of its ABI is compared with the one that monero-kotlin was written for: while the major version is 0, the minor version has to be the same (0.2 now), and a `MoneroError` is thrown if it is not.
 
 ## Running tests
 
@@ -188,7 +265,7 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 ## Continuous integration
 
 * **Build** builds the library and the unit tests, uploads the unit tests, with the files they need to run (`./gradlew unitTests`), and collects the coverage of the unit tests.
-* **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes.
+* **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes. Its compilation, dependencies included, is cached with ccache, which only the runs on main save.
 * **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything.
 * **Integration tests** waits for the same runs, starts the regtest node of monero-c, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test.
 
