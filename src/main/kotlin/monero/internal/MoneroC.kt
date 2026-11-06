@@ -423,6 +423,14 @@ internal interface MoneroC : Library {
     fun monero_wallet_get_payment_uri(wallet: Pointer, configJson: String, out: PointerByReference): Int
 
     fun monero_wallet_parse_payment_uri(wallet: Pointer, uri: String, json: PointerByReference): Int
+
+    fun monero_wallet_light_create(configJson: String, connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_light_open(configJson: String, connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_light_wallet_exists(configJson: String, connection: Pointer, exists: ByteByReference): Int
+
+    fun monero_wallet_light_get_unrefined_spend_count(wallet: Pointer, count: LongByReference): Int
 }
 
 /**

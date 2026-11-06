@@ -118,6 +118,34 @@ MoneroWalletFull.openWallet(config).use { wallet ->
 }
 ```
 
+A light wallet keeps no chain and no files: a light wallet server scans the chain for its address and answers its questions, so it restores in seconds on a phone. It is made from a seed, from keys, or at random, and it lives in memory: there is nothing to save, and closing it forgets it. The server holds the private view key of the account, so it reads its whole history: it is trusted with more than a remote node, which is why it is self-hosted.
+
+```kotlin
+// create a light wallet on a monero-lws server
+val config = MoneroWalletConfig()
+config.networkType = MoneroNetworkType.MAINNET
+config.seed = seed
+val connection = MoneroRpcConnection("http://localhost:8443")
+
+MoneroWalletLight.createWallet(config, connection).use { wallet ->
+    wallet.sync()
+    val balance = wallet.getBalance()              // atomic units
+    val address = wallet.getPrimaryAddress()
+}
+
+// open it again: the server knows the address
+MoneroWalletLight.openWallet(config, connection).use { wallet ->
+    wallet.sync()
+    val unrefined = wallet.getUnrefinedSpendCount()   // spends the last sync could not verify
+}
+```
+
+A monero-lws server to try it against is the compose of the integration tests, which stands one up behind a regtest node (its header says the node starts first on a slow host):
+
+```
+docker compose -f src/test/integration/docker-compose.yml up -d
+```
+
 ## Documentation
 
 * [Data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf)
@@ -244,15 +272,19 @@ Gradle does not run the tests again when only the environment changed, so add `-
 
 ### Integration tests
 
-The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and a regtest node, which is the one of the `docker-compose.yml` of monero-c:
+The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and a regtest node with a monero-lws server, which is the `docker-compose.yml` of the integration tests:
 
 ```sh
-docker compose -f external/monero-c/tests/c/integration/docker-compose.yml up -d
+docker compose -f src/test/integration/docker-compose.yml up -d node
+curl http://127.0.0.1:18081/get_height
+docker compose -f src/test/integration/docker-compose.yml up -d lws
 MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew integrationTest --rerun
-docker compose -f external/monero-c/tests/c/integration/docker-compose.yml down -v
+docker compose -f src/test/integration/docker-compose.yml down -v
 ```
 
-The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one.
+The node starts before the server, because a server that starts against a node still initializing never scans: the header of the compose file says it in full.
+
+The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The monero-lws server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The light wallet tests need a monero-c with the light wallet surface, which the submodule does not have yet: they skip with a message when the library has no light wallet.
 
 ### Logs
 
