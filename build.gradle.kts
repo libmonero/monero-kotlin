@@ -49,6 +49,15 @@ publishing {
     }
 }
 
+// What the tests ran and how it ended, on the console as they go: TestLogExtension logs each one, and these show their results and what they print
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStandardStreams = true
+    }
+}
+
 // The tests that need a node are tagged integration: they are not run by test, but by integrationTest, which needs the node of
 // integration-tests.yml
 tasks.test {

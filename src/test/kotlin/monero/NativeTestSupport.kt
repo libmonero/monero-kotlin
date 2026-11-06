@@ -1,6 +1,10 @@
 package monero
 
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import monero.common.MoneroError
+import monero.common.MoneroUtils
 import monero.internal.MoneroNative
 import org.junit.jupiter.api.Assumptions.assumeTrue
 
@@ -11,9 +15,18 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
  */
 object NativeTestSupport {
 
+    const val LOG_LEVEL_ENVIRONMENT = "MONERO_C_TEST_LOG_LEVEL"
+    const val LOG_CATEGORIES_ENVIRONMENT = "MONERO_C_TEST_LOG_CATEGORIES"
+
+    /**
+     * The file of the log of monero-c during the tests, which is one for the process.
+     */
+    val nativeLog: File = File(TestLog.directory, "monero_tests_cpp_${SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())}.log")
+
     val isAvailable: Boolean by lazy {
         try {
             MoneroNative.lib
+            configureNativeLog()
             true
         } catch (e: MoneroError) {
             false
@@ -25,5 +38,18 @@ object NativeTestSupport {
      */
     fun assumeAvailable() {
         assumeTrue(isAvailable, "monero-c is not found: set ${MoneroNative.LIBRARY_ENVIRONMENT} to run the tests that call it")
+    }
+
+    /**
+     * Write the log of monero-c to [nativeLog], not to the console, with the categories of the environment variable
+     * MONERO_C_TEST_LOG_CATEGORIES, or else the level of MONERO_C_TEST_LOG_LEVEL, from 0 to 4, which is 0 when it is not set.
+     * A test that changes the log of monero-c calls this when it is done.
+     */
+    fun configureNativeLog() {
+        nativeLog.parentFile.mkdirs()
+        MoneroUtils.configureLogging(nativeLog.path, false)
+        val categories = System.getenv(LOG_CATEGORIES_ENVIRONMENT)
+        if (categories != null) MoneroUtils.setLogCategories(categories)
+        else MoneroUtils.setLogLevel(System.getenv(LOG_LEVEL_ENVIRONMENT)?.toInt() ?: 0)
     }
 }

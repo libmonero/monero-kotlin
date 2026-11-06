@@ -254,6 +254,10 @@ docker compose -f external/monero-c/tests/c/integration/docker-compose.yml down 
 
 The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one.
 
+### Logs
+
+The tests log what they run, the way the tests of monero-python do: to the console as they go, and to `build/test-logs/monero_tests_kotlin.log`. The log of monero-c goes to `build/test-logs/monero_tests_cpp_<date>.log`, at the level 0 of the library. Set the environment variable `MONERO_C_TEST_LOG_LEVEL` (0 to 4) or `MONERO_C_TEST_LOG_CATEGORIES` to get more of it, and `MONERO_KOTLIN_TEST_LOG_DIR` to write the files somewhere else. Gradle shows the console log of each test with its result, and the console launcher of the CI shows it too, with the files in the results that it uploads.
+
 To get the coverage of the library:
 
 ```sh

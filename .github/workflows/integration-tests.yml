@@ -111,6 +111,9 @@ jobs:
 
       # --fail-if-no-tests: a run that finds no integration test would pass without testing anything
       - name: Run the integration tests
+        env:
+          # the logs of the tests go in the results that are uploaded
+          MONERO_KOTLIN_TEST_LOG_DIR: test-results/logs
         run: >
           java -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
           --disable-banner --details=summary

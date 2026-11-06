@@ -10,6 +10,7 @@ import java.io.IOException
 import java.math.BigInteger
 import monero.ModelTestSupport
 import monero.NativeTestSupport
+import monero.TestLog
 import monero.daemon.model.MoneroBlock
 import monero.daemon.model.MoneroNetworkType
 import monero.internal.MoneroNative
@@ -671,14 +672,9 @@ class MoneroUtilsTest {
 
     // Logging
 
-    // The log of monero-c is one for the process, so these tests write it to a file that is not deleted, and set the level back
-    // to 0, which is the level that monero-c starts with. Every change of the categories writes a line with the new ones
-    private val nativeLog = File("build/native-logs/test-utils.log")
-
-    private fun logTo(path: File) {
-        path.parentFile.mkdirs()
-        MoneroUtils.configureLogging(path.path, false)
-    }
+    // The log of monero-c is one for the process, and NativeTestSupport writes it to a file. Every change of the categories writes a line
+    // with the new ones, which these tests read, and they put the log back as NativeTestSupport has it when they are done
+    private val nativeLog get() = NativeTestSupport.nativeLog
 
     // the categories that monero-c says it has after the action, which is the last line that it wrote about them in the log
     private fun categoriesAfter(log: File, action: () -> Unit): String {
@@ -695,7 +691,6 @@ class MoneroUtilsTest {
     // Can set the log level
     @Test
     fun testSetLogLevel() {
-        logTo(nativeLog)
         try {
             // each level picks categories: 2 is everything from debug, 3 is trace with the dumps from debug, and 4 is everything
             assertTrue(categoriesAfter(nativeLog) { MoneroUtils.setLogLevel(2) }.startsWith("*:DEBUG"))
@@ -704,7 +699,7 @@ class MoneroUtilsTest {
             assertTrue(trace.startsWith("*:TRACE"))
             assertFalse(trace.contains("dump"), trace)
         } finally {
-            MoneroUtils.setLogLevel(0)
+            NativeTestSupport.configureNativeLog()
         }
     }
 
@@ -720,7 +715,6 @@ class MoneroUtilsTest {
     // Can set the log categories, and add to them and take from them
     @Test
     fun testSetLogCategories() {
-        logTo(nativeLog)
         try {
             val set = categoriesAfter(nativeLog) { MoneroUtils.setLogCategories("*:INFO,net:FATAL") }
             assertTrue(set.startsWith("*:INFO,net:FATAL"), set)
@@ -736,22 +730,22 @@ class MoneroUtilsTest {
             assertTrue(removed.startsWith("*:INFO,net:FATAL"), removed)
             assertFalse(removed.contains("net.p2p"), removed)
         } finally {
-            MoneroUtils.setLogLevel(0)
+            NativeTestSupport.configureNativeLog()
         }
     }
 
     // Can configure where the log is written
     @Test
     fun testConfigureLogging() {
-        val other = File("build/native-logs/test-utils-configure.log")
-        logTo(other)
+        val other = File(TestLog.directory, "monero_tests_cpp_configure.log")
+        other.parentFile.mkdirs()
+        MoneroUtils.configureLogging(other.path, false)
         try {
             assertEquals("*:TRACE", categoriesAfter(other) { MoneroUtils.setLogCategories("*:TRACE") }.trimEnd(','))
         } finally {
-            MoneroUtils.setLogLevel(0)
 
-            // the log of the other tests goes back to their file
-            logTo(nativeLog)
+            // the log of the other tests goes back to its file
+            NativeTestSupport.configureNativeLog()
         }
     }
 

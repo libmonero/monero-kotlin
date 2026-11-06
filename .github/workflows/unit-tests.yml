@@ -122,6 +122,9 @@ jobs:
 
       # the classes stay in directories, since the tests look for the classes of the model there
       - name: Run the unit tests
+        env:
+          # the logs of the tests go in the results that are uploaded
+          MONERO_KOTLIN_TEST_LOG_DIR: test-results/logs
         run: >
           java -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
           --disable-banner --details=summary
