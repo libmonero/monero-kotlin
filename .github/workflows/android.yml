@@ -1,0 +1,82 @@
+# Builds the android module and the example application, with the archive monero-native-android of the release of monero-c that the submodule
+# is pinned at. The module needs the Android SDK, which the other workflows don't, and the library of monero-c for Android, which Native doesn't
+# build: monero-c builds and releases it. The submodule is not checked out, since nothing here compiles it
+name: Android
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  android:
+    name: Android module
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    env:
+      # The release of monero-c whose commit is the pin of the submodule, and the sha256 of its monero-native-android archive, which is in the
+      # SHA256SUMS.txt of the release. Change both when the submodule moves to another release
+      MONERO_C_VERSION: 0.2.1-alpha.1
+      MONERO_C_ANDROID_SHA256: cdad7c7e744863a8c56b3f604118f845ae2f183301ec2d4b5b9039f02c13e36e
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # so that the archive is the library of the submodule and not an older or newer one
+      - name: Check that the release is the pin of the submodule
+        run: |
+          pinned=$(git rev-parse HEAD:external/monero-c)
+          released=$(git ls-remote https://github.com/libmonero/monero-c.git "refs/tags/v$MONERO_C_VERSION^{}" | cut -f1)
+          test -n "$released" || { echo "::error::monero-c has no release v$MONERO_C_VERSION"; exit 1; }
+          if [ "$pinned" != "$released" ]; then
+            echo "::error::the submodule is at $pinned and v$MONERO_C_VERSION of monero-c is at $released: set MONERO_C_VERSION and MONERO_C_ANDROID_SHA256 of android.yml to the release of the submodule"
+            exit 1
+          fi
+
+      - name: Download the native library
+        run: |
+          curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSL -o "$RUNNER_TEMP/monero-native-android.aar" \
+            "https://github.com/libmonero/monero-c/releases/download/v$MONERO_C_VERSION/monero-native-android-$MONERO_C_VERSION.aar"
+          echo "$MONERO_C_ANDROID_SHA256  $RUNNER_TEMP/monero-native-android.aar" | sha256sum -c
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install the platform of the SDK
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build the AAR and the example
+        run: ./gradlew -Pandroid -Pmonero.c.android.native="$RUNNER_TEMP/monero-native-android.aar" :android:assembleRelease :examples:android:assembleDebug --console=plain
+
+      # the AAR has the classes of the library and the native library of both ABIs
+      - name: Check the AAR
+        run: |
+          aar=android/build/outputs/aar/android-release.aar
+          unzip -l "$aar" | grep -E 'jni/arm64-v8a/libmonero_c.so|jni/x86_64/libmonero_c.so|classes.jar'
+          unzip -p "$aar" classes.jar > "$RUNNER_TEMP/classes.jar"
+          unzip -l "$RUNNER_TEMP/classes.jar" | grep 'monero/wallet/MoneroWalletFull.class'
+          unzip -l examples/android/build/outputs/apk/debug/android-debug.apk | grep -E 'lib/(arm64-v8a|x86_64)/libmonero_c.so'
+
+      - name: Upload the AAR
+        uses: actions/upload-artifact@v7
+        with:
+          name: monero-kotlin-android
+          path: android/build/outputs/aar/android-release.aar
+          if-no-files-found: error
+          retention-days: 7

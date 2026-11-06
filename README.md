@@ -267,6 +267,7 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 * **Build** builds the library and the unit tests, uploads the unit tests, with the files they need to run (`./gradlew unitTests`), and collects the coverage of the unit tests.
 * **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes. Its compilation, dependencies included, is cached with ccache, which only the runs on main save.
 * **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything.
+* **Android** builds the android module and the example application, with the `monero-native-android` archive of the release of monero-c that the submodule is pinned at, and uploads the AAR. It fails if the release is not the one of the submodule.
 * **Integration tests** waits for the same runs, starts the regtest node of monero-c, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test.
 
 ## Related projects
