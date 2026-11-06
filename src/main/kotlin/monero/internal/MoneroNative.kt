@@ -12,6 +12,7 @@ import com.sun.jna.ToNativeConverter
 import com.sun.jna.TypeMapper
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.PointerByReference
+import java.io.IOException
 import java.math.BigInteger
 import monero.common.MoneroError
 import monero.common.MoneroJson
@@ -24,7 +25,7 @@ internal object MoneroNative {
 
     /**
      * The name of the system property or the environment variable with the path of the library, when it is not in the
-     * path of the system or in the resources of the classpath.
+     * path of the system or in the monero-native-jvm jar of the classpath.
      */
     const val LIBRARY_PROPERTY = "monero.c.library"
     const val LIBRARY_ENVIRONMENT = "MONERO_C_LIBRARY"
@@ -60,11 +61,23 @@ internal object MoneroNative {
         }
 
     private fun load(): MoneroC {
-        val path = System.getProperty(LIBRARY_PROPERTY) ?: System.getenv(LIBRARY_ENVIRONMENT) ?: "monero_c"
+        val path = System.getProperty(LIBRARY_PROPERTY) ?: System.getenv(LIBRARY_ENVIRONMENT) ?: bundled() ?: "monero_c"
         try {
             return Native.load(path, MoneroC::class.java, mapOf(Library.OPTION_STRING_ENCODING to ENCODING, Library.OPTION_TYPE_MAPPER to BooleanTypeMapper()))
         } catch (e: UnsatisfiedLinkError) {
-            throw MoneroError("The native library monero_c is not found, or it can not be loaded. Set the system property $LIBRARY_PROPERTY or the environment variable $LIBRARY_ENVIRONMENT to its path, or put it in the library path: ${e.message}", e)
+            throw MoneroError("The native library monero_c is not found, or it can not be loaded. Set the system property $LIBRARY_PROPERTY or the environment variable $LIBRARY_ENVIRONMENT to its path, put it in the library path, or put the monero-native-jvm jar of monero-c in the classpath: ${e.message}", e)
+        }
+    }
+
+    // the library of the monero-native-jvm jar, if it is in the classpath, copied with the libusb that it needs
+    private fun bundled(): String? {
+        return try {
+            val loaders = listOfNotNull(MoneroNative::class.java.classLoader, Thread.currentThread().contextClassLoader)
+            loaders.firstNotNullOfOrNull { NativeBundle.extract(it) }?.path
+        } catch (_: IOException) {
+
+            // the library is looked for where JNA looks
+            null
         }
     }
 

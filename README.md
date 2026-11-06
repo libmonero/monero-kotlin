@@ -146,7 +146,9 @@ The library is loaded the first time that a daemon is made. Set the system prope
 MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./myapp
 ```
 
-Otherwise it is looked for as `monero_c` by [JNA](https://github.com/java-native-access/jna): in `jna.library.path`, in the library path of the system, and in the resources of the classpath (e.g. `linux-x86-64/libmonero_c.so`).
+Otherwise, if the classpath has the `monero-native-jvm` jar of a release of monero-c, e.g. `runtimeOnly(files("libs/monero-native-jvm-<version>.jar"))`, the files of your platform in it, which are the library and the libusb that it needs, are copied to a new folder in the temporary one (the one of `jna.tmpdir`, if it is set) and the library is loaded from there. The folder is deleted when the program ends, except on Windows, which does not delete a library that is loaded.
+
+If there is no such jar, the library is looked for as `monero_c` by [JNA](https://github.com/java-native-access/jna): in `jna.library.path` and in the library path of the system.
 
 When it is loaded, the version of its ABI is compared with the one that monero-kotlin was written for (0.1.x), and a `MoneroError` is thrown if it is not the same.
 
