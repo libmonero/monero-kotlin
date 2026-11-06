@@ -81,6 +81,14 @@ jobs:
           mkdir coverage-reports
           cp build/reports/jacoco/test/jacocoTestReport.xml coverage-reports/
 
+      # the collector is continue-on-error, so a silent pipeline breakage would leave the workflow green with no report: make the breakage loud
+      - name: Check the report
+        run: |
+          if [ ! -f coverage-reports/jacocoTestReport.xml ]; then
+            echo "the coverage run produced no report: the collector broke silently"
+            exit 1
+          fi
+
       - name: Upload the coverage report
         uses: actions/upload-artifact@v7
         with:

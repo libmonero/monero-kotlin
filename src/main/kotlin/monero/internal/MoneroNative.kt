@@ -35,7 +35,7 @@ internal object MoneroNative {
      * can break the callers.
      */
     const val ABI_MAJOR = 0
-    const val ABI_MINOR = 2
+    const val ABI_MINOR = 3
 
     private const val ENCODING = "UTF-8"
 

@@ -25,9 +25,11 @@ jobs:
 
     env:
       # The release of monero-c whose commit is the pin of the submodule, and the sha256 of its monero-native-android archive, which is in the
-      # SHA256SUMS.txt of the release. Change both when the submodule moves to another release
-      MONERO_C_VERSION: 0.2.1-alpha.1
-      MONERO_C_ANDROID_SHA256: cdad7c7e744863a8c56b3f604118f845ae2f183301ec2d4b5b9039f02c13e36e
+      # SHA256SUMS.txt of the release. Change both when the submodule moves to another release. The light wallet branch pins the fork of
+      # monero-c, whose annotated tag v0.3.0-alpha.1 is the light ABI: both urls below read the fork, and its release carries the archive
+      # of the exact commit the submodule pins, until the light ABI merges into a libmonero release
+      MONERO_C_VERSION: 0.3.0-alpha.1
+      MONERO_C_ANDROID_SHA256: ee06421e2f0e3b20596757c1b141e8003d57499f4412ce589ab5265b56167501
 
     steps:
       - name: Checkout repository
@@ -37,7 +39,7 @@ jobs:
       - name: Check that the release is the pin of the submodule
         run: |
           pinned=$(git rev-parse HEAD:external/monero-c)
-          released=$(git ls-remote https://github.com/libmonero/monero-c.git "refs/tags/v$MONERO_C_VERSION^{}" | cut -f1)
+          released=$(git ls-remote https://github.com/mycomputercrashsalot/monero-c.git "refs/tags/v$MONERO_C_VERSION^{}" | cut -f1)
           test -n "$released" || { echo "::error::monero-c has no release v$MONERO_C_VERSION"; exit 1; }
           if [ "$pinned" != "$released" ]; then
             echo "::error::the submodule is at $pinned and v$MONERO_C_VERSION of monero-c is at $released: set MONERO_C_VERSION and MONERO_C_ANDROID_SHA256 of android.yml to the release of the submodule"
@@ -47,7 +49,7 @@ jobs:
       - name: Download the native library
         run: |
           curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSL -o "$RUNNER_TEMP/monero-native-android.aar" \
-            "https://github.com/libmonero/monero-c/releases/download/v$MONERO_C_VERSION/monero-native-android-$MONERO_C_VERSION.aar"
+            "https://github.com/mycomputercrashsalot/monero-c/releases/download/v$MONERO_C_VERSION/monero-native-android-$MONERO_C_VERSION.aar"
           echo "$MONERO_C_ANDROID_SHA256  $RUNNER_TEMP/monero-native-android.aar" | sha256sum -c
 
       - name: Set up Java
