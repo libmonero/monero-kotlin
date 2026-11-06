@@ -1,6 +1,6 @@
 # Runs the integration tests that Build made against a regtest node and a monero-lws server, with the library of monero-c that Native built
 # from the submodule. The node and the light wallet server are the ones of the docker-compose.yml of the integration tests, which runs the
-# same monerod image as the one of monero-c. The tests that need no node are in unit-tests.yml
+# The tests that need no node are in unit-tests.yml
 name: Integration tests
 
 on:
@@ -97,8 +97,10 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Start the regtest monerod and monero-lws
-        run: docker compose up -d
+      # the node starts alone first: the header of the compose file says why an lws that starts against a node
+      # that is still initializing locks a wrong chain height and never scans
+      - name: Start the regtest monerod
+        run: docker compose up -d node
 
       - name: Wait for monerod
         run: |
@@ -109,6 +111,9 @@ jobs:
             sleep 2
           done
           echo "monerod did not answer"; exit 1
+
+      - name: Start the monero-lws
+        run: docker compose up -d lws
 
       # monero-lws answers only after it has scanned the chain of the node, which takes about a minute after it starts
       - name: Wait for monero-lws
