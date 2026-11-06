@@ -79,6 +79,10 @@ internal interface MoneroC : Library {
 
     fun monero_utils_binary_to_json(data: ByteArray, length: SizeT, json: PointerByReference): Int
 
+    fun monero_utils_binary_blocks_to_json(data: ByteArray, length: SizeT, json: PointerByReference): Int
+
+    fun monero_utils_binary_blocks_fast_to_json(data: ByteArray, length: SizeT, json: PointerByReference): Int
+
     fun monero_utils_is_valid_payment_id_long(paymentId: String?): Boolean
 
     fun monero_utils_is_valid_payment_id_short(paymentId: String?): Boolean

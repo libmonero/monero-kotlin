@@ -165,6 +165,61 @@ class MoneroUtilsTest {
         assertEquals(jsonMap, MoneroUtils.binaryToDict(golden))
     }
 
+    // The responses of the binary RPC of a daemon are checked in as fixtures: the regtest chain of monero-c at the height 4, with the genesis
+    // block and three blocks after it, as get_blocks_by_height.bin (heights 0 to 3) and get_blocks.bin (from the genesis block) sent them
+    private fun binaryFixture(name: String): ByteArray {
+        val url = MoneroUtilsTest::class.java.getResource("/fixtures/utils/$name") ?: fail("No fixture utils/$name")
+        return File(url.toURI()).readBytes()
+    }
+
+    private val regtestHashes = listOf(
+        "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
+        "dd399c6c5280d1ac8dffce09f2826113d649a159c27a6699eb32d6595bff6471",
+        "75faf66686978573dd13f18acb2ff3cb7ede3ba084f3f893fcb299f885912578",
+        "4a8ff2f28dcf6f25ce298e2106076abae2f18d94ebe8184104930b4ca600e6bc"
+    )
+
+    // the blocks of a response are in order, and each one is the JSON of a block that points at the one before it
+    private fun assertRegtestBlocks(response: Map<String, Any>) {
+        assertEquals("OK", response["status"])
+        assertEquals(regtestHashes, response["block_hashes"])
+        val blocks = response["blocks"] as List<*>
+        assertEquals(4, blocks.size)
+        assertEquals(4, (response["txs"] as List<*>).size)
+        val parsed = blocks.map { MoneroJson.deserialize<Map<String, Any>>(it as String) }
+        assertEquals("0".repeat(64), parsed[0]["prev_id"])
+        for (height in 1..3) assertEquals(regtestHashes[height - 1], parsed[height]["prev_id"])
+    }
+
+    // Can convert the response of get_blocks_by_height.bin to JSON
+    @Test
+    fun testBinaryBlocksToJson() {
+        val response = MoneroJson.deserialize<Map<String, Any>>(MoneroUtils.binaryBlocksToJson(binaryFixture("get_blocks_by_height.bin")))
+        assertRegtestBlocks(response)
+        assertFalse(response.containsKey("start_height"))
+        assertFalse(response.containsKey("current_height"))
+    }
+
+    // Can convert the response of get_blocks.bin to JSON, which has the heights too
+    @Test
+    fun testBinaryBlocksFastToJson() {
+        val response = MoneroJson.deserialize<Map<String, Any>>(MoneroUtils.binaryBlocksFastToJson(binaryFixture("get_blocks.bin")))
+        assertRegtestBlocks(response)
+        assertEquals("0", response["start_height"].toString())
+        assertEquals("4", response["current_height"].toString())
+    }
+
+    // Does not convert what is not the response of a daemon
+    @Test
+    fun testBinaryBlocksToJsonInvalid() {
+        for (binary in listOf(ByteArray(0), byteArrayOf(1, 2, 3), ByteArray(64) { it.toByte() })) {
+            val error = assertFailsWith<MoneroError> { MoneroUtils.binaryBlocksToJson(binary) }
+            assertTrue(error.message!!.startsWith("failed to parse"), error.message)
+            val fastError = assertFailsWith<MoneroError> { MoneroUtils.binaryBlocksFastToJson(binary) }
+            assertTrue(fastError.message!!.startsWith("failed to parse"), fastError.message)
+        }
+    }
+
     // Can validate addresses
     @Test
     fun testAddressValidation() {

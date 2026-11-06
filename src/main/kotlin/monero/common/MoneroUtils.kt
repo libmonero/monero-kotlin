@@ -319,6 +319,38 @@ object MoneroUtils {
         return json ?: throw MoneroError("monero-c returned no JSON")
     }
 
+    // monero-c describes these two functions the other way round in its header. monero-cpp parses a get_blocks_by_height.bin response
+    // with the first and a get_blocks.bin response with the second, which the messages of their errors say too, and so does monero-python
+
+    /**
+     * Convert the response of the binary RPC `get_blocks_by_height.bin` of a daemon to the JSON of its blocks: `blocks`
+     * has each block as a JSON string, `txs` the transactions of each block, `block_hashes` their hashes, and `status`
+     * and `untrusted` come from the response.
+     *
+     * @param binary is the response, as the daemon sent it
+     * @return the JSON of the blocks of the response
+     * @throws MoneroError if the response is not valid
+     */
+    fun binaryBlocksToJson(binary: ByteArray): String {
+        val out = PointerByReference()
+        val json = MoneroNative.text(lib.monero_utils_binary_blocks_to_json(binary, SizeT(binary.size.toLong()), out), out)
+        return json ?: throw MoneroError("monero-c returned no JSON")
+    }
+
+    /**
+     * Convert the response of the binary RPC `get_blocks.bin` of a daemon to the JSON of its blocks, which has what
+     * [binaryBlocksToJson] has, and `start_height` and `current_height` too.
+     *
+     * @param binary is the response, as the daemon sent it
+     * @return the JSON of the blocks of the response
+     * @throws MoneroError if the response is not valid
+     */
+    fun binaryBlocksFastToJson(binary: ByteArray): String {
+        val out = PointerByReference()
+        val json = MoneroNative.text(lib.monero_utils_binary_blocks_fast_to_json(binary, SizeT(binary.size.toLong()), out), out)
+        return json ?: throw MoneroError("monero-c returned no JSON")
+    }
+
     /**
      * Convert a map to its binary form, which is the one of the JSON of the map.
      *
