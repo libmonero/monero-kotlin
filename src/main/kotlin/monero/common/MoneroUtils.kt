@@ -354,6 +354,41 @@ object MoneroUtils {
     }
 
     /**
+     * Set the log level of monero-c, which picks the categories that are logged: 0 is warnings and errors only, 1 adds
+     * info, 2 debug, and 3 and 4 trace. The level is of the whole process, and [setLogCategories] sets the categories
+     * one by one.
+     *
+     * @param level is the log level, from 0 (least verbose) to 4 (most verbose)
+     * @throws MoneroError if the level is not from 0 to 4
+     */
+    fun setLogLevel(level: Int) {
+        if (level !in 0..4) throw MoneroError("The log level must be from 0 to 4")
+        lib.monero_utils_set_log_level(level)
+    }
+
+    /**
+     * Set the log categories of monero-c, which replace the ones that [setLogLevel] chose. The process has one set of
+     * categories.
+     *
+     * @param categories is a comma-separated list of category:level pairs, e.g. "*:WARNING,net:FATAL". A '+' at the
+     * start adds them to the current categories, and a '-' removes them from it
+     */
+    fun setLogCategories(categories: String) {
+        lib.monero_utils_set_log_categories(categories)
+    }
+
+    /**
+     * Set where monero-c writes its log. The process has one log: it goes to the file, and to the console too if
+     * asked, and a new call replaces the previous one.
+     *
+     * @param path is the base path of the log file
+     * @param console is whether to write the log to the console too
+     */
+    fun configureLogging(path: String, console: Boolean) {
+        lib.monero_utils_configure_logging(path, console)
+    }
+
+    /**
      * Get the ring size that the network enforces.
      *
      * @return the ring size

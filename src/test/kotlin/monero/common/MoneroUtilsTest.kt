@@ -35,6 +35,10 @@ import kotlin.test.fail
  */
 class MoneroUtilsTest {
 
+    private companion object {
+        const val CATEGORIES_LINE = "New log categories: "
+    }
+
     @BeforeTest
     fun requireLibrary() {
         NativeTestSupport.assumeAvailable()
@@ -663,6 +667,92 @@ class MoneroUtilsTest {
     @Test
     fun testGetRingSize() {
         assertEquals(16, MoneroUtils.getRingSize())
+    }
+
+    // Logging
+
+    // The log of monero-c is one for the process, so these tests write it to a file that is not deleted, and set the level back
+    // to 0, which is the level that monero-c starts with. Every change of the categories writes a line with the new ones
+    private val nativeLog = File("build/native-logs/test-utils.log")
+
+    private fun logTo(path: File) {
+        path.parentFile.mkdirs()
+        MoneroUtils.configureLogging(path.path, false)
+    }
+
+    // the categories that monero-c says it has after the action, which is the last line that it wrote about them in the log
+    private fun categoriesAfter(log: File, action: () -> Unit): String {
+        val start = log.length()
+        action()
+        val logged = log.inputStream().use { input ->
+            input.skip(start)
+            String(input.readBytes(), Charsets.UTF_8)
+        }
+        val line = logged.lineSequence().lastOrNull { it.contains(CATEGORIES_LINE) } ?: fail("monero-c did not log the categories: $logged")
+        return line.substringAfter(CATEGORIES_LINE)
+    }
+
+    // Can set the log level
+    @Test
+    fun testSetLogLevel() {
+        logTo(nativeLog)
+        try {
+            // each level picks categories: 2 is everything from debug, 3 is trace with the dumps from debug, and 4 is everything
+            assertTrue(categoriesAfter(nativeLog) { MoneroUtils.setLogLevel(2) }.startsWith("*:DEBUG"))
+            assertTrue(categoriesAfter(nativeLog) { MoneroUtils.setLogLevel(3) }.startsWith("*:TRACE,*.dump:DEBUG"))
+            val trace = categoriesAfter(nativeLog) { MoneroUtils.setLogLevel(4) }
+            assertTrue(trace.startsWith("*:TRACE"))
+            assertFalse(trace.contains("dump"), trace)
+        } finally {
+            MoneroUtils.setLogLevel(0)
+        }
+    }
+
+    // Does not set a log level that monero-c does not have
+    @Test
+    fun testSetLogLevelOutOfRange() {
+        for (level in listOf(-1, 5, Int.MAX_VALUE)) {
+            val error = assertFailsWith<MoneroError> { MoneroUtils.setLogLevel(level) }
+            assertEquals("The log level must be from 0 to 4", error.message)
+        }
+    }
+
+    // Can set the log categories, and add to them and take from them
+    @Test
+    fun testSetLogCategories() {
+        logTo(nativeLog)
+        try {
+            val set = categoriesAfter(nativeLog) { MoneroUtils.setLogCategories("*:INFO,net:FATAL") }
+            assertTrue(set.startsWith("*:INFO,net:FATAL"), set)
+            assertFalse(set.contains("net.p2p"), set)
+
+            // a '+' adds to the categories that are set
+            val added = categoriesAfter(nativeLog) { MoneroUtils.setLogCategories("+net.p2p:ERROR") }
+            assertTrue(added.startsWith("*:INFO,net:FATAL"), added)
+            assertTrue(added.contains("net.p2p:ERROR"), added)
+
+            // and a '-' takes from them
+            val removed = categoriesAfter(nativeLog) { MoneroUtils.setLogCategories("-net.p2p:ERROR") }
+            assertTrue(removed.startsWith("*:INFO,net:FATAL"), removed)
+            assertFalse(removed.contains("net.p2p"), removed)
+        } finally {
+            MoneroUtils.setLogLevel(0)
+        }
+    }
+
+    // Can configure where the log is written
+    @Test
+    fun testConfigureLogging() {
+        val other = File("build/native-logs/test-utils-configure.log")
+        logTo(other)
+        try {
+            assertEquals("*:TRACE", categoriesAfter(other) { MoneroUtils.setLogCategories("*:TRACE") }.trimEnd(','))
+        } finally {
+            MoneroUtils.setLogLevel(0)
+
+            // the log of the other tests goes back to their file
+            logTo(nativeLog)
+        }
     }
 
     // Gather blocks

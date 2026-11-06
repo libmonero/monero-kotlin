@@ -29,6 +29,12 @@ internal interface MoneroC : Library {
 
     fun monero_utils_get_abi_version(major: IntByReference, minor: IntByReference, patch: IntByReference): Int
 
+    fun monero_utils_set_log_level(level: Int)
+
+    fun monero_utils_set_log_categories(categories: String?)
+
+    fun monero_utils_configure_logging(path: String?, console: Boolean)
+
     fun monero_utils_xmr_to_atomic_units(amountXmr: Double, atomicUnits: LongByReference): Int
 
     fun monero_utils_atomic_units_to_xmr(atomicUnits: Long): Double
