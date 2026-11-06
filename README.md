@@ -199,6 +199,10 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 * [monero-java](https://github.com/woodser/monero-java)
 * [monero-ts](https://github.com/woodser/monero-ts)
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 This project is licensed under MIT.
