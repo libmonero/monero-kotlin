@@ -280,7 +280,7 @@ MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so .
 docker compose -f src/test/integration/docker-compose.yml down -v
 ```
 
-The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The monero-lws server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The light wallet tests need a monero-c with the light wallet surface, which the submodule does not have yet: they skip with a message when the library has no light wallet.
+The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The monero-lws server is expected at `http://127.0.0.1:8443`: set the environment variable `MONERO_KOTLIN_TEST_LWS_URI` for another one. The light wallet tests need a monero-c with the light wallet surface, which the submodule of this branch carries through the fork of monero-c: they skip with a message when the library has no light wallet.
 
 ### Logs
 
