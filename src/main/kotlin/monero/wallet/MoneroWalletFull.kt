@@ -18,6 +18,7 @@ import monero.internal.MoneroNative
 import monero.internal.NativeWorker
 import monero.internal.SizeT
 import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroAddressBookEntry
 import monero.wallet.model.MoneroCheckReserve
 import monero.wallet.model.MoneroCheckTx
 import monero.daemon.model.MoneroKeyImage
@@ -611,6 +612,65 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     override fun checkReserveProof(address: String, message: String?, signature: String): MoneroCheckReserve {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_check_reserve_proof(h, address, message, signature, out) }
+    }
+
+    // ------------------------------- ADDRESS BOOK ----------------------------------
+
+    /**
+     * Get the entries of the address book. The book is kept in the file of the wallet when the wallet is saved.
+     *
+     * @param indices are the indices of the entries to get, in the order that they are returned, or null or empty for all of them
+     * @return the entries
+     * @throws MoneroError if the wallet is closed, or an index is not the one of an entry
+     */
+    override fun getAddressBookEntries(indices: List<Long>?): List<MoneroAddressBookEntry> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val array = indices?.takeIf { it.isNotEmpty() }?.toLongArray()
+            MoneroNative.json(lib.monero_wallet_get_address_book_entries(h, array, SizeT((array?.size ?: 0).toLong()), out), out, object : TypeReference<List<MoneroAddressBookEntry>>() {})
+        }
+    }
+
+    /**
+     * Add an entry to the address book.
+     *
+     * @param address is the address of the entry, which can be a subaddress or an integrated address
+     * @param description is the description of the entry, or null for none
+     * @return the index of the added entry
+     * @throws MoneroError if the wallet is closed, or the address is not valid
+     */
+    override fun addAddressBookEntry(address: String, description: String?): Long {
+        checkNotClosed()
+        return run { lib, h ->
+            val index = LongByReference()
+            MoneroNative.ok(lib.monero_wallet_add_address_book_entry(h, address, description, index))
+            index.value
+        }
+    }
+
+    /**
+     * Edit an entry of the address book.
+     *
+     * @param index is the index of the entry
+     * @param address is the new address, or null to keep the one that the entry has
+     * @param description is the new description, or null to keep the one that the entry has
+     * @throws MoneroError if the wallet is closed, the index is not the one of an entry, or the address is not valid
+     */
+    override fun editAddressBookEntry(index: Long, address: String?, description: String?) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_edit_address_book_entry(h, index, address, description)) }
+    }
+
+    /**
+     * Delete an entry of the address book. The entries after it take the index that is one less.
+     *
+     * @param index is the index of the entry
+     * @throws MoneroError if the wallet is closed, or the index is not the one of an entry
+     */
+    override fun deleteAddressBookEntry(index: Long) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_delete_address_book_entry(h, index)) }
     }
 
     // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
