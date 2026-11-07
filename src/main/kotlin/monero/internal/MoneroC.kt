@@ -375,6 +375,8 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
 
+    fun monero_wallet_get_transfers(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
+
     fun monero_wallet_get_outputs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
 
     fun monero_wallet_export_outputs(wallet: Pointer, all: Boolean, hex: PointerByReference): Int
@@ -392,6 +394,24 @@ internal interface MoneroC : Library {
     fun monero_wallet_import_key_images(wallet: Pointer, keyImagesJson: String, offset: Long, json: PointerByReference): Int
 
     fun monero_wallet_create_txs(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_create_tx(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_sweep_output(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_sweep_unlocked(wallet: Pointer, configJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_sweep_dust(wallet: Pointer, relay: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_relay_txs(wallet: Pointer, txMetadatas: Array<String>, numTxMetadatas: SizeT, json: PointerByReference): Int
+
+    fun monero_wallet_relay_txs_json(wallet: Pointer, txsJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_describe_tx_set(wallet: Pointer, txSetJson: String, json: PointerByReference): Int
+
+    fun monero_wallet_sign_txs(wallet: Pointer, unsignedTxHex: String, json: PointerByReference): Int
+
+    fun monero_wallet_submit_txs(wallet: Pointer, signedTxHex: String, json: PointerByReference): Int
 
     fun monero_wallet_relay_tx(wallet: Pointer, txMetadata: String, out: PointerByReference): Int
 
