@@ -579,6 +579,57 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     }
 
     /**
+     * Sweep an output into an address, with the key image of the output. The transaction is relayed only when the config says so.
+     *
+     * @param config is the configuration of the sweep, which has the address to send to and the key image of the output to
+     * sweep, and says whether to relay
+     * @return the transaction that sweeps the output
+     * @throws MoneroError if the wallet is closed, it is not connected to the daemon, the configuration is invalid, or the output is
+     * not an output of the wallet that it can spend
+     */
+    override fun sweepOutput(config: MoneroTxConfig): MoneroTxWallet {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_sweep_output(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+        }.getTxs().singleOrNull() ?: throw MoneroError("monero-c did not create one transaction")
+    }
+
+    /**
+     * Sweep the unlocked funds of the wallet, of an account or of some subaddresses of it into an address. The sweep makes as many
+     * transactions as the outputs need. The transactions are relayed only when the config says so.
+     *
+     * @param config is the configuration of the sweep, which has the address to send to, can name the account and the subaddresses to
+     * sweep, and says whether to relay and whether to sweep each subaddress in its own transaction
+     * @return the transactions that sweep the funds
+     * @throws MoneroError if the wallet is closed, it is not connected to the daemon, the configuration is invalid, or there are no
+     * unlocked funds to sweep
+     */
+    override fun sweepUnlocked(config: MoneroTxConfig): List<MoneroTxWallet> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_sweep_unlocked(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+        }.getTxs()
+    }
+
+    /**
+     * Sweep the dust outputs of the wallet back to itself. There is none in a chain that has the ring signatures of Monero, so the
+     * answer is empty.
+     *
+     * @param relay is true to relay the transactions
+     * @return the transactions that sweep the dust, which are none if the wallet has no dust
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
+     */
+    override fun sweepDust(relay: Boolean): List<MoneroTxWallet> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_sweep_dust(h, relay, out), out, MoneroTxSetsResult::class.java)
+        }.getTxs()
+    }
+
+    /**
      * Relay a transaction that [createTxs] made without relaying, from its metadata.
      *
      * @param txMetadata is the metadata of the transaction, which a transaction of [createTxs] carries

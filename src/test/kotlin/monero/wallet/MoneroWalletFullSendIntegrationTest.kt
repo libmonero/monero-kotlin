@@ -67,24 +67,6 @@ class MoneroWalletFullSendIntegrationTest {
         return config
     }
 
-    // what a transaction that the wallet made has
-    private fun validateSent(tx: MoneroTxWallet, relayed: Boolean) {
-        assertTrue(tx.hash!!.matches(Regex("[0-9a-f]{64}")), "hash of the transaction: ${tx.hash}")
-        assertTrue(tx.fee!! > BigInteger.ZERO)
-        assertEquals(true, tx.isOutgoing)
-        assertEquals(false, tx.isConfirmed)
-        assertNotNull(tx.outgoingTransfer)
-        assertTrue(tx.outgoingTransfer!!.destinations!!.isNotEmpty())
-        assertNotNull(tx.metadata, "the metadata of the transaction relays it later")
-        if (relayed) {
-            assertEquals(true, tx.isRelayed)
-            assertEquals(true, tx.inTxPool)
-        } else {
-            assertEquals(false, tx.isRelayed)
-            assertEquals(false, tx.inTxPool)
-        }
-    }
-
     // Can send to oneself, to an integrated address of the wallet
     @Test
     fun testSendToSelf() {
@@ -99,7 +81,7 @@ class MoneroWalletFullSendIntegrationTest {
             assertEquals("Subaddress shouldn't be used", refused.message)
 
             val tx = wallet.createTx(txConfig(wallet.getIntegratedAddress().integratedAddress!!, amount, relay = true))
-            validateSent(tx, true)
+            TxAssertions.validateSent(tx, true)
             assertTrue(wallet.getUnlockedBalance() < unlocked1)
             assertEquals(balance1 - tx.fee!!, wallet.getBalance(), "the balance after is the balance before less the fee")
         }
@@ -116,7 +98,7 @@ class MoneroWalletFullSendIntegrationTest {
 
                 val address = wallet.getIntegratedAddress(recipient.getPrimaryAddress(), "54491f3bb3572a37").integratedAddress!!
                 val tx = wallet.createTx(txConfig(address, amount, relay = true))
-                validateSent(tx, true)
+                TxAssertions.validateSent(tx, true)
                 assertTrue(wallet.getUnlockedBalance() < unlocked1)
                 assertEquals(balance1 - tx.getOutgoingAmount() - tx.fee!!, wallet.getBalance())
                 assertTrue(wallet.getTxs(MoneroTxQuery().also { it.isConfirmed = false }).isNotEmpty())
@@ -139,7 +121,7 @@ class MoneroWalletFullSendIntegrationTest {
                 assertEquals(copy, MoneroJson.serialize(config), "the config is not changed")
                 assertTrue(txs.isNotEmpty())
                 if (!split) assertEquals(1, txs.size)
-                txs.forEach { validateSent(it, relay) }
+                txs.forEach { TxAssertions.validateSent(it, relay) }
 
                 if (!relay) {
                     assertEquals(balance, wallet.getBalance(), "a transaction that is not relayed moves nothing")
@@ -223,7 +205,7 @@ class MoneroWalletFullSendIntegrationTest {
         var fees = BigInteger.ZERO
         var outgoing = BigInteger.ZERO
         for (tx in txs) {
-            validateSent(tx, true)
+            TxAssertions.validateSent(tx, true)
             fees += tx.fee!!
             outgoing += tx.getOutgoingAmount()
             val destinations = tx.outgoingTransfer!!.destinations!!
@@ -256,7 +238,7 @@ class MoneroWalletFullSendIntegrationTest {
             val spend = txConfig(wallet.getPrimaryAddress(), xmr * BigInteger.valueOf(5), false, true)
             spend.subaddressIndices = listOf(1, 2)
             val tx = wallet.createTx(spend)
-            validateSent(tx, true)
+            TxAssertions.validateSent(tx, true)
             assertTrue(wallet.getBalance(0, 1) < balance1 && wallet.getBalance(0, 2) < balance2, "the two subaddresses are spent")
         }
     }

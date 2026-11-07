@@ -789,6 +789,36 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.submitTxs("") }
     }
 
+    @Test
+    fun sweeps_OfAWalletThatIsNotConnected_AreAnError() {
+        testWallet().use { wallet ->
+            val config = MoneroTxConfig()
+            config.address = primaryAddress
+            config.accountIndex = 0
+            assertFailsWith<MoneroError> { wallet.sweepUnlocked(config) }
+            assertFailsWith<MoneroError> { wallet.sweepDust(false) }
+            config.keyImage = "a".repeat(64)
+            assertFailsWith<MoneroError> { wallet.sweepOutput(config) }
+        }
+    }
+
+    @Test
+    fun sweeps_WithoutAnAddress_AreAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.sweepUnlocked(MoneroTxConfig()) }
+            assertFailsWith<MoneroError> { wallet.sweepOutput(MoneroTxConfig()) }
+        }
+    }
+
+    @Test
+    fun sweeps_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.sweepOutput(MoneroTxConfig()) }
+        assertFailsWith<MoneroError> { wallet.sweepUnlocked(MoneroTxConfig()) }
+        assertFailsWith<MoneroError> { wallet.sweepDust() }
+    }
+
     // ------------------------------- MULTISIG ----------------------------------
 
     @Test
