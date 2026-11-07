@@ -244,15 +244,15 @@ Gradle does not run the tests again when only the environment changed, so add `-
 
 ### Integration tests
 
-The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and a regtest node, which is the one of the `docker-compose.yml` of monero-c:
+The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and the regtest nodes and wallet RPC servers of [src/test/docker/docker-compose.yml](src/test/docker/docker-compose.yml), which are the ones of monero-python: two nodes that are connected to each other and three wallet RPC servers, with the same login. It needs Docker and ports 18080 to 18086, 18089 and 48080:
 
 ```sh
-docker compose -f external/monero-c/tests/c/integration/docker-compose.yml up -d
+docker compose -f src/test/docker/docker-compose.yml up -d node_1 node_2 xmr_wallet_1 xmr_wallet_2 xmr_wallet_3
 MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew integrationTest --rerun
-docker compose -f external/monero-c/tests/c/integration/docker-compose.yml down -v
+docker compose -f src/test/docker/docker-compose.yml down -v
 ```
 
-The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The tests that need the wallet RPC server of the same file expect it at `http://127.0.0.1:18082`, and skip when it does not answer: set `MONERO_C_TEST_WALLET_RPC_URI` for another one.
+The tests use the second node, at `http://127.0.0.1:18081` with the user `rpc_daemon_user`, and the first wallet RPC server, at `http://127.0.0.1:18082` with the user `rpc_user`; the password of both is `abc123`. They skip when nothing answers, and fail when the server does not accept the login. The environment variables `MONERO_C_TEST_DAEMON_URI`, `MONERO_C_TEST_DAEMON_USERNAME`, `MONERO_C_TEST_DAEMON_PASSWORD`, `MONERO_C_TEST_WALLET_RPC_URI`, `MONERO_C_TEST_WALLET_RPC_USERNAME` and `MONERO_C_TEST_WALLET_RPC_PASSWORD` change each of them. The images are `ghcr.io/libmonero/monero-daemon-rpc` and `monero-wallet-rpc`, and `MONERO_TAG` pins their tag.
 
 ### Logs
 
@@ -272,7 +272,7 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 * **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes. Its compilation, dependencies included, is cached with ccache, which only the runs on main save.
 * **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything.
 * **Android** builds the android module and the example application, with the `monero-native-android` archive of the release of monero-c that the submodule is pinned at, and uploads the AAR. It fails if the release is not the one of the submodule.
-* **Integration tests** waits for the same runs, starts the regtest node of monero-c, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test.
+* **Integration tests** waits for the same runs, starts the nodes and the wallet RPC servers of `src/test/docker/docker-compose.yml`, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test, and uploads the logs of the containers.
 
 ## Related projects
 

@@ -1,6 +1,6 @@
-# Runs the integration tests that Build made against a regtest node, with the library of monero-c that Native built from the submodule. The node
-# and the wallet RPC server are the ones of the docker-compose.yml of monero-c, which is in the submodule, so they are the ones that it tests
-# with. The tests that need no node are in unit-tests.yml
+# Runs the integration tests that Build made against regtest nodes, with the library of monero-c that Native built from the submodule. The nodes
+# and the wallet RPC servers are the ones of src/test/docker/docker-compose.yml, which are the ones of monero-python. The tests that need no
+# node are in unit-tests.yml
 name: Integration tests
 
 on:
@@ -53,15 +53,11 @@ jobs:
     timeout-minutes: 30
 
     env:
-      MONERO_C_TEST_DAEMON_URI: http://127.0.0.1:18081
-      COMPOSE_FILE: external/monero-c/tests/c/integration/docker-compose.yml
+      COMPOSE_FILE: src/test/docker/docker-compose.yml
 
     steps:
-      # only monero-c, for its docker-compose.yml: the submodules of monero-c are not needed
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          submodules: true
 
       - name: Download the tests
         uses: actions/download-artifact@v8
@@ -96,18 +92,23 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Start the regtest monerod and monero-wallet-rpc
-        run: docker compose up -d
+      - name: Start the regtest nodes and the wallet RPC servers
+        run: docker compose up -d node_1 node_2 xmr_wallet_1 xmr_wallet_2 xmr_wallet_3
 
-      - name: Wait for monerod
+      # the nodes and the servers have a login: curl does the digest authentication that monerod asks for
+      - name: Wait for the node and the wallet RPC servers
         run: |
-          for _ in $(seq 1 60); do
-            if curl -fsS -m 5 -X POST "$MONERO_C_TEST_DAEMON_URI/json_rpc" -d '{"jsonrpc":"2.0","id":"0","method":"get_block_count"}' | grep -q '"count"'; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "monerod did not answer"; exit 1
+          wait_for() {
+            for _ in $(seq 1 60); do
+              if curl -fsS -m 5 --digest -u "$2" -X POST "http://127.0.0.1:$1/json_rpc" -d "{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"method\":\"$3\"}" | grep -q "$4"; then
+                return 0
+              fi
+              sleep 2
+            done
+            echo "nothing answered on the port $1"; return 1
+          }
+          wait_for 18081 rpc_daemon_user:abc123 get_block_count '"count"'
+          for port in 18082 18083 18084; do wait_for "$port" rpc_user:abc123 get_version '"version"'; done
 
       # --fail-if-no-tests: a run that finds no integration test would pass without testing anything
       - name: Run the integration tests
@@ -124,13 +125,25 @@ jobs:
           --scan-class-path unit-tests/classes/test
           --reports-dir test-results
 
-      - name: Show the logs of the node
-        if: failure()
-        run: docker compose logs
+      - name: Dump the logs of the containers
+        if: always()
+        run: |
+          mkdir -p container-logs
+          for service in node_1 node_2 xmr_wallet_1 xmr_wallet_2 xmr_wallet_3; do
+            docker compose logs --no-color --timestamps "$service" > "container-logs/$service.log" 2>&1 || true
+          done
 
-      - name: Stop the regtest node
+      - name: Stop the regtest nodes and the wallet RPC servers
         if: always()
         run: docker compose down -v
+
+      - name: Upload the logs of the containers
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-container-logs
+          path: container-logs
+          if-no-files-found: ignore
 
       - name: Upload the results
         if: always()
