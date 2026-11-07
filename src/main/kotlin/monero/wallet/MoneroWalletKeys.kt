@@ -33,6 +33,7 @@ import monero.wallet.model.MoneroWalletConfig
 class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCloseable {
 
     private val worker = NativeWorker("MoneroWalletKeys", "Wallet is closed")
+    @Volatile
     private var closed = false
 
     // ------------------------------- KEYS, SEED AND ADDRESSES ----------------------------------
