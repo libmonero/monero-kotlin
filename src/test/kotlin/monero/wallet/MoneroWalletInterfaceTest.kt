@@ -416,6 +416,12 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
+    fun testSetAccountLabel() {
+        wallet.setAccountLabel(0, "")
+    }
+
+    @NotSupported
+    @Test
     fun testGetTxsWithoutArguments() {
         wallet.getTxs()
     }

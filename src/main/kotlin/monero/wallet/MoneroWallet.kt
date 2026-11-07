@@ -512,6 +512,14 @@ interface MoneroWallet {
     fun setSubaddressLabel(accountIdx: Int, subaddressIdx: Int, label: String? = null)
 
     /**
+     * Set the label of an account, which is the label of its first subaddress.
+     *
+     * @param accountIdx specifies the index of the account
+     * @param label is the label to set
+     */
+    fun setAccountLabel(accountIdx: Int, label: String)
+
+    /**
      * Get the transactions of the wallet: the ones that are in a block, in the pool, or that were relayed and failed.
      *
      * @param query filters the transactions, or null for all of them

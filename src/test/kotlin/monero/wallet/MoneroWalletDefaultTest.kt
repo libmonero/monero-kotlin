@@ -39,6 +39,7 @@ class MoneroWalletDefaultTest {
         var txs: List<MoneroTxWallet> = emptyList()
         var transferQuery: MoneroTransferQuery? = null
         var described: MoneroTxSet? = null
+        var labelled: Triple<Int, Int, String?>? = null
 
         override fun setDaemonConnection(connection: MoneroRpcConnection?, isTrusted: Boolean?) {
             this.connection = connection
@@ -64,6 +65,10 @@ class MoneroWalletDefaultTest {
         override fun getTransfers(query: MoneroTransferQuery?): List<MoneroTransfer> {
             transferQuery = query
             return emptyList()
+        }
+
+        override fun setSubaddressLabel(accountIdx: Int, subaddressIdx: Int, label: String?) {
+            labelled = Triple(accountIdx, subaddressIdx, label)
         }
 
         override fun describeTxSet(txSet: MoneroTxSet): MoneroTxSet {
@@ -197,5 +202,11 @@ class MoneroWalletDefaultTest {
         wallet.describeMultisigTxSet("multisig")
         assertEquals("multisig", wallet.described!!.multisigTxHex)
         assertNull(wallet.described!!.unsignedTxHex)
+    }
+
+    @Test
+    fun testSetAccountLabel_SetsTheLabelOfTheFirstSubaddress() {
+        wallet.setAccountLabel(2, "savings")
+        assertEquals(Triple(2, 0, "savings"), wallet.labelled)
     }
 }

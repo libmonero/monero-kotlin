@@ -75,6 +75,10 @@ abstract class MoneroWalletDefault : MoneroWallet {
         return getTransfers(query)
     }
 
+    override fun setAccountLabel(accountIdx: Int, label: String) {
+        setSubaddressLabel(accountIdx, 0, label)
+    }
+
     override fun describeUnsignedTxSet(unsignedTxHex: String): MoneroTxSet {
         val txSet = MoneroTxSet()
         txSet.unsignedTxHex = unsignedTxHex
