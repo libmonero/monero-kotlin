@@ -99,6 +99,29 @@ internal interface MoneroC : Library {
 
     fun monero_rpc_connection_free(connection: Pointer?)
 
+    fun monero_rpc_connection_serialize(connection: Pointer, json: PointerByReference): Int
+
+    fun monero_rpc_connection_set_credentials(connection: Pointer, username: String, password: String): Int
+
+    fun monero_rpc_connection_set_attribute(connection: Pointer, key: String, value: String): Int
+
+    fun monero_rpc_connection_get_attribute(connection: Pointer, key: String, value: PointerByReference): Int
+
+    fun monero_rpc_connection_is_onion(connection: Pointer, isOnion: ByteByReference): Int
+
+    fun monero_rpc_connection_is_i2p(connection: Pointer, isI2p: ByteByReference): Int
+
+    // monero_optional_bool: -1 is unset, 0 false and 1 true
+    fun monero_rpc_connection_is_connected(connection: Pointer, isConnected: IntByReference): Int
+
+    fun monero_rpc_connection_check_connection(connection: Pointer, timeoutMs: IntByReference?, changed: ByteByReference): Int
+
+    fun monero_rpc_connection_send_json_request(connection: Pointer, method: String, paramsJson: String?, timeoutMs: IntByReference?, json: PointerByReference): Int
+
+    fun monero_rpc_connection_send_path_request(connection: Pointer, path: String, paramsJson: String?, timeoutMs: IntByReference?, json: PointerByReference): Int
+
+    fun monero_rpc_connection_send_binary_request(connection: Pointer, path: String, paramsJson: String?, timeoutMs: IntByReference?, data: PointerByReference, count: Pointer): Int
+
     // daemon: connection and listeners
 
     fun monero_daemon_connect_with(connection: Pointer, out: PointerByReference): Int
