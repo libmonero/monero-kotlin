@@ -1,5 +1,6 @@
 package monero.wallet
 
+import java.math.BigInteger
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,6 +9,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroJson
+import monero.daemon.model.MoneroBlock
 import monero.wallet.model.MoneroOutputQuery
 import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxQuery
@@ -45,6 +47,28 @@ class MoneroWalletFullTxsIntegrationTest {
         return txs
     }
 
+    // The balances of the wallet are the sums of the ones of its accounts and of their subaddresses, also with a transaction in the pool, which
+    // moves the balance from the outputs it spends to its change and makes it differ from the sum of the unspent outputs
+    @Test
+    fun testAccounting() {
+        val wallet = wallet()
+        val txs = wallet.getTxs()
+        assertTrue(txs.any { it.inTxPool == true })
+        val balance = wallet.getBalance()
+        val unlockedBalance = wallet.getUnlockedBalance()
+        assertTrue(balance.signum() > 0)
+        assertTrue(balance >= unlockedBalance)
+
+        val accounts = wallet.getAccounts(true)
+        assertEquals(balance, accounts.fold(BigInteger.ZERO) { sum, account -> sum + account.balance!! })
+        assertEquals(unlockedBalance, accounts.fold(BigInteger.ZERO) { sum, account -> sum + account.unlockedBalance!! })
+        for (account in accounts) {
+            assertEquals(account.balance, account.subaddresses!!.fold(BigInteger.ZERO) { sum, subaddress -> sum + subaddress.balance!! })
+            assertEquals(account.unlockedBalance, account.subaddresses!!.fold(BigInteger.ZERO) { sum, subaddress -> sum + subaddress.unlockedBalance!! })
+            assertTrue(account.balance!! >= account.unlockedBalance!!)
+        }
+    }
+
     // Can get the transactions of the wallet
     @Test
     fun testGetTxsWallet() {
@@ -52,7 +76,7 @@ class MoneroWalletFullTxsIntegrationTest {
         assertTrue(txs.size > 1, "Wallet has no txs to test")
         assertEquals(txs.size, txs.map { it.hash }.toSet().size, "a transaction is once in the wallet")
 
-        val blockPerHeight = HashMap<Long, monero.daemon.model.MoneroBlock>()
+        val blockPerHeight = HashMap<Long, MoneroBlock>()
         for (tx in txs) {
             // two copies of a transaction merge into a transaction that is the same
             val copy1 = tx.copy()

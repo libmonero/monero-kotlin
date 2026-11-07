@@ -135,6 +135,51 @@ class MoneroWalletFullOutputsIntegrationTest {
         }
     }
 
+    // The balances of the wallet are the sums of the ones of its accounts, and of the ones of their subaddresses, and with no transaction in the
+    // pool they are the sums of the unspent outputs
+    @Test
+    fun testAccounting() {
+        fundedWallet().use { wallet ->
+            // a second account with funds
+            wallet.createAccount()
+            wallet.createSubaddress(1)
+            val payment = MoneroTxConfig()
+            payment.accountIndex = 0
+            payment.destinations = listOf(MoneroDestination(wallet.getAddress(1, 0), BigInteger.valueOf(2_000_000_000_000L)), MoneroDestination(wallet.getAddress(1, 1), BigInteger.valueOf(1_000_000_000_000L)))
+            payment.relay = true
+            wallet.createTxs(payment)
+            RegtestSupport.mineBlocks(12)
+            wallet.sync()
+            assertTrue(wallet.getTxs().none { it.inTxPool == true }, "the funded wallet has nothing in the pool")
+
+            val balance = wallet.getBalance()
+            val unlockedBalance = wallet.getUnlockedBalance()
+            val accounts = wallet.getAccounts(true)
+            assertEquals(2, accounts.size)
+            assertTrue(accounts[1].balance!!.signum() > 0)
+            assertTrue(balance.signum() > 0)
+            assertTrue(balance >= unlockedBalance)
+            assertEquals(balance, accounts.fold(BigInteger.ZERO) { sum, account -> sum + account.balance!! })
+            assertEquals(unlockedBalance, accounts.fold(BigInteger.ZERO) { sum, account -> sum + account.unlockedBalance!! })
+            assertEquals(balance, sumOfUnspent(wallet, MoneroOutputQuery()))
+
+            for (account in accounts) {
+                assertEquals(account.balance, account.subaddresses!!.fold(BigInteger.ZERO) { sum, subaddress -> sum + subaddress.balance!! })
+                assertEquals(account.unlockedBalance, account.subaddresses!!.fold(BigInteger.ZERO) { sum, subaddress -> sum + subaddress.unlockedBalance!! })
+                assertEquals(account.balance, sumOfUnspent(wallet, MoneroOutputQuery().also { it.accountIndex = account.index }), "balance of account ${account.index}")
+                for (subaddress in account.subaddresses!!) {
+                    val query = MoneroOutputQuery().also { it.accountIndex = account.index; it.subaddressIndex = subaddress.index }
+                    assertEquals(subaddress.balance, sumOfUnspent(wallet, query), "balance of subaddress ${account.index}:${subaddress.index}")
+                }
+            }
+        }
+    }
+
+    private fun sumOfUnspent(wallet: MoneroWalletFull, query: MoneroOutputQuery): BigInteger {
+        query.isSpent = false
+        return wallet.getOutputs(query).fold(BigInteger.ZERO) { sum, output -> sum + output.amount!! }
+    }
+
     // Can export outputs in hexadecimal
     @Test
     fun testExportOutputs() {
