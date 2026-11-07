@@ -15,6 +15,7 @@ import com.sun.jna.ptr.PointerByReference
 import java.io.IOException
 import java.math.BigInteger
 import monero.common.MoneroError
+import monero.common.MoneroRpcError
 import monero.common.MoneroJson
 
 /**
@@ -36,6 +37,9 @@ internal object MoneroNative {
      */
     const val ABI_MAJOR = 0
     const val ABI_MINOR = 2
+
+    // MONERO_ERROR_RPC of monero_error_code
+    private const val ERROR_RPC = 4
 
     private const val ENCODING = "UTF-8"
 
@@ -96,14 +100,17 @@ internal object MoneroNative {
     }
 
     /**
-     * Throws if the result of a call is an error, with the message that monero-c recorded for this thread.
+     * Throws if the result of a call is an error, with the message that monero-c recorded for this thread: a [MoneroRpcError] if
+     * it says that a daemon or a wallet RPC server answered with an error, and a [MoneroError] for any other kind.
      */
     fun ok(result: Int) = ok(lib, result)
 
     private fun ok(library: MoneroC, result: Int) {
         if (result == 0) return
-        val message = library.monero_last_error()?.getString(0, ENCODING)
-        throw MoneroError(if (message.isNullOrEmpty()) "monero-c error" else message)
+        // both are about the last failure of this thread, so they are read before anything else is called
+        val message = library.monero_last_error()?.getString(0, ENCODING).let { if (it.isNullOrEmpty()) "monero-c error" else it }
+        if (library.monero_last_error_code() == ERROR_RPC) throw MoneroRpcError(message)
+        throw MoneroError(message)
     }
 
     /**

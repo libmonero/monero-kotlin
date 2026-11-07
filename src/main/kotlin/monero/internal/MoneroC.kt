@@ -23,6 +23,9 @@ internal interface MoneroC : Library {
 
     fun monero_last_error(): Pointer?
 
+    // monero_error_code: 0 none, 1 generic, 2 invalid argument, 3 out of memory, 4 rpc, 5 io
+    fun monero_last_error_code(): Int
+
     fun monero_utils_free(ptr: Pointer?)
 
     fun monero_utils_free_secret(secret: Pointer)
