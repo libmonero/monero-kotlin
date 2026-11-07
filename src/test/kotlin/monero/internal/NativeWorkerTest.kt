@@ -28,6 +28,37 @@ class NativeWorkerTest {
         }
     }
 
+    // a close that an interrupt ends half way leaves the handle of the owner freed under a queued call, so the
+    // close waits the interrupt out: the owner frees the handle only after the last call has ended
+    @Test
+    fun close_WaitsAnInterruptOut() {
+        val worker = NativeWorker("test", "The test is closed")
+        val started = CountDownLatch(1)
+        val finished = CountDownLatch(1)
+        val call = CompletableFuture.runAsync {
+            worker.call {
+                started.countDown()
+                Thread.sleep(1000)
+                finished.countDown()
+            }
+        }
+        started.await()
+
+        val closer = Thread {
+            worker.close()
+        }
+        closer.start()
+        Thread.sleep(100)   // the closer is in the wait by now
+        closer.interrupt()
+        closer.join(10000)
+        assertEquals(false, closer.isAlive, "the close did not return")
+
+        // the queued call ended, and the interrupt is still on the thread that closed
+        assertEquals(true, finished.await(0, TimeUnit.MILLISECONDS))
+        assertEquals(true, closer.isInterrupted)
+        call.get(10, TimeUnit.SECONDS)
+    }
+
     @Test
     fun call_OfAClosedWorker_Fails() {
         val worker = NativeWorker("test", "The test is closed")

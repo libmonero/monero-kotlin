@@ -42,19 +42,22 @@ internal class NativeWorker(name: String, private val closedMessage: String) : A
 
     /**
      * Stop the thread after the calls that are in the queue, and wait until it has run them: the owner frees its handle
-     * right after the close, and a call that is still queued would run on a freed handle.
-     *
-     * @throws MoneroError if the thread that closes is interrupted while it waits
+     * right after the close, and a call that is still queued would run on a freed handle. The wait is not
+     * interruptible, since a close that ends half way leaves the handle freed under a call that is still queued: an
+     * interrupt of the closing thread is held and restored when the calls have ended.
      */
     override fun close() {
         executor.shutdown()
-        try {
-            // unbounded, since the calls of a worker end and freeing the handle under one of them does not
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            throw MoneroError("Interrupted while waiting for the calls of monero-c to end", e)
+        var interrupted = false
+        while (!executor.isTerminated) {
+            try {
+                // unbounded, since the calls of a worker end and freeing the handle under one of them does not
+                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS)
+            } catch (e: InterruptedException) {
+                interrupted = true
+            }
         }
+        if (interrupted) Thread.currentThread().interrupt()
     }
 
     companion object {
