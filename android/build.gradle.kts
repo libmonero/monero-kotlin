@@ -109,19 +109,50 @@ val stageMoneroC by tasks.registering(Sync::class) {
             val machine = machines[abi.name]
                 ?: throw GradleException("monero-c is built for ${machines.keys.joinToString()}, and ${abi.name} is none of them")
             val library = File(abi, "libmonero_c.so")
-            val bytes = library.readBytes()
-            if (bytes.size < 20 || bytes[0] != 0x7F.toByte() || bytes[1] != 'E'.code.toByte() || bytes[2] != 'L'.code.toByte() ||
-                bytes[3] != 'F'.code.toByte() || bytes[4].toInt() != 2 || bytes[5].toInt() != 1
+            val header = ByteArray(20)
+            library.inputStream().use { input ->
+                var read = 0
+                while (read < header.size) {
+                    val n = input.read(header, read, header.size - read)
+                    if (n < 0) break
+                    read += n
+                }
+                if (read < 20) {
+                    throw GradleException("${abi.name}/libmonero_c.so is shorter than an ELF header")
+                }
+            }
+            if (header[0] != 0x7F.toByte() || header[1] != 'E'.code.toByte() || header[2] != 'L'.code.toByte() ||
+                header[3] != 'F'.code.toByte() || header[4].toInt() != 2 || header[5].toInt() != 1
             ) {
                 throw GradleException("${abi.name}/libmonero_c.so is not a 64-bit little endian ELF library")
             }
-            val found = (bytes[19].toInt() and 0xFF shl 8) or (bytes[18].toInt() and 0xFF)
+            val found = (header[19].toInt() and 0xFF shl 8) or (header[18].toInt() and 0xFF)
             if (found != machine) {
                 throw GradleException(
                     "${abi.name}/libmonero_c.so is for the machine 0x${found.toString(16)}, and ${abi.name} is 0x${machine.toString(16)}"
                 )
             }
-            if (!String(bytes, Charsets.ISO_8859_1).contains("monero_utils_get_abi_version")) {
+
+            // the exported names are in the strings of the file, which ISO_8859_1 reads one byte to one char. The file
+            // is scanned in chunks with an overlap, since an unstripped build is hundreds of megabytes
+            var carriesTheAbi = false
+            library.inputStream().use { input ->
+                val chunk = ByteArray(1 shl 20)
+                var carry = ByteArray(0)
+                while (true) {
+                    val n = input.read(chunk)
+                    if (n < 0) break
+                    val window = ByteArray(carry.size + n)
+                    carry.copyInto(window)
+                    chunk.copyInto(window, carry.size, 0, n)
+                    if (String(window, Charsets.ISO_8859_1).contains("monero_utils_get_abi_version")) {
+                        carriesTheAbi = true
+                        break
+                    }
+                    carry = window.copyOfRange(maxOf(0, window.size - 64), window.size)
+                }
+            }
+            if (!carriesTheAbi) {
                 throw GradleException("${abi.name}/libmonero_c.so does not export the C ABI of monero-c (monero_utils_get_abi_version)")
             }
         }
