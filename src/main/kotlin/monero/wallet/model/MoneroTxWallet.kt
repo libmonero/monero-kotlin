@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import java.math.BigInteger
 import monero.daemon.model.MoneroOutput
 import monero.daemon.model.MoneroTx
+import monero.internal.Reconcile
 
 /**
  * Models a Monero transaction in the context of a wallet: the transfers that it has for the wallet, and the outputs
@@ -139,5 +140,51 @@ open class MoneroTxWallet : MoneroTx {
      */
     fun getOutgoingAmount(): BigInteger {
         return outgoingTransfer?.amount ?: BigInteger.ZERO
+    }
+
+    /**
+     * Merge another copy of the same transaction into this one, as [MoneroTx.merge] does, and its transfers: the incoming transfers
+     * of the account and the subaddress that this one has are merged, and the others are added, so one without an account or a
+     * subaddress is always added, and the outgoing transfer is merged or taken. The transfers of the other are in this transaction
+     * afterwards.
+     *
+     * @param other is the transaction to merge into this one. One that is not a transaction of a wallet merges as a transaction
+     * @throws MoneroError if the two have a different value in a field that does not change
+     */
+    override fun merge(other: MoneroTx) {
+        if (this === other) return
+        super.merge(other)
+        if (other !is MoneroTxWallet) return
+
+        val otherIncoming = other.incomingTransfers
+        if (!otherIncoming.isNullOrEmpty()) {
+            val merged = ArrayList(incomingTransfers ?: emptyList())
+            for (transfer in otherIncoming) {
+                transfer.tx = this
+                val same = merged.firstOrNull {
+                    it === transfer || (it.accountIndex != null && it.subaddressIndex != null &&
+                        it.accountIndex == transfer.accountIndex && it.subaddressIndex == transfer.subaddressIndex)
+                }
+                if (same == null) merged.add(transfer) else same.merge(transfer)
+            }
+            incomingTransfers = merged
+        }
+
+        val otherOutgoing = other.outgoingTransfer
+        if (otherOutgoing != null) {
+            otherOutgoing.tx = this
+            val outgoing = outgoingTransfer
+            if (outgoing == null) outgoingTransfer = otherOutgoing else outgoing.merge(otherOutgoing)
+        }
+
+        isIncoming = Reconcile.value(isIncoming, other.isIncoming, "tx wallet isIncoming")
+        isOutgoing = Reconcile.value(isOutgoing, other.isOutgoing, "tx wallet isOutgoing")
+        note = Reconcile.value(note, other.note, "tx wallet note")
+        inputSum = Reconcile.value(inputSum, other.inputSum, "tx wallet inputSum")
+        outputSum = Reconcile.value(outputSum, other.outputSum, "tx wallet outputSum")
+        changeAddress = Reconcile.value(changeAddress, other.changeAddress, "tx wallet changeAddress")
+        changeAmount = Reconcile.value(changeAmount, other.changeAmount, "tx wallet changeAmount")
+        numDummyOutputs = Reconcile.value(numDummyOutputs, other.numDummyOutputs, "tx wallet numDummyOutputs")
+        extraHex = Reconcile.value(extraHex, other.extraHex, "tx wallet extraHex")
     }
 }
