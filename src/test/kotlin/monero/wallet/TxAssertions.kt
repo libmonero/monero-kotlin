@@ -3,7 +3,12 @@ package monero.wallet
 import java.math.BigInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import monero.wallet.model.MoneroIncomingTransfer
+import monero.wallet.model.MoneroOutgoingTransfer
+import monero.wallet.model.MoneroTransfer
 import monero.wallet.model.MoneroTxWallet
 
 /**
@@ -33,5 +38,75 @@ object TxAssertions {
             assertEquals(false, tx.isRelayed)
             assertEquals(false, tx.inTxPool)
         }
+    }
+
+    /**
+     * Check a transfer of a wallet: it is in its transaction, which is in a block or in the pool, it has an account and an amount, and
+     * its subaddresses are the ones of an incoming or of an outgoing transfer.
+     */
+    fun validateTransfer(transfer: MoneroTransfer) {
+        val tx = assertNotNull(transfer.tx, "a transfer is in its transaction")
+        assertTrue(tx.hash!!.matches(Regex("[0-9a-f]{64}")), "hash of the transaction: ${tx.hash}")
+        assertNotNull(transfer.accountIndex)
+        assertTrue(transfer.accountIndex!! >= 0)
+        assertNotNull(transfer.amount)
+        assertTrue(transfer.amount!! >= BigInteger.ZERO)
+        assertNotNull(tx.isConfirmed)
+        assertNotNull(tx.inTxPool)
+        if (tx.isConfirmed == true) {
+            assertNotNull(tx.block?.height, "a transaction that is confirmed is in a block")
+            assertEquals(false, tx.inTxPool)
+        }
+        when (transfer) {
+            is MoneroIncomingTransfer -> {
+                assertTrue(transfer.isIncoming == true)
+                assertTrue(transfer.subaddressIndex!! >= 0)
+                assertNotNull(transfer.address)
+                assertTrue(transfer.address!!.length > 90)
+            }
+            is MoneroOutgoingTransfer -> {
+                assertTrue(transfer.isOutgoing == true)
+                assertTrue(transfer.subaddressIndices!!.isNotEmpty())
+                assertTrue(transfer.subaddressIndices!!.all { it >= 0 })
+                assertNotNull(tx.fee, "a transaction that the wallet sends has a fee")
+                assertTrue(tx.isOutgoing == true)
+            }
+            else -> throw AssertionError("A transfer is incoming or outgoing: $transfer")
+        }
+    }
+
+    /**
+     * Check a transaction that the wallet has, like TxWalletUtils.test_tx_wallet of monero-python: it has a hash, it is in a block or in
+     * the pool, it is incoming, outgoing or both with the transfers that say so, and a transaction that the wallet sent has a fee.
+     */
+    fun validateTx(tx: MoneroTxWallet) {
+        assertTrue(tx.hash!!.matches(Regex("[0-9a-f]{64}")), "hash of the transaction: ${tx.hash}")
+        assertNotNull(tx.isConfirmed)
+        assertNotNull(tx.inTxPool)
+        assertNotNull(tx.isLocked)
+        if (tx.isConfirmed == true) {
+            assertEquals(false, tx.inTxPool)
+            assertTrue(tx.block!!.height!! > 0, "a transaction that is confirmed is in a block")
+            assertEquals(tx.block!!.height, tx.height)
+            assertTrue(tx.numConfirmations!! > 0)
+        } else {
+            assertNull(tx.height, "a transaction that is not confirmed is at no height")
+        }
+        if (tx.inTxPool == true) assertEquals(false, tx.isConfirmed)
+
+        val incoming = tx.incomingTransfers ?: emptyList()
+        if (tx.isIncoming == true) assertTrue(incoming.isNotEmpty(), "an incoming transaction has incoming transfers")
+        else assertTrue(incoming.isEmpty(), "a transaction that is not incoming has no incoming transfers")
+        if (tx.isOutgoing == true) {
+            assertNotNull(tx.outgoingTransfer, "an outgoing transaction has an outgoing transfer")
+            assertNotNull(tx.fee)
+        } else {
+            assertNull(tx.outgoingTransfer)
+        }
+        assertTrue(tx.isIncoming == true || tx.isOutgoing == true, "a transaction of the wallet is incoming or outgoing")
+        incoming.forEach { validateTransfer(it) }
+        tx.outgoingTransfer?.let { validateTransfer(it) }
+        incoming.forEach { assertSame(tx, it.tx) }
+        tx.outgoingTransfer?.let { assertSame(tx, it.tx) }
     }
 }

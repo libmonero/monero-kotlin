@@ -1,140 +1,35 @@
 package monero.wallet
 
-import java.math.BigInteger
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.common.MoneroJson
-import monero.daemon.model.MoneroNetworkType
-import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroIncomingTransfer
 import monero.wallet.model.MoneroOutgoingTransfer
 import monero.wallet.model.MoneroTransfer
 import monero.wallet.model.MoneroTransferQuery
-import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
-import monero.wallet.model.MoneroWalletConfig
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Tag
 
 /**
  * The transfers of a full wallet, against a regtest node, like the tests of monero-python (tests/test_monero_wallet_common.py) that get
- * the transfers of a wallet and query them. The wallet of these tests has what those tests need and a fresh regtest wallet has not:
- * a second account with subaddresses that received funds from the first, transfers between the two accounts, and a transaction that is
- * in the pool. It is made once for all the tests, which only read it. They need monero-c and the regtest node of src/test/docker.
+ * the transfers of a wallet and query them. They read the wallet of TxHistoryWallet, which has transfers between two accounts and a
+ * transaction in the pool. They need monero-c and the regtest node of src/test/docker.
  */
 @Tag("integration")
 class MoneroWalletFullTransfersIntegrationTest {
-
-    companion object {
-        private var directory: Path? = null
-        private var shared: MoneroWalletFull? = null
-
-        @JvmStatic
-        @AfterAll
-        fun closeTheWallet() {
-            shared?.close()
-            shared = null
-            directory?.toFile()?.deleteRecursively()
-            directory = null
-        }
-    }
 
     @BeforeTest
     fun requireLibraryAndDaemon() {
         RegtestSupport.assumeAvailable()
     }
 
-    private fun wallet(): MoneroWalletFull = shared ?: build().also { shared = it }
-
-    // Five coinbases that matured go to the first account, which pays the second one with one transaction to three of its subaddresses, then
-    // pays one of its own subaddresses, then the second account pays the first one, and the last payment is left in the pool.
-    private fun build(): MoneroWalletFull {
-        val dir = Files.createTempDirectory("transfers-")
-        directory = dir
-        val config = MoneroWalletConfig()
-        config.path = dir.resolve("wallet").toString()
-        config.password = "supersecretpassword123"
-        config.networkType = MoneroNetworkType.MAINNET
-        config.server = RegtestSupport.daemonConnection()
-        config.regtest = true
-        val wallet = MoneroWalletFull.createWallet(config)
-        try {
-            RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
-            RegtestSupport.mineBlocks(130)
-            wallet.sync()
-            wallet.createAccount()
-            wallet.createSubaddress(1)
-            wallet.createSubaddress(1)
-            wallet.createSubaddress(0)
-
-            send(wallet, 0, listOf(wallet.getAddress(1, 0) to 1, wallet.getAddress(1, 1) to 2, wallet.getAddress(1, 2) to 3))
-            confirm(wallet)
-            send(wallet, 0, listOf(wallet.getAddress(0, 1) to 1))
-            confirm(wallet)
-            send(wallet, 1, listOf(wallet.getAddress(0, 0) to 1))
-            confirm(wallet)
-            send(wallet, 0, listOf(wallet.getAddress(1, 2) to 1))
-            wallet.sync()
-            return wallet
-        } catch (e: Throwable) {
-            wallet.close()
-            throw e
-        }
-    }
-
-    private fun send(wallet: MoneroWalletFull, accountIdx: Int, payments: List<Pair<String, Int>>) {
-        val config = MoneroTxConfig()
-        config.accountIndex = accountIdx
-        config.destinations = payments.map { (address, xmr) -> MoneroDestination(address, BigInteger.valueOf(xmr * 1_000_000_000_000L)) }
-        config.relay = true
-        wallet.createTxs(config)
-    }
-
-    private fun confirm(wallet: MoneroWalletFull) {
-        RegtestSupport.mineBlocks(12)
-        wallet.sync()
-    }
-
-    // what the transfers of a wallet have, like the tests of the transfers of monero-python
-    private fun validateTransfer(transfer: MoneroTransfer) {
-        val tx = assertNotNull(transfer.tx, "a transfer is in its transaction")
-        assertTrue(tx.hash!!.matches(Regex("[0-9a-f]{64}")), "hash of the transaction: ${tx.hash}")
-        assertNotNull(transfer.accountIndex)
-        assertTrue(transfer.accountIndex!! >= 0)
-        assertNotNull(transfer.amount)
-        assertTrue(transfer.amount!! >= BigInteger.ZERO)
-        assertNotNull(tx.isConfirmed)
-        assertNotNull(tx.inTxPool)
-        if (tx.isConfirmed == true) {
-            assertNotNull(tx.block?.height, "a transaction that is confirmed is in a block")
-            assertEquals(false, tx.inTxPool)
-        }
-        when (transfer) {
-            is MoneroIncomingTransfer -> {
-                assertTrue(transfer.isIncoming == true)
-                assertTrue(transfer.subaddressIndex!! >= 0)
-                assertNotNull(transfer.address)
-                assertTrue(transfer.address!!.length > 90)
-            }
-            is MoneroOutgoingTransfer -> {
-                assertTrue(transfer.isOutgoing == true)
-                assertTrue(transfer.subaddressIndices!!.isNotEmpty())
-                assertTrue(transfer.subaddressIndices!!.all { it >= 0 })
-                assertNotNull(tx.fee, "a transaction that the wallet sends has a fee")
-                assertTrue(tx.isOutgoing == true)
-            }
-            else -> throw AssertionError("A transfer is incoming or outgoing: $transfer")
-        }
-    }
+    private fun wallet(): MoneroWalletFull = TxHistoryWallet.get()
 
     // gets the transfers of a query, which have to be valid, and which the query does not change
     private fun getAndTest(query: MoneroTransferQuery?, expected: Boolean?): List<MoneroTransfer> {
@@ -145,7 +40,7 @@ class MoneroWalletFullTransfersIntegrationTest {
             false -> assertTrue(transfers.isEmpty())
             null -> {}
         }
-        transfers.forEach { validateTransfer(it) }
+        transfers.forEach { TxAssertions.validateTransfer(it) }
         if (query != null) assertEquals(MoneroJson.serialize(copy!!), MoneroJson.serialize(query), "the query is not changed")
         return transfers
     }
