@@ -3,6 +3,7 @@ package monero.daemon
 import java.math.BigInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
@@ -15,7 +16,9 @@ import monero.ModelTestSupport.listOf
 import monero.ModelTestSupport.read
 import monero.ModelTestSupport.tree
 import monero.ModelTestSupport.write
+import monero.common.MoneroError
 import monero.common.MoneroJson
+import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroAddAuxiliaryPowResult
 import monero.daemon.model.MoneroAltChain
 import monero.daemon.model.MoneroBan
@@ -45,6 +48,7 @@ import monero.daemon.model.MoneroOutputDistributionEntry
 import monero.daemon.model.MoneroOutputHistogramEntry
 import monero.daemon.model.MoneroPeer
 import monero.daemon.model.MoneroPruneResult
+import monero.daemon.model.MoneroRpcPaymentInfo
 import monero.daemon.model.MoneroSubmitTxResult
 import monero.daemon.model.MoneroTx
 import monero.daemon.model.MoneroTxBacklogEntry
@@ -63,6 +67,11 @@ import org.junit.jupiter.api.Tag
  * over 64 bits...) is written by hand in the tests, in the same shape.
  *
  * Every test runs without monero-c, a node or the network.
+ *
+ * It mirrors tests/test_monero_daemon_model.py of monero-python, but not test by test. The fixtures and ModelContractTest read and write
+ * every field of every class, so what is here is what a model does besides that. Not ported are the tests of what the parser of monero-cpp
+ * does not read back although it writes it (isPruned, isOnline, addressType, isGood, histo, and the peers and the spans of the sync
+ * info), because the models are read and written through their fields, and keep all of them.
  */
 @Tag("unit")
 class MoneroDaemonModelTest {
@@ -942,5 +951,86 @@ class MoneroDaemonModelTest {
         val copy = keyImage.copy()
         copy.hex = "b"
         assertEquals("a", keyImage.hex)
+    }
+
+    // ------------------------------- values that are not valid ---------------------------------
+
+    @Test
+    fun peer_WithAnAddressTypeThatIsNotOne_IsRefused() {
+        for (number in listOf(5, -1, 255)) {
+            val error = assertFailsWith<MoneroError>("$number") { readJson("""{"addressType":$number}""", MoneroPeer::class.java) }
+            assertTrue("MoneroPeer" in error.message!!, error.message)
+        }
+    }
+
+    @Test
+    fun daemonInfo_WithANetworkTypeThatIsNotOne_IsRefused() {
+        for (number in listOf(4, 9, -1)) {
+            val error = assertFailsWith<MoneroError>("$number") { readJson("""{"networkType":$number}""", MoneroDaemonInfo::class.java) }
+            assertTrue("MoneroDaemonInfo" in error.message!!, error.message)
+        }
+    }
+
+    @Test
+    fun daemonInfo_NetworkType_IsTheNumberOfTheNetwork() {
+        val expected = mapOf(0 to MoneroNetworkType.MAINNET, 1 to MoneroNetworkType.TESTNET, 2 to MoneroNetworkType.STAGENET, 3 to MoneroNetworkType.REGTEST)
+        for ((number, type) in expected) {
+            val info = readJson("""{"networkType":$number}""", MoneroDaemonInfo::class.java)
+            assertEquals(type, info.networkType)
+            assertEquals("""{"networkType":$number}""", write(info))
+        }
+    }
+
+    // ------------------------------- common models ---------------------------------
+
+    @Test
+    fun rpcPaymentInfo_IsReadAndWritten() {
+        val json = """{"credits":42,"topBlockHash":"${"a".repeat(64)}"}"""
+        val info = readJson(json, MoneroRpcPaymentInfo::class.java)
+        assertEquals(42L, info.credits)
+        assertEquals("a".repeat(64), info.topBlockHash)
+        assertSameJson(json, write(info))
+    }
+
+    @Test
+    fun rpcConnection_IsReadAndWritten() {
+        val json = """{"uri":"http://127.0.0.1:18081","username":"user","password":"pass","proxyUri":"127.0.0.1:9050","zmqUri":"tcp://127.0.0.1:18083",
+            "priority":2,"timeoutMs":5000,"sslVerify":false}"""
+        val connection = readJson(json, MoneroRpcConnection::class.java)
+        assertEquals("http://127.0.0.1:18081", connection.uri)
+        assertEquals("user", connection.username)
+        assertEquals("pass", connection.password)
+        assertEquals("127.0.0.1:9050", connection.proxyUri)
+        assertEquals("tcp://127.0.0.1:18083", connection.zmqUri)
+        assertEquals(2, connection.priority)
+        assertEquals(5000L, connection.timeoutMs)
+        assertEquals(false, connection.sslVerify)
+        assertSameJson(json, write(connection))
+    }
+
+    @Test
+    fun rpcConnection_PriorityAndTimeout_AreReadAndWritten() {
+        val connection = readJson("""{"uri":"http://127.0.0.1:18081","priority":2,"timeoutMs":5000}""", MoneroRpcConnection::class.java)
+        assertEquals(2, connection.priority)
+        assertEquals(5000L, connection.timeoutMs)
+        assertTrue(""""priority":2""" in write(connection) && """"timeoutMs":5000""" in write(connection))
+    }
+
+    // monero-python drops them when the mining is not active, as monero-cpp reads the status. Here the JSON is what the model has
+    @Test
+    fun miningStatus_WhenNotActive_KeepsWhatTheJsonHas() {
+        val json = """{"isActive":false,"isBackground":true,"address":"4abc","speed":500,"numThreads":4}"""
+        val status = readJson(json, MoneroMiningStatus::class.java)
+        assertEquals(false, status.isActive)
+        assertEquals(true, status.isBackground)
+        assertEquals("4abc", status.address)
+        assertSameJson(json, write(status))
+    }
+
+    @Test
+    fun minerData_Difficulty_IsTheHexadecimalTextOfTheDaemon() {
+        val json = """{"difficulty":"0x1f4"}"""
+        assertEquals("0x1f4", readJson(json, MoneroMinerData::class.java).difficulty)
+        assertEquals(json, write(readJson(json, MoneroMinerData::class.java)))
     }
 }
