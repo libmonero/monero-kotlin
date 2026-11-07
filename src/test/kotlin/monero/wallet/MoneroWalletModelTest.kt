@@ -71,6 +71,12 @@ import org.junit.jupiter.api.Tag
  * have is written by hand in the tests, in the same shape.
  *
  * Every test runs without monero-c, a node or the network.
+ *
+ * It mirrors tests/test_monero_wallet_model.py of monero-python, but not test by test. The fixtures and ModelContractTest read and write
+ * every field of every class, so what is here is what a model does besides that. Not ported are the tests of what the parser of
+ * monero-cpp does not read back although it writes it (the subaddresses of an account, the txs of a query...), of the fields that it
+ * says are not implemented, and of the functions that read a query from a block of queries (deserialize_from_block): the models are
+ * read and written through their fields, and keep all of them.
  */
 @Tag("unit")
 class MoneroWalletModelTest {
@@ -1010,5 +1016,87 @@ class MoneroWalletModelTest {
         listener.onOutputReceived(output)
         assertSame(output, received)
         assertEquals(1L, received!!.getTxWallet()!!.height)
+    }
+
+    // ------------------------------- values that are not valid ---------------------------------
+
+    @Test
+    fun messageSignatureResult_WithASignatureTypeThatIsNotOne_IsRefused() {
+        for (type in listOf("bogus", "", "SPEND", "0")) {
+            val error = assertFailsWith<MoneroError>(type) { readJson("""{"signatureType":"$type"}""", MoneroMessageSignatureResult::class.java) }
+            assertTrue("MoneroMessageSignatureResult" in error.message!!, error.message)
+        }
+    }
+
+    @Test
+    fun messageSignatureResult_SignatureType_IsSpendOrView() {
+        for ((name, type) in mapOf("spend" to MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY, "view" to MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY)) {
+            val result = readJson("""{"isGood":true,"isOld":false,"version":2,"signatureType":"$name"}""", MoneroMessageSignatureResult::class.java)
+            assertEquals(type, result.signatureType)
+            assertSameJson("""{"isGood":true,"isOld":false,"version":2,"signatureType":"$name"}""", write(result))
+        }
+    }
+
+    @Test
+    fun decodedAddress_WithANetworkTypeOrAnAddressTypeThatIsNotOne_IsRefused() {
+        for (json in listOf("""{"networkType":-1}""", """{"networkType":4}""", """{"addressType":-1}""", """{"addressType":3}""")) {
+            val error = assertFailsWith<MoneroError>(json) { readJson(json, MoneroDecodedAddress::class.java) }
+            assertTrue("MoneroDecodedAddress" in error.message!!, error.message)
+        }
+    }
+
+    @Test
+    fun decodedAddress_Types_AreTheNumbers() {
+        val addressTypes = mapOf(0 to MoneroAddressType.PRIMARY_ADDRESS, 1 to MoneroAddressType.INTEGRATED_ADDRESS, 2 to MoneroAddressType.SUBADDRESS)
+        for ((number, type) in addressTypes) assertEquals(type, readJson("""{"addressType":$number}""", MoneroDecodedAddress::class.java).addressType)
+        val networkTypes = mapOf(0 to MoneroNetworkType.MAINNET, 1 to MoneroNetworkType.TESTNET, 2 to MoneroNetworkType.STAGENET, 3 to MoneroNetworkType.REGTEST)
+        for ((number, type) in networkTypes) assertEquals(type, readJson("""{"networkType":$number}""", MoneroDecodedAddress::class.java).networkType)
+    }
+
+    // ------------------------------- the queries ---------------------------------
+
+    // the fields of a tx that a query shares with a tx of a wallet are written once
+    @Test
+    fun txQuery_IsIncomingAndIsOutgoing_AreWrittenOnce() {
+        val query = readJson("""{"isIncoming":true,"isOutgoing":false}""", MoneroTxQuery::class.java)
+        assertEquals(true, query.isIncoming)
+        assertEquals(false, query.isOutgoing)
+        val json = write(query)
+        assertEquals(1, Regex("isIncoming").findAll(json).count(), json)
+        assertEquals(1, Regex("isOutgoing").findAll(json).count(), json)
+        assertSameJson("""{"isIncoming":true,"isOutgoing":false}""", json)
+    }
+
+    @Test
+    fun txQuery_InputQueryAndOutputQuery_AreReadAndWritten() {
+        val json = """{"inputQuery":{"minAmount":5,"index":1},"outputQuery":{"minAmount":7,"index":2}}"""
+        val query = readJson(json, MoneroTxQuery::class.java)
+        assertEquals(BigInteger.valueOf(5), query.inputQuery!!.minAmount)
+        assertEquals(1L, query.inputQuery!!.index)
+        assertEquals(BigInteger.valueOf(7), query.outputQuery!!.minAmount)
+        assertEquals(2L, query.outputQuery!!.index)
+        assertSameJson(json, write(query))
+    }
+
+    @Test
+    fun txQuery_TransferQuery_IsReadAndWrittenWithItsFields() {
+        val json = """{"height":150,"transferQuery":{"isIncoming":true,"amount":500000,"accountIndex":0}}"""
+        val query = readJson(json, MoneroTxQuery::class.java)
+        assertEquals(150L, query.height)
+        assertEquals(true, query.transferQuery!!.isIncoming)
+        assertEquals(BigInteger.valueOf(500000), query.transferQuery!!.amount)
+        assertEquals(0, query.transferQuery!!.accountIndex)
+        assertSameJson(json, write(query))
+    }
+
+    // ------------------------------- the results ---------------------------------
+
+    @Test
+    fun txSet_Txs_AreTxsOfAWallet() {
+        val set = readJson("""{"txs":[{"hash":"a"},{"hash":"b"}]}""", MoneroTxSet::class.java)
+        assertEquals(2, set.txs!!.size)
+        assertTrue(set.txs!!.all { it.javaClass == MoneroTxWallet::class.java })
+        assertEquals(listOf("a", "b"), set.txs!!.map { it.hash })
+        assertTrue(set.txs!!.all { it.txSet === set })
     }
 }
