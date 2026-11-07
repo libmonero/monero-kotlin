@@ -61,6 +61,7 @@ import monero.wallet.model.MoneroWalletConfig
 import monero.wallet.model.MoneroWalletListener
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.Tag
 
 /**
  * Serialization and deserialization of the wallet data model.
@@ -71,6 +72,7 @@ import org.junit.jupiter.api.TestFactory
  *
  * Every test runs without monero-c, a node or the network.
  */
+@Tag("unit")
 class MoneroWalletModelTest {
 
     private val address = "42jhNF2LEE4mqDqBQhVo8dKjTxxfYo6bmjUZfXmBzKUdQ4Kp3tGDfxXkuxJLiHgeKxqRRwFNzUZc1kRyPWDnjsNbSz5Wqdo"

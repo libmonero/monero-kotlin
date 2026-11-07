@@ -52,6 +52,7 @@ import monero.daemon.model.MoneroTxPoolStats
 import monero.daemon.model.MoneroVersion
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.Tag
 
 /**
  * Serialization and deserialization of the daemon data model.
@@ -63,6 +64,7 @@ import org.junit.jupiter.api.DynamicTest.dynamicTest
  *
  * Every test runs without monero-c, a node or the network.
  */
+@Tag("unit")
 class MoneroDaemonModelTest {
 
     private val topHash = "debce41d53f56ad4db3348a73cf52870f7ce18e64b6e961f164282516a803209"

@@ -9,11 +9,13 @@ import kotlin.test.fail
 import monero.common.MoneroError
 import org.opentest4j.AssertionFailedError
 import org.opentest4j.TestAbortedException
+import org.junit.jupiter.api.Tag
 
 /**
  * The marks [NotSupported] and [NotImplemented]. The functions of [TestMarkers] are called as they are, and two tests of the
  * class carry the marks themselves, so that the run fails if [TestMarkersExtension] is not on.
  */
+@Tag("unit")
 class TestMarkersTest {
 
     @Test

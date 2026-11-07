@@ -12,7 +12,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.api.Tag
 
+@Tag("unit")
 class NativeBundleTest {
 
     @TempDir

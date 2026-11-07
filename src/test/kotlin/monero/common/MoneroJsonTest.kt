@@ -14,11 +14,13 @@ import monero.daemon.model.MoneroDaemonInfo
 import monero.daemon.model.MoneroKeyImageSpentStatus
 import monero.daemon.model.MoneroNetworkType
 import monero.daemon.model.MoneroTx
+import org.junit.jupiter.api.Tag
 
 /**
  * Serialization and deserialization of the JSON that monero-cpp and monero-c write, which the models read and write
  * through MoneroJson. Every test runs without monero-c, a node or the network.
  */
+@Tag("unit")
 class MoneroJsonTest {
 
     @Test

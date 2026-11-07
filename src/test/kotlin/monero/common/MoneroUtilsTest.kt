@@ -30,10 +30,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import org.junit.jupiter.api.Tag
 
 /**
  * Monero utilities unit tests.
  */
+@Tag("unit")
 class MoneroUtilsTest {
 
     private companion object {

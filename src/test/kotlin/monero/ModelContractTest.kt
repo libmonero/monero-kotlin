@@ -17,11 +17,13 @@ import monero.common.MoneroJson
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.Tag
 
 /**
  * What every class of the data model has to do, whatever its fields are: the classes are found in the compiled
  * packages, so a new class is tested without being listed.
  */
+@Tag("unit")
 class ModelContractTest {
 
     private val types = modelTypes("monero.common", "monero.daemon.model", "monero.wallet.model")

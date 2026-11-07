@@ -21,6 +21,7 @@ import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroWalletConfig
+import org.junit.jupiter.api.Tag
 
 /**
  * Mirrors the keys-only wallet tests of monero-python (tests/test_monero_wallet_keys.py over
@@ -34,6 +35,7 @@ import monero.wallet.model.MoneroWalletConfig
  * invalid signature type cannot be written in Kotlin, whose enumeration has no invalid value, and the errors of the
  * python binding's own not-supported surface, which this class does not expose at all.
  */
+@Tag("unit")
 class MoneroWalletKeysTest {
 
     // the test wallet of monero-python's config.ini, which its keys suite restores from the seed
