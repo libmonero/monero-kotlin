@@ -20,3 +20,14 @@ class TxHeightComparator : Comparator<MoneroTx> {
         return txs.indexOf(tx1).compareTo(txs.indexOf(tx2))
     }
 }
+
+/**
+ * Compares two transactions by [TxHeightComparator], and a transaction that is missing goes after the ones that are not, as one that is not
+ * in a block does.
+ */
+internal fun compareTxsByHeight(tx1: MoneroTx?, tx2: MoneroTx?): Int {
+    if (tx1 == null && tx2 == null) return 0
+    if (tx1 == null) return 1
+    if (tx2 == null) return -1
+    return TxHeightComparator().compare(tx1, tx2)
+}
