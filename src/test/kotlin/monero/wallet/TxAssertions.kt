@@ -6,6 +6,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import monero.wallet.model.MoneroCheckTx
 import monero.wallet.model.MoneroIncomingTransfer
 import monero.wallet.model.MoneroOutgoingTransfer
 import monero.wallet.model.MoneroTransfer
@@ -108,5 +109,26 @@ object TxAssertions {
         tx.outgoingTransfer?.let { validateTransfer(it) }
         incoming.forEach { assertSame(tx, it.tx) }
         tx.outgoingTransfer?.let { assertSame(tx, it.tx) }
+    }
+
+    /**
+     * Check the result of checking a transaction with its key or with a proof, like TxWalletUtils.test_check_tx of monero-python: a good
+     * one says how much was received and where the transaction is, and one that is not good says nothing of that.
+     */
+    fun validateCheckTx(check: MoneroCheckTx) {
+        assertNotNull(check.isGood)
+        if (check.isGood == true) {
+            assertNotNull(check.numConfirmations)
+            assertTrue(check.numConfirmations!! >= 0)
+            assertNotNull(check.inTxPool)
+            assertNotNull(check.receivedAmount)
+            assertTrue(check.receivedAmount!!.signum() >= 0)
+            if (check.inTxPool == true) assertEquals(0L, check.numConfirmations)
+            else assertTrue(check.numConfirmations!! > 0, "a transaction that is not in the pool has confirmations")
+        } else {
+            assertNull(check.inTxPool)
+            assertNull(check.numConfirmations)
+            assertNull(check.receivedAmount)
+        }
     }
 }

@@ -1378,4 +1378,54 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.setTxNote(hash1, "note") }
         assertFailsWith<MoneroError> { wallet.setTxNotes(listOf(hash1), listOf("note")) }
     }
+
+    // ------------------------------- KEYS AND PROOFS OF TRANSACTIONS ----------------------------------
+
+    @Test
+    fun txKeysAndProofs_OfATxThatTheWalletDoesNotHave_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val address = wallet.getPrimaryAddress()
+            assertFailsWith<MoneroError> { wallet.getTxKey(hash1) }
+            assertFailsWith<MoneroError> { wallet.getTxProof(hash1, address) }
+            assertFailsWith<MoneroError> { wallet.getSpendProof(hash1) }
+        }
+    }
+
+    @Test
+    fun txKeysAndProofs_OfWhatIsNotAHash_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val address = wallet.getPrimaryAddress()
+            val invalid = "TX hash has invalid format"
+            assertEquals(invalid, assertFailsWith<MoneroError> { wallet.getTxKey("invalid_id") }.message)
+            assertEquals(invalid, assertFailsWith<MoneroError> { wallet.checkTxKey("invalid_id", hash1, address) }.message)
+            assertEquals(invalid, assertFailsWith<MoneroError> { wallet.getTxProof("invalid_id", address) }.message)
+            assertEquals(invalid, assertFailsWith<MoneroError> { wallet.checkTxProof("invalid_id", address, null, "signature") }.message)
+            assertEquals(invalid, assertFailsWith<MoneroError> { wallet.getSpendProof("invalid_id") }.message)
+            assertEquals(invalid, assertFailsWith<MoneroError> { wallet.checkSpendProof("invalid_id", null, "signature") }.message)
+        }
+    }
+
+    @Test
+    fun checkTxKeyAndProof_WithAKeyOrAnAddressThatIsNotValid_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val address = wallet.getPrimaryAddress()
+            assertEquals("Tx key has invalid format", assertFailsWith<MoneroError> { wallet.checkTxKey(hash1, "invalid_tx_key", address) }.message)
+            assertEquals("Invalid address", assertFailsWith<MoneroError> { wallet.checkTxKey(hash1, hash2, "invalid_address") }.message)
+            assertEquals("Invalid address", assertFailsWith<MoneroError> { wallet.getTxProof(hash1, "invalid_address") }.message)
+            assertEquals("Invalid address", assertFailsWith<MoneroError> { wallet.checkTxProof(hash1, "invalid_address", null, "signature") }.message)
+        }
+    }
+
+    @Test
+    fun txKeysAndProofs_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        val address = wallet.getPrimaryAddress()
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getTxKey(hash1) }
+        assertFailsWith<MoneroError> { wallet.checkTxKey(hash1, hash2, address) }
+        assertFailsWith<MoneroError> { wallet.getTxProof(hash1, address) }
+        assertFailsWith<MoneroError> { wallet.checkTxProof(hash1, address, null, "signature") }
+        assertFailsWith<MoneroError> { wallet.getSpendProof(hash1) }
+        assertFailsWith<MoneroError> { wallet.checkSpendProof(hash1, null, "signature") }
+    }
 }

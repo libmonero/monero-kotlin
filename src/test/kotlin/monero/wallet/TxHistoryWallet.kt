@@ -12,7 +12,7 @@ import monero.wallet.model.MoneroWalletConfig
 /**
  * The wallet that the tests of the transactions and of the transfers read, against a regtest node. It has what those tests of
  * monero-python need and a fresh regtest wallet has not: a second account with subaddresses that received funds from the first,
- * transactions between the two accounts, and a transaction that is in the pool. It is made once for all the tests, which only read it,
+ * transactions between the two accounts, transactions to an address that is not its own, and a transaction that is in the pool. It is made once for all the tests, which only read it,
  * and closed when the JVM ends.
  */
 object TxHistoryWallet {
@@ -41,7 +41,7 @@ object TxHistoryWallet {
     }
 
     // Five coinbases that matured go to the first account, which pays the second one with one transaction to three of its subaddresses, then
-    // pays one of its own subaddresses, then pays its integrated address with a payment id, then the second account pays the first one, and the last payment is left in the pool.
+    // pays one of its own subaddresses, then pays its integrated address with a payment id, then pays an address that is not its own twice, then the second account pays the first one, and the last payment is left in the pool.
     private fun build(): MoneroWalletFull {
         val dir = Files.createTempDirectory("tx-history-")
         directory = dir
@@ -66,6 +66,10 @@ object TxHistoryWallet {
             send(wallet, 0, listOf(wallet.getAddress(0, 1) to 1))
             confirm(wallet)
             send(wallet, 0, listOf(wallet.getIntegratedAddress(null, PAYMENT_ID).integratedAddress!! to 1))
+            confirm(wallet)
+            send(wallet, 0, listOf(RegtestSupport.MINING_ADDRESS to 1))
+            confirm(wallet)
+            send(wallet, 0, listOf(RegtestSupport.MINING_ADDRESS to 2))
             confirm(wallet)
             send(wallet, 1, listOf(wallet.getAddress(0, 0) to 1))
             confirm(wallet)

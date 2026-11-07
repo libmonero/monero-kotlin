@@ -18,6 +18,7 @@ import monero.internal.MoneroNative
 import monero.internal.NativeWorker
 import monero.internal.SizeT
 import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroCheckTx
 import monero.daemon.model.MoneroKeyImage
 import monero.wallet.model.MoneroKeyImageExportResult
 import monero.wallet.model.MoneroKeyImageImportResult
@@ -484,6 +485,88 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
         if (txHashes.size != notes.size) throw MoneroError("The hashes and the notes of the transactions are not as many: ${txHashes.size} and ${notes.size}")
         txHashes.firstOrNull { !TX_HASH.matches(it) }?.let { throw MoneroError("Invalid transaction hash: $it") }
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_tx_notes(h, txHashes.toTypedArray(), notes.toTypedArray(), SizeT(txHashes.size.toLong()))) }
+    }
+
+    // ------------------------------- KEYS AND PROOFS OF TRANSACTIONS ----------------------------------
+
+    /**
+     * Get the secret key of a transaction that the wallet sent, which proves a payment to the one who gets the key.
+     *
+     * @param txHash is the hash of the transaction
+     * @return the key in hexadecimal
+     * @throws MoneroError if the wallet is closed, the hash is not valid, or the wallet did not send the transaction
+     */
+    override fun getTxKey(txHash: String): String {
+        return secret { lib, h, out -> lib.monero_wallet_get_tx_key(h, txHash, out) }
+    }
+
+    /**
+     * Check that a transaction paid an address, with the secret key of the transaction.
+     *
+     * @param txHash is the hash of the transaction
+     * @param txKey is the secret key of the transaction
+     * @param address is the address that the transaction paid
+     * @return the result of the check: how much the address received, and whether the transaction is in the pool or how many
+     * confirmations it has. A key that is not the one of the transaction is not an error: the result says it is not good
+     * @throws MoneroError if the wallet is closed, or the hash, the key or the address is not valid
+     */
+    override fun checkTxKey(txHash: String, txKey: String, address: String): MoneroCheckTx {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_check_tx_key(h, txHash, txKey, address, out) }
+    }
+
+    /**
+     * Get a signature that proves that a transaction paid an address, which the one who has it checks with [checkTxProof].
+     *
+     * @param txHash is the hash of the transaction
+     * @param address is the address that the transaction paid
+     * @param message is a message that the signature carries, or null for none
+     * @return the signature
+     * @throws MoneroError if the wallet is closed, the hash or the address is not valid, or the wallet did not send the transaction
+     */
+    override fun getTxProof(txHash: String, address: String, message: String?): String {
+        return string { lib, h, out -> lib.monero_wallet_get_tx_proof(h, txHash, address, message, out) }
+    }
+
+    /**
+     * Check the proof that a transaction paid an address.
+     *
+     * @param txHash is the hash of the transaction
+     * @param address is the address that the transaction paid
+     * @param message is the message that the signature carries, or null or "" for none
+     * @param signature is the signature of [getTxProof]
+     * @return the result of the check. A signature that does not prove the payment is not an error: the result says it is not good
+     * @throws MoneroError if the wallet is closed, the hash or the address is not valid, or the signature is empty
+     */
+    override fun checkTxProof(txHash: String, address: String, message: String?, signature: String): MoneroCheckTx {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_check_tx_proof(h, txHash, address, message, signature, out) }
+    }
+
+    /**
+     * Get a signature that proves that the wallet spent the outputs of a transaction, which does not name the address that the
+     * transaction paid.
+     *
+     * @param txHash is the hash of the transaction
+     * @param message is a message that the signature carries, or null for none
+     * @return the signature
+     * @throws MoneroError if the wallet is closed, the hash is not valid, or the wallet did not send the transaction
+     */
+    override fun getSpendProof(txHash: String, message: String?): String {
+        return string { lib, h, out -> lib.monero_wallet_get_spend_proof(h, txHash, message, out) }
+    }
+
+    /**
+     * Check the proof that a transaction was spent by a wallet.
+     *
+     * @param txHash is the hash of the transaction
+     * @param message is the message that the signature carries, or null or "" for none
+     * @param signature is the signature of [getSpendProof]
+     * @return true if the signature proves the spend, false if it does not
+     * @throws MoneroError if the wallet is closed, or the hash is not valid
+     */
+    override fun checkSpendProof(txHash: String, message: String?, signature: String): Boolean {
+        return flag { lib, h, good -> lib.monero_wallet_check_spend_proof(h, txHash, message, signature, good) }
     }
 
     // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
