@@ -62,6 +62,16 @@ val moneroCNative: File? = providers.gradleProperty("monero.c.android.native")
     .orNull
     ?.let { file(it) }
 
+// the wiring of the staging below reads whether the native library is an archive or a folder at the time the
+// build is configured, so an archive that appears between the configuration and the execution would stage
+// nothing while the require below passes: the check runs where the wiring reads it
+if (moneroCNative != null && !moneroCNative.exists()) {
+    throw GradleException(
+        "The native library of monero-c is set to ${moneroCNative.path} and is not there at the time of the configuration: " +
+            "the staging wires itself by what the path is, so download or build it first"
+    )
+}
+
 // fails with where to get the native library, since a build without it would give an AAR that loads and then dies on the phone
 val requireMoneroC by tasks.registering {
     doLast {
