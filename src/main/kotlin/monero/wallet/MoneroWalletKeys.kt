@@ -30,7 +30,7 @@ import monero.wallet.model.MoneroWalletConfig
  * The calls of a wallet run one after the other on a thread of their own, since the C ABI allows one thread per wallet
  * handle (see Thread Safety in the README of monero-c).
  */
-class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCloseable {
+class MoneroWalletKeys private constructor(private val handle: Pointer) : MoneroWalletDefault(), AutoCloseable {
 
     private val worker = NativeWorker("MoneroWalletKeys", "Wallet is closed")
     private var closed = false
@@ -43,7 +43,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the 25 words of the seed
      * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed
      */
-    fun getSeed(): String {
+    override fun getSeed(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_seed(h, out) }
     }
 
@@ -53,7 +53,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the name of the language
      * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed
      */
-    fun getSeedLanguage(): String {
+    override fun getSeedLanguage(): String {
         return string { lib, h, out -> lib.monero_wallet_get_seed_language(h, out) }
     }
 
@@ -75,7 +75,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed
      */
-    fun getPrivateViewKey(): String {
+    override fun getPrivateViewKey(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_private_view_key(h, out) }
     }
 
@@ -85,7 +85,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed, or it is view-only, which has no spend key
      */
-    fun getPrivateSpendKey(): String {
+    override fun getPrivateSpendKey(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_private_spend_key(h, out) }
     }
 
@@ -95,7 +95,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed
      */
-    fun getPublicViewKey(): String {
+    override fun getPublicViewKey(): String {
         return string { lib, h, out -> lib.monero_wallet_get_public_view_key(h, out) }
     }
 
@@ -105,7 +105,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed
      */
-    fun getPublicSpendKey(): String {
+    override fun getPublicSpendKey(): String {
         return string { lib, h, out -> lib.monero_wallet_get_public_spend_key(h, out) }
     }
 
@@ -115,7 +115,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the primary address
      * @throws MoneroError if the wallet is closed
      */
-    fun getPrimaryAddress(): String {
+    override fun getPrimaryAddress(): String {
         return string { lib, h, out -> lib.monero_wallet_get_primary_address(h, out) }
     }
 
@@ -127,7 +127,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the address
      * @throws MoneroError if the wallet is closed
      */
-    fun getAddress(accountIdx: Int, subaddressIdx: Int): String {
+    override fun getAddress(accountIdx: Int, subaddressIdx: Int): String {
         return string { lib, h, out -> lib.monero_wallet_get_address(h, accountIdx, subaddressIdx, out) }
     }
 
@@ -143,7 +143,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, or subaddresses are asked for, which a keys-only wallet cannot
      * enumerate
      */
-    fun getAccount(accountIdx: Int, includeSubaddresses: Boolean = false): MoneroAccount {
+    override fun getAccount(accountIdx: Int, includeSubaddresses: Boolean): MoneroAccount {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_get_account(h, accountIdx, includeSubaddresses, out) }
     }
@@ -158,7 +158,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the subaddress
      * @throws MoneroError if the wallet is closed
      */
-    fun getSubaddress(accountIdx: Int, subaddressIdx: Int): MoneroSubaddress {
+    override fun getSubaddress(accountIdx: Int, subaddressIdx: Int): MoneroSubaddress {
         return getSubaddresses(accountIdx, listOf(subaddressIdx))[0]
     }
 
@@ -167,12 +167,13 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * so the indices name the ones to derive.
      *
      * @param accountIdx is the account index
-     * @param subaddressIndices are the subaddress indices within the account
+     * @param subaddressIndices are the subaddress indices within the account, which a keys-only wallet needs, as it cannot enumerate them
      * @return the subaddresses, in the order of the indices
-     * @throws MoneroError if the wallet is closed, or no indices are given, which a keys-only wallet cannot enumerate
+     * @throws MoneroError if the wallet is closed, or no indices are given
      */
-    fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>): List<MoneroSubaddress> {
+    override fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>?): List<MoneroSubaddress> {
         checkNotClosed()
+        if (subaddressIndices == null) throw MoneroError("The subaddress indices are needed: a keys-only wallet can not enumerate its subaddresses")
         return run { lib, h ->
             val out = PointerByReference()
             val indices = subaddressIndices.toIntArray()
@@ -191,7 +192,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, the address is not a standard one of the network, or the payment
      * ID is not a payment ID
      */
-    fun getIntegratedAddress(standardAddress: String? = null, paymentId: String? = null): MoneroIntegratedAddress {
+    override fun getIntegratedAddress(standardAddress: String?, paymentId: String?): MoneroIntegratedAddress {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_get_integrated_address(h, standardAddress, paymentId, out) }
     }
@@ -203,7 +204,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the integrated address with its standard address and its payment ID
      * @throws MoneroError if the wallet is closed, or the address is not an integrated address of the network
      */
-    fun decodeIntegratedAddress(integratedAddress: String): MoneroIntegratedAddress {
+    override fun decodeIntegratedAddress(integratedAddress: String): MoneroIntegratedAddress {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_decode_integrated_address(h, integratedAddress, out) }
     }
@@ -220,7 +221,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the signature
      * @throws MoneroError if the wallet is closed
      */
-    fun signMessage(message: String, signatureType: MoneroMessageSignatureType, accountIdx: Int, subaddressIdx: Int): String {
+    override fun signMessage(message: String, signatureType: MoneroMessageSignatureType, accountIdx: Int, subaddressIdx: Int): String {
         checkNotClosed()
         return string { lib, h, out -> lib.monero_wallet_sign_message(h, message, signatureType.ordinal, accountIdx, subaddressIdx, out) }
     }
@@ -235,7 +236,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the result of the verification
      * @throws MoneroError if the wallet is closed, or the address is not an address of the network
      */
-    fun verifyMessage(message: String, address: String, signature: String): MoneroMessageSignatureResult {
+    override fun verifyMessage(message: String, address: String, signature: String): MoneroMessageSignatureResult {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_verify_message(h, message, address, signature, out) }
     }
@@ -247,7 +248,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the payment URI
      * @throws MoneroError if the wallet is closed, or the config has no address to build the URI from
      */
-    fun getPaymentUri(config: MoneroTxConfig): String {
+    override fun getPaymentUri(config: MoneroTxConfig): String {
         checkNotClosed()
         return string { lib, h, out -> lib.monero_wallet_get_payment_uri(h, MoneroJson.serialize(config), out) }
     }
@@ -259,7 +260,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the transaction config that the URI holds
      * @throws MoneroError if the wallet is closed, or the URI is not a payment URI
      */
-    fun parsePaymentUri(uri: String): MoneroTxConfig {
+    override fun parsePaymentUri(uri: String): MoneroTxConfig {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_parse_payment_uri(h, uri, out) }
     }
@@ -272,7 +273,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the network type
      * @throws MoneroError if the wallet is closed
      */
-    fun getNetworkType(): MoneroNetworkType {
+    override fun getNetworkType(): MoneroNetworkType {
         checkNotClosed()
         return run { lib, h ->
             val networkType = IntByReference()
@@ -287,7 +288,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return true if the wallet is view-only, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isViewOnly(): Boolean {
+    override fun isViewOnly(): Boolean {
         checkNotClosed()
         return run { lib, h ->
             val viewOnly = ByteByReference()
@@ -302,7 +303,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @return the version
      * @throws MoneroError if the wallet is closed
      */
-    fun getVersion(): MoneroVersion {
+    override fun getVersion(): MoneroVersion {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_get_version(h, out) }
     }
@@ -312,7 +313,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      *
      * @return true if the wallet is closed, false otherwise
      */
-    fun isClosed(): Boolean {
+    override fun isClosed(): Boolean {
         return closed
     }
 
@@ -325,7 +326,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if a save is asked for, which a keys-only wallet does not support
      */
     @Synchronized
-    fun close(save: Boolean) {
+    override fun close(save: Boolean) {
         if (closed) return
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
         closed = true

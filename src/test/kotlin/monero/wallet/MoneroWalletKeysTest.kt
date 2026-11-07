@@ -625,4 +625,60 @@ class MoneroWalletKeysTest {
         assertEquals(95, address.length, address)
         assertTrue(address.startsWith("4") || address.startsWith("8"), address)
     }
+
+    // ------------------------------- THE INTERFACE ----------------------------------
+
+    @Test
+    fun wallet_IsAMoneroWallet() {
+        testWallet().use { wallet ->
+            val asInterface: MoneroWallet = wallet
+            assertEquals(primaryAddress, asInterface.getPrimaryAddress())
+            assertEquals(seed, asInterface.getSeed())
+            assertTrue(asInterface is MoneroWalletDefault)
+        }
+    }
+
+    // a keys-only wallet has no chain, no daemon and no file, so what needs one is not supported
+    @Test
+    fun functionsThatNeedAChainOrAFile_AreNotSupported() {
+        testWallet().use { wallet ->
+            val calls = mapOf<String, () -> Unit>(
+                "getHeight" to { wallet.getHeight() },
+                "isSynced" to { wallet.isSynced() },
+                "getBalance" to { wallet.getBalance() },
+                "getUnlockedBalance" to { wallet.getUnlockedBalance() },
+                "sync" to { wallet.sync() },
+                "getTxs" to { wallet.getTxs() },
+                "getTransfers" to { wallet.getTransfers() },
+                "getOutputs" to { wallet.getOutputs() },
+                "getPath" to { wallet.getPath() },
+                "save" to { wallet.save() },
+                "getDaemonConnection" to { wallet.getDaemonConnection() },
+                "setDaemonConnection" to { wallet.setDaemonConnection("http://127.0.0.1:18081") },
+                "startSyncing" to { wallet.startSyncing() },
+                "createAccount" to { wallet.createAccount() }
+            )
+            for ((name, call) in calls) {
+                val error = assertFailsWith<MoneroError>(name) { call() }
+                assertTrue("not supported" in error.message!!, "$name: ${error.message}")
+            }
+        }
+    }
+
+    @Test
+    fun getSubaddresses_WithoutIndices_Fails() {
+        testWallet().use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.getSubaddresses(0) }
+            assertTrue("indices are needed" in error.message!!, error.message)
+        }
+    }
+
+    @Test
+    fun getSubaddresses_OfIndices_ReadsThem() {
+        testWallet().use { wallet ->
+            val subaddresses = wallet.getSubaddresses(0, listOf(0, 1))
+            assertEquals(listOf(0, 1), subaddresses.map { it.index })
+            assertEquals(primaryAddress, subaddresses[0].address)
+        }
+    }
 }

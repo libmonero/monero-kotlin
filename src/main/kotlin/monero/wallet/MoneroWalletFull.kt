@@ -26,6 +26,7 @@ import monero.wallet.model.MoneroMessageSignatureResult
 import monero.wallet.model.MoneroMessageSignatureType
 import monero.wallet.model.MoneroSubaddress
 import monero.wallet.model.MoneroSyncResult
+import monero.wallet.model.MoneroWalletListener
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxSetsResult
@@ -46,7 +47,7 @@ import monero.wallet.model.MoneroWalletConfig
  * The calls of a wallet run one after the other on a thread of their own, since the C ABI allows one thread per wallet
  * handle. [requestShutdown] is the one call that any thread can make, to stop a sync that is running.
  */
-class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCloseable {
+class MoneroWalletFull private constructor(private val handle: Pointer) : MoneroWalletDefault(), AutoCloseable {
 
     private val worker = NativeWorker("MoneroWalletFull", "Wallet is closed")
 
@@ -65,7 +66,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the 25 words of the seed
      * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed
      */
-    fun getSeed(): String {
+    override fun getSeed(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_seed(h, out) }
     }
 
@@ -75,7 +76,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the name of the language
      * @throws MoneroError if the wallet is closed, or it is view-only, which has no seed
      */
-    fun getSeedLanguage(): String {
+    override fun getSeedLanguage(): String {
         return string { lib, h, out -> lib.monero_wallet_get_seed_language(h, out) }
     }
 
@@ -97,7 +98,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed
      */
-    fun getPrivateViewKey(): String {
+    override fun getPrivateViewKey(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_private_view_key(h, out) }
     }
 
@@ -107,7 +108,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed, or it is view-only, which has no spend key
      */
-    fun getPrivateSpendKey(): String {
+    override fun getPrivateSpendKey(): String {
         return secret { lib, h, out -> lib.monero_wallet_get_private_spend_key(h, out) }
     }
 
@@ -117,7 +118,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed
      */
-    fun getPublicViewKey(): String {
+    override fun getPublicViewKey(): String {
         return string { lib, h, out -> lib.monero_wallet_get_public_view_key(h, out) }
     }
 
@@ -127,7 +128,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the key in hexadecimal
      * @throws MoneroError if the wallet is closed
      */
-    fun getPublicSpendKey(): String {
+    override fun getPublicSpendKey(): String {
         return string { lib, h, out -> lib.monero_wallet_get_public_spend_key(h, out) }
     }
 
@@ -137,7 +138,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the primary address
      * @throws MoneroError if the wallet is closed
      */
-    fun getPrimaryAddress(): String {
+    override fun getPrimaryAddress(): String {
         return string { lib, h, out -> lib.monero_wallet_get_primary_address(h, out) }
     }
 
@@ -149,7 +150,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the address
      * @throws MoneroError if the wallet is closed
      */
-    fun getAddress(accountIdx: Int, subaddressIdx: Int): String {
+    override fun getAddress(accountIdx: Int, subaddressIdx: Int): String {
         return string { lib, h, out -> lib.monero_wallet_get_address(h, accountIdx, subaddressIdx, out) }
     }
 
@@ -163,7 +164,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the account
      * @throws MoneroError if the wallet is closed, or it has no such account
      */
-    fun getAccount(accountIdx: Int, includeSubaddresses: Boolean = false): MoneroAccount {
+    override fun getAccount(accountIdx: Int, includeSubaddresses: Boolean): MoneroAccount {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_get_account(h, accountIdx, includeSubaddresses, out) }
     }
@@ -177,7 +178,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the subaddress
      * @throws MoneroError if the wallet is closed, or it has no such subaddress
      */
-    fun getSubaddress(accountIdx: Int, subaddressIdx: Int): MoneroSubaddress {
+    override fun getSubaddress(accountIdx: Int, subaddressIdx: Int): MoneroSubaddress {
         return getSubaddresses(accountIdx, listOf(subaddressIdx))[0]
     }
 
@@ -189,7 +190,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the subaddresses, in the order of the indices
      * @throws MoneroError if the wallet is closed, or it has no such account or subaddress
      */
-    fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>? = null): List<MoneroSubaddress> {
+    override fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>?): List<MoneroSubaddress> {
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
@@ -209,7 +210,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, the address is not a standard one of the network, or the payment
      * ID is not a payment ID
      */
-    fun getIntegratedAddress(standardAddress: String? = null, paymentId: String? = null): MoneroIntegratedAddress {
+    override fun getIntegratedAddress(standardAddress: String?, paymentId: String?): MoneroIntegratedAddress {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_get_integrated_address(h, standardAddress, paymentId, out) }
     }
@@ -221,7 +222,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the integrated address with its standard address and its payment ID
      * @throws MoneroError if the wallet is closed, or the address is not an integrated address of the network
      */
-    fun decodeIntegratedAddress(integratedAddress: String): MoneroIntegratedAddress {
+    override fun decodeIntegratedAddress(integratedAddress: String): MoneroIntegratedAddress {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_decode_integrated_address(h, integratedAddress, out) }
     }
@@ -238,7 +239,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the signature
      * @throws MoneroError if the wallet is closed
      */
-    fun signMessage(message: String, signatureType: MoneroMessageSignatureType, accountIdx: Int, subaddressIdx: Int): String {
+    override fun signMessage(message: String, signatureType: MoneroMessageSignatureType, accountIdx: Int, subaddressIdx: Int): String {
         return string { lib, h, out -> lib.monero_wallet_sign_message(h, message, signatureType.ordinal, accountIdx, subaddressIdx, out) }
     }
 
@@ -252,7 +253,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the result of the verification
      * @throws MoneroError if the wallet is closed, or the address is not an address of the network
      */
-    fun verifyMessage(message: String, address: String, signature: String): MoneroMessageSignatureResult {
+    override fun verifyMessage(message: String, address: String, signature: String): MoneroMessageSignatureResult {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_verify_message(h, message, address, signature, out) }
     }
@@ -264,7 +265,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the payment URI
      * @throws MoneroError if the wallet is closed, or the config has no address to build the URI from
      */
-    fun getPaymentUri(config: MoneroTxConfig): String {
+    override fun getPaymentUri(config: MoneroTxConfig): String {
         return string { lib, h, out -> lib.monero_wallet_get_payment_uri(h, MoneroJson.serialize(config), out) }
     }
 
@@ -275,7 +276,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the transaction config that the URI holds
      * @throws MoneroError if the wallet is closed, or the URI is not a payment URI
      */
-    fun parsePaymentUri(uri: String): MoneroTxConfig {
+    override fun parsePaymentUri(uri: String): MoneroTxConfig {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_parse_payment_uri(h, uri, out) }
     }
@@ -288,7 +289,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the path
      * @throws MoneroError if the wallet is closed
      */
-    fun getPath(): String {
+    override fun getPath(): String {
         return string { lib, h, out -> lib.monero_wallet_get_path(h, out) }
     }
 
@@ -297,7 +298,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      *
      * @throws MoneroError if the wallet is closed, or it has no path to write to
      */
-    fun save() {
+    override fun save() {
         checkNotClosed()
         requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_save(h)) }
@@ -311,7 +312,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param newPassword is the password to write the files with
      * @throws MoneroError if the wallet is closed, or the old password is not the one that the files are written with
      */
-    fun changePassword(oldPassword: String, newPassword: String) {
+    override fun changePassword(oldPassword: String, newPassword: String) {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_change_password(h, oldPassword, newPassword)) }
     }
@@ -327,7 +328,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the transactions of the wallet
      * @throws MoneroError if the wallet is closed, or it is not connected to a daemon
      */
-    fun getTxs(query: MoneroTxQuery? = null): List<MoneroTxWallet> {
+    override fun getTxs(query: MoneroTxQuery?): List<MoneroTxWallet> {
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
@@ -346,7 +347,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, it is not connected to the daemon, the configuration is invalid,
      * or the wallet has less unlocked money than the transfer and its fee need
      */
-    fun createTxs(config: MoneroTxConfig): List<MoneroTxWallet> {
+    override fun createTxs(config: MoneroTxConfig): List<MoneroTxWallet> {
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
@@ -363,7 +364,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, the metadata is not the metadata of a transaction, or the daemon
      * refuses the transaction
      */
-    fun relayTx(txMetadata: String): String {
+    override fun relayTx(txMetadata: String): String {
         return string { lib, h, out -> lib.monero_wallet_relay_tx(h, txMetadata, out) }
     }
 
@@ -376,7 +377,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, the transaction has no metadata, or the daemon refuses the
      * transaction
      */
-    fun relayTx(tx: MoneroTxWallet): String {
+    override fun relayTx(tx: MoneroTxWallet): String {
         return string { lib, h, out -> lib.monero_wallet_relay_tx_json(h, MoneroJson.serialize(tx), out) }
     }
 
@@ -392,7 +393,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * address only, which is the default of wallet2
      * @throws MoneroError if the wallet is closed
      */
-    fun setDaemonConnection(connection: MoneroRpcConnection?, isTrusted: Boolean? = null) {
+    override fun setDaemonConnection(connection: MoneroRpcConnection?, isTrusted: Boolean?) {
         checkNotClosed()
         run { lib, h ->
             val uri = connection?.uri ?: ""
@@ -410,7 +411,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the connection, or null if the wallet has none
      * @throws MoneroError if the wallet is closed
      */
-    fun getDaemonConnection(): MoneroRpcConnection? {
+    override fun getDaemonConnection(): MoneroRpcConnection? {
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
@@ -425,7 +426,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return true if the daemon is trusted, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isDaemonTrusted(): Boolean {
+    override fun isDaemonTrusted(): Boolean {
         checkNotClosed()
         return run { lib, h ->
             val trusted = ByteByReference()
@@ -442,11 +443,13 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      *
      * @param startHeight is the height to sync from, ignored when it is less than the height that the wallet has
      * already scanned
+     * @param listener is not implemented yet: the sync does not notify one, so it has to be null
      * @return the result of the sync
-     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon, or a listener is given
      */
-    fun sync(startHeight: Long? = null): MoneroSyncResult {
+    override fun sync(startHeight: Long?, listener: MoneroWalletListener?): MoneroSyncResult {
         checkNotClosed()
+        if (listener != null) throw MoneroError("The sync of a full wallet with a listener is not implemented yet")
         return json { lib, h, out -> lib.monero_wallet_sync(h, startHeight?.let { LongByReference(it) }, null, out) }
     }
 
@@ -458,7 +461,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * 2147483647
      * @throws MoneroError if the wallet is closed, or the period is out of range
      */
-    fun startSyncing(syncPeriodMs: Long) {
+    override fun startSyncing(syncPeriodMs: Long) {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_start_syncing(h, syncPeriodMs)) }
     }
@@ -468,7 +471,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      *
      * @throws MoneroError if the wallet is closed
      */
-    fun stopSyncing() {
+    override fun stopSyncing() {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_stop_syncing(h)) }
     }
@@ -497,12 +500,28 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
     }
 
     /**
+     * Wait for the next block to be added to the chain, which takes as long as it takes. The wallet must be syncing in the background
+     * ([startSyncing]), or no block comes.
+     *
+     * The wait is done in waits of a second, as [waitForNextBlock] with a timeout does, so the other calls of the wallet and [close]
+     * get their turn between them, and a wallet that is closed ends it with an error.
+     *
+     * @return the height of the next block that was added to the chain
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun waitForNextBlock(): Long {
+        while (true) {
+            waitForNextBlock(1000)?.let { return it }
+        }
+    }
+
+    /**
      * Check if the wallet is connected to a daemon.
      *
      * @return true if the wallet is connected, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isConnectedToDaemon(): Boolean {
+    override fun isConnectedToDaemon(): Boolean {
         return flag { lib, h, out -> lib.monero_wallet_is_connected_to_daemon(h, out) }
     }
 
@@ -512,7 +531,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return true if the daemon is synced, false otherwise
      * @throws MoneroError if the wallet is closed, or it can not reach the daemon
      */
-    fun isDaemonSynced(): Boolean {
+    override fun isDaemonSynced(): Boolean {
         return flag { lib, h, out -> lib.monero_wallet_is_daemon_synced(h, out) }
     }
 
@@ -522,7 +541,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return true if the wallet is synced, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isSynced(): Boolean {
+    override fun isSynced(): Boolean {
         return flag { lib, h, out -> lib.monero_wallet_is_synced(h, out) }
     }
 
@@ -533,7 +552,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the height
      * @throws MoneroError if the wallet is closed
      */
-    fun getHeight(): Long {
+    override fun getHeight(): Long {
         return height { lib, h, out -> lib.monero_wallet_get_height(h, out) }
     }
 
@@ -543,7 +562,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the height
      * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
      */
-    fun getDaemonHeight(): Long {
+    override fun getDaemonHeight(): Long {
         return height { lib, h, out -> lib.monero_wallet_get_daemon_height(h, out) }
     }
 
@@ -551,11 +570,14 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the balance of the wallet, including the funds that are still locked. While a sync runs, the call waits for
      * it.
      *
+     * @param accountIdx is not implemented yet: the balance of an account has to be null
+     * @param subaddressIdx is not implemented yet: the balance of a subaddress has to be null
      * @return the balance in atomic units
-     * @throws MoneroError if the wallet is closed
+     * @throws MoneroError if the wallet is closed, or an account or a subaddress is given
      */
-    fun getBalance(): BigInteger {
+    override fun getBalance(accountIdx: Int?, subaddressIdx: Int?): BigInteger {
         checkNotClosed()
+        if (accountIdx != null || subaddressIdx != null) throw MoneroError("The balance of an account or of a subaddress is not implemented yet")
         return run { lib, h ->
             val balance = LongByReference()
             MoneroNative.ok(lib.monero_wallet_get_balance(h, balance))
@@ -567,11 +589,14 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * Get the unlocked balance of the wallet, which is the balance without the funds that are still locked. While a
      * sync runs, the call waits for it.
      *
+     * @param accountIdx is not implemented yet: the unlocked balance of an account has to be null
+     * @param subaddressIdx is not implemented yet: the unlocked balance of a subaddress has to be null
      * @return the unlocked balance in atomic units
-     * @throws MoneroError if the wallet is closed
+     * @throws MoneroError if the wallet is closed, or an account or a subaddress is given
      */
-    fun getUnlockedBalance(): BigInteger {
+    override fun getUnlockedBalance(accountIdx: Int?, subaddressIdx: Int?): BigInteger {
         checkNotClosed()
+        if (accountIdx != null || subaddressIdx != null) throw MoneroError("The unlocked balance of an account or of a subaddress is not implemented yet")
         return run { lib, h ->
             val balance = LongByReference()
             MoneroNative.ok(lib.monero_wallet_get_unlocked_balance(h, balance))
@@ -587,7 +612,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the network type
      * @throws MoneroError if the wallet is closed
      */
-    fun getNetworkType(): MoneroNetworkType {
+    override fun getNetworkType(): MoneroNetworkType {
         checkNotClosed()
         return run { lib, h ->
             val networkType = IntByReference()
@@ -602,7 +627,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return true if the wallet is view-only, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isViewOnly(): Boolean {
+    override fun isViewOnly(): Boolean {
         checkNotClosed()
         return run { lib, h ->
             val viewOnly = ByteByReference()
@@ -617,7 +642,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the version
      * @throws MoneroError if the wallet is closed
      */
-    fun getVersion(): MoneroVersion {
+    override fun getVersion(): MoneroVersion {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_get_version(h, out) }
     }
@@ -629,7 +654,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the restore height
      * @throws MoneroError if the wallet is closed
      */
-    fun getRestoreHeight(): Long {
+    override fun getRestoreHeight(): Long {
         checkNotClosed()
         return run { lib, h ->
             val height = LongByReference()
@@ -645,7 +670,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @param restoreHeight is the height to scan from
      * @throws MoneroError if the wallet is closed
      */
-    fun setRestoreHeight(restoreHeight: Long) {
+    override fun setRestoreHeight(restoreHeight: Long) {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_restore_height(h, restoreHeight)) }
     }
@@ -657,7 +682,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      *
      * @return true if the wallet is closed, false otherwise
      */
-    fun isClosed(): Boolean {
+    override fun isClosed(): Boolean {
         return closed
     }
 
@@ -670,7 +695,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if a save is asked for and the wallet has no path to write to, in which case it stays open
      */
     @Synchronized
-    fun close(save: Boolean) {
+    override fun close(save: Boolean) {
         if (closed) return
         if (save) requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
@@ -700,7 +725,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return true if the wallet is multisig, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isMultisig(): Boolean {
+    override fun isMultisig(): Boolean {
         return flag { lib, h, out -> lib.monero_wallet_is_multisig(h, out) }
     }
 
@@ -711,7 +736,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return true if an import is needed, false otherwise
      * @throws MoneroError if the wallet is closed
      */
-    fun isMultisigImportNeeded(): Boolean {
+    override fun isMultisigImportNeeded(): Boolean {
         return flag { lib, h, out -> lib.monero_wallet_is_multisig_import_needed(h, out) }
     }
 
@@ -722,7 +747,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the multisig information
      * @throws MoneroError if the wallet is closed
      */
-    fun getMultisigInfo(): MoneroMultisigInfo {
+    override fun getMultisigInfo(): MoneroMultisigInfo {
         checkNotClosed()
         if (!isMultisig()) {
             val info = MoneroMultisigInfo()
@@ -740,7 +765,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the multisig hex of this wallet
      * @throws MoneroError if the wallet is closed, or it is not a wallet that a multisig can start from
      */
-    fun prepareMultisig(): String {
+    override fun prepareMultisig(): String {
         return string { lib, h, out -> lib.monero_wallet_prepare_multisig(h, out) }
     }
 
@@ -754,7 +779,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the multisig hex of this wallet for the key exchanges
      * @throws MoneroError if the wallet is closed, or a hex is not a prepared multisig hex
      */
-    fun makeMultisig(multisigHexes: List<String>, threshold: Int, password: String): String {
+    override fun makeMultisig(multisigHexes: List<String>, threshold: Int, password: String): String {
         return string { lib, h, out -> lib.monero_wallet_make_multisig(h, multisigHexes.toTypedArray(), SizeT(multisigHexes.size.toLong()), threshold, password, out) }
     }
 
@@ -767,7 +792,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the state of the wallet after the exchange, which carries the address once the wallet is final
      * @throws MoneroError if the wallet is closed, or a hex is not a multisig hex of this round
      */
-    fun exchangeMultisigKeys(multisigHexes: List<String>, password: String): MoneroMultisigInitResult {
+    override fun exchangeMultisigKeys(multisigHexes: List<String>, password: String): MoneroMultisigInitResult {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_exchange_multisig_keys(h, multisigHexes.toTypedArray(), SizeT(multisigHexes.size.toLong()), password, out) }
     }
@@ -778,7 +803,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the multisig hex of this wallet
      * @throws MoneroError if the wallet is closed, or the wallet is not a final multisig wallet
      */
-    fun exportMultisigHex(): String {
+    override fun exportMultisigHex(): String {
         return string { lib, h, out -> lib.monero_wallet_export_multisig_hex(h, out) }
     }
 
@@ -790,7 +815,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @return the number of outputs that the import showed
      * @throws MoneroError if the wallet is closed, or a hex is not a multisig hex
      */
-    fun importMultisigHex(multisigHexes: List<String>, refreshAfterImport: Boolean): Int {
+    override fun importMultisigHex(multisigHexes: List<String>, refreshAfterImport: Boolean): Int {
         checkNotClosed()
         return run { lib, h ->
             val numImported = IntByReference()
@@ -808,7 +833,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, the hex is not a multisig transaction, or the wallet already
      * signed it
      */
-    fun signMultisigTxHex(multisigTxHex: String): MoneroMultisigSignResult {
+    override fun signMultisigTxHex(multisigTxHex: String): MoneroMultisigSignResult {
         checkNotClosed()
         return json { lib, h, out -> lib.monero_wallet_sign_multisig_tx_hex(h, multisigTxHex, out) }
     }
@@ -821,7 +846,7 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : AutoCl
      * @throws MoneroError if the wallet is closed, the hex is not a signed multisig transaction, or the network
      * refuses it
      */
-    fun submitMultisigTxHex(signedMultisigTxHex: String): List<String> {
+    override fun submitMultisigTxHex(signedMultisigTxHex: String): List<String> {
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()

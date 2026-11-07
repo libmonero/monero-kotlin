@@ -28,6 +28,7 @@ import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.api.Tag
+import monero.wallet.model.MoneroWalletListener
 
 /**
  * Mirrors the parts of the full wallet tests of monero-python (tests/test_monero_wallet_full.py over
@@ -1226,5 +1227,68 @@ class MoneroWalletFullTest {
 
     private fun walletPath(): String {
         return tempDir.resolve("wallet-${System.nanoTime()}").toString()
+    }
+
+    // ------------------------------- THE INTERFACE ----------------------------------
+
+    @Test
+    fun wallet_IsAMoneroWallet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val asInterface: MoneroWallet = wallet
+            assertEquals(wallet.getPrimaryAddress(), asInterface.getPrimaryAddress())
+            assertEquals(wallet.getPath(), asInterface.getPath())
+            assertTrue(asInterface is MoneroWalletDefault)
+        }
+    }
+
+    @Test
+    fun sync_WithAListener_IsNotImplementedYet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.sync(null, MoneroWalletListener()) }
+            assertTrue("not implemented yet" in error.message!!, error.message)
+            assertFailsWith<MoneroError> { wallet.sync(MoneroWalletListener()) }
+        }
+    }
+
+    @Test
+    fun balances_OfAnAccountOrASubaddress_AreNotImplementedYet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals(BigInteger.ZERO, wallet.getBalance())
+            assertEquals(BigInteger.ZERO, wallet.getBalance(null, null))
+            assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance())
+            for (call in listOf<() -> Unit>({ wallet.getBalance(0) }, { wallet.getBalance(0, 0) }, { wallet.getUnlockedBalance(0) }, { wallet.getUnlockedBalance(0, 0) })) {
+                val error = assertFailsWith<MoneroError> { call() }
+                assertTrue("not implemented yet" in error.message!!, error.message)
+            }
+        }
+    }
+
+    // what the wallet does not do yet is the default of the interface, which says that it is not supported
+    @Test
+    fun functionsNotWrittenYet_AreNotSupported() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val calls = mapOf<String, () -> Unit>(
+                "getAccounts" to { wallet.getAccounts() },
+                "createAccount" to { wallet.createAccount() },
+                "createSubaddress" to { wallet.createSubaddress(0) },
+                "getOutputs" to { wallet.getOutputs() },
+                "getTxNote" to { wallet.getTxNote("") },
+                "getAddressBookEntries" to { wallet.getAddressBookEntries() },
+                "addListener" to { wallet.addListener(MoneroWalletListener()) },
+                "rescanBlockchain" to { wallet.rescanBlockchain() },
+                "startMining" to { wallet.startMining() }
+            )
+            for ((name, call) in calls) {
+                val error = assertFailsWith<MoneroError>(name) { call() }
+                assertTrue("not supported" in error.message!!, "$name: ${error.message}")
+            }
+        }
+    }
+
+    @Test
+    fun waitForNextBlock_OfAClosedWallet_Fails() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.waitForNextBlock() }
     }
 }
