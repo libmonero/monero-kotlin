@@ -1,6 +1,7 @@
 package monero.wallet
 
 import java.math.BigInteger
+import java.util.UUID
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -67,6 +68,36 @@ class MoneroWalletFullTxsIntegrationTest {
             assertEquals(account.unlockedBalance, account.subaddresses!!.fold(BigInteger.ZERO) { sum, subaddress -> sum + subaddress.unlockedBalance!! })
             assertTrue(account.balance!! >= account.unlockedBalance!!)
         }
+    }
+
+    // Can get and set the note of a transaction of the wallet, which the transaction has when it is fetched
+    @Test
+    fun testSetTxNote() {
+        val wallet = wallet()
+        val txs = wallet.getTxs().take(3)
+        assertTrue(txs.size == 3, "Test requires 3 wallet transactions")
+
+        val uuid = UUID.randomUUID().toString()
+        txs.forEachIndexed { i, tx -> wallet.setTxNote(tx.hash!!, "$uuid$i") }
+        txs.forEachIndexed { i, tx ->
+            assertEquals("$uuid$i", wallet.getTxNote(tx.hash!!))
+            assertEquals("$uuid$i", wallet.getTx(tx.hash!!)!!.note, "the transaction has its note")
+        }
+    }
+
+    // Can get and set the notes of some transactions of the wallet
+    @Test
+    fun testSetTxNotes() {
+        val wallet = wallet()
+        val hashes = wallet.getTxs().map { it.hash!! }
+        assertTrue(hashes.size >= 3, "Test requires 3 or more wallet transactions")
+
+        val uuid = UUID.randomUUID().toString()
+        val notes = hashes.indices.map { "$uuid$it" }
+        wallet.setTxNotes(hashes, notes)
+        assertEquals(notes, wallet.getTxNotes(hashes))
+        assertEquals(notes.reversed(), wallet.getTxNotes(hashes.reversed()))
+        assertEquals(notes, wallet.getTxs(hashes).map { it.note })
     }
 
     // Can get the transactions of the wallet

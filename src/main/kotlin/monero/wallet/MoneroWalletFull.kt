@@ -431,6 +431,61 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
         }
     }
 
+    // ------------------------------- NOTES OF TRANSACTIONS ----------------------------------
+
+    /**
+     * Get the note of a transaction, which the wallet keeps in its file: it is empty if none was set.
+     *
+     * @param txHash is the hash of the transaction
+     * @return the note, which is empty if the transaction has none
+     * @throws MoneroError if the wallet is closed, or the hash is not the hash of a transaction
+     */
+    override fun getTxNote(txHash: String): String {
+        return string { lib, h, out -> lib.monero_wallet_get_tx_note(h, txHash, out) }
+    }
+
+    /**
+     * Get the notes of some transactions.
+     *
+     * @param txHashes are the hashes of the transactions
+     * @return the notes, in the order of the hashes, each empty if the transaction has none
+     * @throws MoneroError if the wallet is closed, or a hash is not the hash of a transaction
+     */
+    override fun getTxNotes(txHashes: List<String>): List<String> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.strings(lib.monero_wallet_get_tx_notes(h, txHashes.toTypedArray(), SizeT(txHashes.size.toLong()), out), out)
+        }
+    }
+
+    /**
+     * Set the note of a transaction. The note is kept in the file of the wallet when the wallet saves.
+     *
+     * @param txHash is the hash of the transaction
+     * @param note is the note, which can be empty to take the note away
+     * @throws MoneroError if the wallet is closed, or the hash is not the hash of a transaction
+     */
+    override fun setTxNote(txHash: String, note: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_tx_note(h, txHash, note)) }
+    }
+
+    /**
+     * Set the notes of some transactions.
+     *
+     * @param txHashes are the hashes of the transactions
+     * @param notes are the notes, each for the hash at its position
+     * @throws MoneroError if the wallet is closed, the hashes and the notes are not as many, or a hash is not the hash of a transaction,
+     * in which case no note is set: monero-c sets them one by one, so the hashes are checked before
+     */
+    override fun setTxNotes(txHashes: List<String>, notes: List<String>) {
+        checkNotClosed()
+        if (txHashes.size != notes.size) throw MoneroError("The hashes and the notes of the transactions are not as many: ${txHashes.size} and ${notes.size}")
+        txHashes.firstOrNull { !TX_HASH.matches(it) }?.let { throw MoneroError("Invalid transaction hash: $it") }
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_tx_notes(h, txHashes.toTypedArray(), notes.toTypedArray(), SizeT(txHashes.size.toLong()))) }
+    }
+
     // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
 
     /**
@@ -1305,6 +1360,8 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     }
 
     companion object {
+
+        private val TX_HASH = Regex("[0-9a-fA-F]{64}")
 
         /**
          * The language that a wallet writes its seed in when none is given.

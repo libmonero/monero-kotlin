@@ -1167,7 +1167,6 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
                 "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
-                "getTxNote" to { wallet.getTxNote("") },
                 "getAddressBookEntries" to { wallet.getAddressBookEntries() },
                 "addListener" to { wallet.addListener(MoneroWalletListener()) },
                 "rescanBlockchain" to { wallet.rescanBlockchain() },
@@ -1292,5 +1291,91 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             assertTrue(wallet.exportKeyImages(true).keyImages.isNullOrEmpty())
             assertEquals(0, wallet.exportKeyImages().keyImages?.size ?: 0)
         }
+    }
+
+    // ------------------------------- NOTES OF TRANSACTIONS ----------------------------------
+
+    private val hash1 = "a".repeat(64)
+    private val hash2 = "b".repeat(64)
+
+    @Test
+    fun txNote_OfATxThatHasNone_IsEmpty() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("", wallet.getTxNote(hash1))
+            assertEquals(listOf("", ""), wallet.getTxNotes(listOf(hash1, hash2)))
+        }
+    }
+
+    @Test
+    fun txNote_IsWhatWasSet() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            wallet.setTxNote(hash1, "pizza")
+            assertEquals("pizza", wallet.getTxNote(hash1))
+            assertEquals("", wallet.getTxNote(hash2))
+
+            wallet.setTxNote(hash1, "pizza and a beer, with unicode: é 日本")
+            assertEquals("pizza and a beer, with unicode: é 日本", wallet.getTxNote(hash1))
+
+            // an empty note takes the note away
+            wallet.setTxNote(hash1, "")
+            assertEquals("", wallet.getTxNote(hash1))
+        }
+    }
+
+    @Test
+    fun txNotes_AreWhatWasSet_InTheOrderOfTheHashes() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            wallet.setTxNotes(listOf(hash1, hash2), listOf("first", "second"))
+            assertEquals(listOf("first", "second"), wallet.getTxNotes(listOf(hash1, hash2)))
+            assertEquals(listOf("second", "first", "second"), wallet.getTxNotes(listOf(hash2, hash1, hash2)))
+            assertEquals("first", wallet.getTxNote(hash1))
+            assertEquals(emptyList(), wallet.getTxNotes(emptyList()))
+            wallet.setTxNotes(emptyList(), emptyList())
+        }
+    }
+
+    @Test
+    fun txNotes_WithAsManyHashesAsNotes_AreRequired() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertFailsWith<MoneroError> { wallet.setTxNotes(listOf(hash1, hash2), listOf("only one")) }
+            assertFailsWith<MoneroError> { wallet.setTxNotes(listOf(hash1), listOf("one", "two")) }
+            assertEquals("", wallet.getTxNote(hash1), "no note is set by a call that failed")
+        }
+    }
+
+    @Test
+    fun txNotes_OfWhatIsNotAHash_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            for (invalid in listOf("invalid_id", "", "a".repeat(63), "z".repeat(64))) {
+                assertFailsWith<MoneroError>(invalid) { wallet.getTxNote(invalid) }
+                assertFailsWith<MoneroError>(invalid) { wallet.setTxNote(invalid, "note") }
+                assertFailsWith<MoneroError>(invalid) { wallet.getTxNotes(listOf(hash1, invalid)) }
+                assertFailsWith<MoneroError>(invalid) { wallet.setTxNotes(listOf(hash1, invalid), listOf("one", "two")) }
+            }
+            assertEquals("", wallet.getTxNote(hash1), "no note is set by a call that failed")
+        }
+    }
+
+    @Test
+    fun txNotes_AreKeptInTheFileOfTheWallet() {
+        val path = walletPath()
+        MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
+            wallet.setTxNote(hash1, "kept")
+            wallet.setTxNotes(listOf(hash2), listOf("kept too"))
+            wallet.save()
+        }
+        MoneroWalletFull.openWallet(config(path)).use { wallet ->
+            assertEquals(listOf("kept", "kept too"), wallet.getTxNotes(listOf(hash1, hash2)))
+        }
+    }
+
+    @Test
+    fun txNotes_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getTxNote(hash1) }
+        assertFailsWith<MoneroError> { wallet.getTxNotes(listOf(hash1)) }
+        assertFailsWith<MoneroError> { wallet.setTxNote(hash1, "note") }
+        assertFailsWith<MoneroError> { wallet.setTxNotes(listOf(hash1), listOf("note")) }
     }
 }
