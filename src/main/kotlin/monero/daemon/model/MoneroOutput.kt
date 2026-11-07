@@ -2,6 +2,7 @@ package monero.daemon.model
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import java.math.BigInteger
+import monero.internal.Reconcile
 
 /**
  * Models a Monero transaction output.
@@ -37,5 +38,34 @@ open class MoneroOutput {
 
     open fun copy(): MoneroOutput {
         return MoneroOutput(this)
+    }
+
+    /**
+     * Merge another copy of the same output into this one: a field that is set on one side is taken, and the same value on both is
+     * kept, and the key images are merged. If the two are in different transactions, the transactions are merged, which comes back
+     * to merge the outputs.
+     *
+     * @param other is the output to merge into this one
+     * @throws MoneroError if the two have a different value in a field that does not change
+     */
+    open fun merge(other: MoneroOutput) {
+        if (this === other) return
+
+        // merge the transactions if they are not the same, which comes back to merging the outputs
+        val thisTx = tx
+        val otherTx = other.tx
+        if (thisTx != null && otherTx != null && thisTx !== otherTx) {
+            thisTx.merge(otherTx)
+            return
+        }
+
+        val otherKeyImage = other.keyImage
+        if (keyImage == null) keyImage = otherKeyImage
+        else if (otherKeyImage != null) keyImage!!.merge(otherKeyImage)
+        amount = Reconcile.value(amount, other.amount, "output amount")
+        index = Reconcile.value(index, other.index, "output index")
+        ringOutputIndices = Reconcile.list(ringOutputIndices, other.ringOutputIndices, "output ringOutputIndices")
+        stealthPublicKey = Reconcile.value(stealthPublicKey, other.stealthPublicKey, "output stealthPublicKey")
+        mask = Reconcile.value(mask, other.mask, "output mask")
     }
 }

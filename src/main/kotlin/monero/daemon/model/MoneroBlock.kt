@@ -1,6 +1,7 @@
 package monero.daemon.model
 
 import com.fasterxml.jackson.annotation.JsonSetter
+import monero.internal.Reconcile
 
 /**
  * Models a Monero block in the blockchain.
@@ -50,5 +51,41 @@ open class MoneroBlock : MoneroBlockHeader {
 
     override fun copy(): MoneroBlock {
         return MoneroBlock(this)
+    }
+
+    /**
+     * Merge another block into this one. The header is merged as [MoneroBlockHeader.merge] does, then the miner transaction and the
+     * transactions: a transaction of the other block that has the hash of one of this one is merged into it, and any other is added,
+     * so a transaction without a hash is always added. The transactions of the other block are in this one afterwards.
+     *
+     * @param other is the block to merge into this one. A header that is not a block merges as a header
+     * @throws MoneroError if a field that does not change has a different value in the two
+     */
+    override fun merge(other: MoneroBlockHeader) {
+        if (this === other) return
+        super.merge(other)
+        if (other !is MoneroBlock) return
+
+        hex = Reconcile.value(hex, other.hex, "block hex")
+        txHashes = Reconcile.list(txHashes, other.txHashes, "block txHashes")
+
+        // the miner tx of the other block is this block's if it has none, and it is merged into it if it has one
+        val otherMinerTx = other.minerTx
+        if (minerTx == null) minerTx = otherMinerTx
+        if (otherMinerTx != null) {
+            otherMinerTx.block = this
+            minerTx!!.merge(otherMinerTx)
+        }
+
+        val otherTxs = other.txs
+        if (!otherTxs.isNullOrEmpty()) {
+            val merged = ArrayList(txs ?: emptyList())
+            for (otherTx in otherTxs) {
+                otherTx.block = this
+                val same = merged.firstOrNull { it === otherTx || (it.hash != null && it.hash == otherTx.hash) }
+                if (same == null) merged.add(otherTx) else same.merge(otherTx)
+            }
+            txs = merged
+        }
     }
 }
