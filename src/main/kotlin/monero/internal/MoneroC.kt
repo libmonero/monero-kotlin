@@ -495,6 +495,40 @@ internal interface MoneroC : Library {
     fun monero_wallet_get_payment_uri(wallet: Pointer, configJson: String, out: PointerByReference): Int
 
     fun monero_wallet_parse_payment_uri(wallet: Pointer, uri: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_tx_note(wallet: Pointer, txHash: String, out: PointerByReference): Int
+
+    fun monero_wallet_set_tx_note(wallet: Pointer, txHash: String, note: String): Int
+
+    fun monero_wallet_get_tx_notes(wallet: Pointer, txHashes: Array<String>, numTxHashes: SizeT, json: PointerByReference): Int
+
+    fun monero_wallet_set_tx_notes(wallet: Pointer, txHashes: Array<String>, notes: Array<String>, numTxHashes: SizeT): Int
+
+    fun monero_wallet_get_tx_key(wallet: Pointer, txHash: String, out: PointerByReference): Int
+
+    fun monero_wallet_check_tx_key(wallet: Pointer, txHash: String, txKey: String, address: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_tx_proof(wallet: Pointer, txHash: String, address: String, message: String?, out: PointerByReference): Int
+
+    fun monero_wallet_check_tx_proof(wallet: Pointer, txHash: String, address: String, message: String?, signature: String, json: PointerByReference): Int
+
+    fun monero_wallet_get_spend_proof(wallet: Pointer, txHash: String, message: String?, out: PointerByReference): Int
+
+    fun monero_wallet_check_spend_proof(wallet: Pointer, txHash: String, message: String?, signature: String, good: ByteByReference): Int
+
+    fun monero_wallet_get_reserve_proof_wallet(wallet: Pointer, message: String?, out: PointerByReference): Int
+
+    fun monero_wallet_get_reserve_proof_account(wallet: Pointer, accountIdx: Int, amount: Long, message: String?, out: PointerByReference): Int
+
+    fun monero_wallet_check_reserve_proof(wallet: Pointer, address: String, message: String?, signature: String, json: PointerByReference): Int
+
+    fun monero_wallet_add_address_book_entry(wallet: Pointer, address: String, description: String?, index: LongByReference): Int
+
+    fun monero_wallet_edit_address_book_entry(wallet: Pointer, index: Long, address: String?, description: String?): Int
+
+    fun monero_wallet_delete_address_book_entry(wallet: Pointer, index: Long): Int
+
+    fun monero_wallet_get_address_book_entries(wallet: Pointer, indices: LongArray?, numIndices: SizeT, json: PointerByReference): Int
 }
 
 /**
