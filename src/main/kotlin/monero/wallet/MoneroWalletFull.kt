@@ -18,6 +18,11 @@ import monero.internal.MoneroNative
 import monero.internal.NativeWorker
 import monero.internal.SizeT
 import monero.wallet.model.MoneroAccount
+import monero.daemon.model.MoneroKeyImage
+import monero.wallet.model.MoneroKeyImageExportResult
+import monero.wallet.model.MoneroKeyImageImportResult
+import monero.wallet.model.MoneroOutputQuery
+import monero.wallet.model.MoneroOutputWallet
 import monero.wallet.model.MoneroIntegratedAddress
 import monero.wallet.model.MoneroMultisigInfo
 import monero.wallet.model.MoneroMultisigInitResult
@@ -398,6 +403,115 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
             val out = PointerByReference()
             val result = MoneroNative.json(lib.monero_wallet_get_txs(h, query?.let { MoneroJson.serialize(it) }, out), out, MoneroWalletBlocksResult::class.java)
             result.getTxs()
+        }
+    }
+
+    // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
+
+    /**
+     * Get the outputs of the wallet that it can spend.
+     *
+     * @param query filters the outputs, or null for all of them
+     * @return the outputs that meet the query, each in its transaction
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun getOutputs(query: MoneroOutputQuery?): List<MoneroOutputWallet> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val result = MoneroNative.json(lib.monero_wallet_get_outputs(h, query?.let { MoneroJson.serialize(it) }, out), out, MoneroWalletBlocksResult::class.java)
+            result.getOutputs()
+        }
+    }
+
+    /**
+     * Export the outputs of the wallet, in hexadecimal, which a view-only wallet imports to know the outputs of the wallet that has the
+     * keys.
+     *
+     * @param all is true to export all the outputs, and false to export the ones since the last export
+     * @return the outputs in hexadecimal
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun exportOutputs(all: Boolean): String {
+        return string { lib, h, out -> lib.monero_wallet_export_outputs(h, all, out) }
+    }
+
+    /**
+     * Import outputs that another wallet exported.
+     *
+     * @param outputsHex are the outputs in hexadecimal
+     * @return the number of outputs that were imported
+     * @throws MoneroError if the wallet is closed, or the outputs are not valid
+     */
+    override fun importOutputs(outputsHex: String): Int {
+        checkNotClosed()
+        return run { lib, h ->
+            val imported = IntByReference()
+            MoneroNative.ok(lib.monero_wallet_import_outputs(h, outputsHex, imported))
+            imported.value
+        }
+    }
+
+    /**
+     * Export the signed key images of the wallet, which a view-only wallet imports to know which outputs were spent.
+     *
+     * @param all is true to export all the key images, and false to export the ones since the last export
+     * @return the key images, and the index of the first among the outputs of the wallet
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun exportKeyImages(all: Boolean): MoneroKeyImageExportResult {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_export_key_images(h, all, out) }
+    }
+
+    /**
+     * Import signed key images and check which of the outputs of the wallet they spend.
+     *
+     * @param keyImages are the key images to import
+     * @param offset is the index of the first key image among the outputs of the wallet
+     * @return the height of the wallet, and the amounts that the key images spent and left unspent
+     * @throws MoneroError if the wallet is closed, or the key images are not valid
+     */
+    override fun importKeyImages(keyImages: List<MoneroKeyImage>, offset: Long): MoneroKeyImageImportResult {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_import_key_images(h, MoneroJson.serialize(keyImages), offset, out) }
+    }
+
+    /**
+     * Freeze an output, so that the wallet does not spend it.
+     *
+     * @param keyImage is the key image of the output, in hexadecimal
+     * @throws MoneroError if the wallet is closed, or it has no output with that key image
+     */
+    override fun freezeOutput(keyImage: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_freeze_output(h, keyImage)) }
+    }
+
+    /**
+     * Thaw a frozen output, so that the wallet can spend it.
+     *
+     * @param keyImage is the key image of the output, in hexadecimal
+     * @throws MoneroError if the wallet is closed, or it has no output with that key image
+     */
+    override fun thawOutput(keyImage: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_thaw_output(h, keyImage)) }
+    }
+
+    /**
+     * Check if an output is frozen.
+     *
+     * @param keyImage is the key image of the output, in hexadecimal
+     * @return true if the output is frozen
+     * @throws MoneroError if the wallet is closed, or it has no output with that key image
+     */
+    override fun isOutputFrozen(keyImage: String): Boolean {
+        checkNotClosed()
+        return run { lib, h ->
+            val frozen = ByteByReference()
+            MoneroNative.ok(lib.monero_wallet_is_output_frozen(h, keyImage, frozen))
+            frozen.value.toInt() != 0
         }
     }
 

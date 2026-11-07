@@ -15,6 +15,7 @@ import kotlin.test.assertTrue
 import monero.common.MoneroError
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
+import monero.wallet.model.MoneroOutputQuery
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY
@@ -1082,7 +1083,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
                 "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
-                "getOutputs" to { wallet.getOutputs() },
+                "getTransfers" to { wallet.getTransfers() },
                 "getTxNote" to { wallet.getTxNote("") },
                 "getAddressBookEntries" to { wallet.getAddressBookEntries() },
                 "addListener" to { wallet.addListener(MoneroWalletListener()) },
@@ -1135,6 +1136,49 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         MoneroWalletFull.openWallet(config(path)).use { wallet ->
             assertEquals(2, wallet.getAccounts().size)
             assertEquals(label, wallet.getSubaddress(1, 0).label)
+        }
+    }
+
+    // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
+
+    @Test
+    fun outputs_OfAWalletThatHasNone_AreEmpty() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertTrue(wallet.getOutputs().isEmpty())
+            assertTrue(wallet.getOutputs(MoneroOutputQuery().also { it.accountIndex = 0 }).isEmpty())
+        }
+    }
+
+    @Test
+    fun outputs_WithAKeyImageThatIsNotTheWallets_CanNotBeFrozenThawedOrChecked() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val unknown = "a".repeat(64)
+            assertFailsWith<MoneroError> { wallet.freezeOutput(unknown) }
+            assertFailsWith<MoneroError> { wallet.thawOutput(unknown) }
+            assertFailsWith<MoneroError> { wallet.isOutputFrozen(unknown) }
+            assertFailsWith<MoneroError> { wallet.freezeOutput("") }
+        }
+    }
+
+    @Test
+    fun outputsAndKeyImages_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getOutputs() }
+        assertFailsWith<MoneroError> { wallet.exportOutputs() }
+        assertFailsWith<MoneroError> { wallet.importOutputs("") }
+        assertFailsWith<MoneroError> { wallet.exportKeyImages() }
+        assertFailsWith<MoneroError> { wallet.importKeyImages(emptyList()) }
+        assertFailsWith<MoneroError> { wallet.freezeOutput("a".repeat(64)) }
+        assertFailsWith<MoneroError> { wallet.thawOutput("a".repeat(64)) }
+        assertFailsWith<MoneroError> { wallet.isOutputFrozen("a".repeat(64)) }
+    }
+
+    @Test
+    fun exportKeyImages_OfAWalletThatHasNoOutputs_HasNone() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertTrue(wallet.exportKeyImages(true).keyImages.isNullOrEmpty())
+            assertEquals(0, wallet.exportKeyImages().keyImages?.size ?: 0)
         }
     }
 }
