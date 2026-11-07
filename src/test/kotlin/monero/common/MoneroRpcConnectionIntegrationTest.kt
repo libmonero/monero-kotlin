@@ -100,6 +100,7 @@ class MoneroRpcConnectionIntegrationTest {
         nodeConnection().use { connection ->
             val noUsername = assertFailsWith<MoneroError> { connection.setCredentials("", "abc123") }
             assertTrue("username cannot be empty because password is not empty" in noUsername.message!!, noUsername.message)
+            assertFalse(noUsername is MoneroRpcError)
             val noPassword = assertFailsWith<MoneroError> { connection.setCredentials("user", "") }
             assertTrue("password cannot be empty because username is not empty" in noPassword.message!!, noPassword.message)
 
@@ -130,7 +131,7 @@ class MoneroRpcConnectionIntegrationTest {
             assertEquals(0, header.path("block_header").path("height").asInt(-1), header.toString())
 
             // test invalid json rpc method
-            val error = assertFailsWith<MoneroError> { connection.sendJsonRequest("invalid_method") }
+            val error = assertFailsWith<MoneroRpcError> { connection.sendJsonRequest("invalid_method") }
             assertEquals("Method not found", error.message)
         }
     }
@@ -145,7 +146,7 @@ class MoneroRpcConnectionIntegrationTest {
             assertTrue(""""blocks"""" in json, json)
 
             // test invalid binary method
-            val error = assertFailsWith<MoneroError> { connection.sendBinaryRequest("invalid_method") }
+            val error = assertFailsWith<MoneroRpcError> { connection.sendBinaryRequest("invalid_method") }
             assertTrue("404" in error.message!!, error.message)
         }
     }
@@ -158,7 +159,7 @@ class MoneroRpcConnectionIntegrationTest {
             assertTrue(""""height"""" in result, result)
 
             // test invalid path method
-            val error = assertFailsWith<MoneroError> { connection.sendPathRequest("invalid_method") }
+            val error = assertFailsWith<MoneroRpcError> { connection.sendPathRequest("invalid_method") }
             assertTrue("404" in error.message!!, error.message)
         }
     }

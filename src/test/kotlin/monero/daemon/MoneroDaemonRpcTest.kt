@@ -10,6 +10,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroError
+import monero.common.MoneroRpcError
 import monero.daemon.model.MoneroBlockHeader
 import org.junit.jupiter.api.Tag
 
@@ -31,6 +32,14 @@ class MoneroDaemonRpcTest {
         MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
             val height = daemon.getHeight()
             assertTrue(height > 0, "Height must be greater than 0")
+        }
+    }
+
+    // A block that the daemon does not have is an answer of the daemon with an error
+    @Test
+    fun testGetBlockByUnknownHash() {
+        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
+            assertFailsWith<MoneroRpcError> { daemon.getBlockByHash("0".repeat(64)) }
         }
     }
 
