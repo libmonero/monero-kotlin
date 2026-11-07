@@ -3,7 +3,6 @@ package monero.wallet
 import java.math.BigInteger
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import java.util.concurrent.CompletableFuture
@@ -13,10 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import monero.ModelTestSupport.assertSameJson
-import monero.NativeTestSupport
 import monero.common.MoneroError
-import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroDestination
@@ -27,35 +23,19 @@ import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.io.TempDir
-import org.junit.jupiter.api.Tag
 import monero.wallet.model.MoneroWalletListener
 
 /**
  * Mirrors the parts of the full wallet tests of monero-python (tests/test_monero_wallet_full.py over
  * test_monero_wallet_common.py) that run without a daemon: the constructors and the files that they write, the
  * validation of the fields of the create config, and the lifecycle of the wallet through a close and an open. What
- * needs a chain is the integration test of this package, and what the full wallet shares with the keys-only wallet is
- * the suite of that one.
+ * needs a chain is the integration test of this package, and what every wallet has to pass, such as the keys, the seed, the addresses
+ * and the messages, is in [BaseMoneroWalletTest], which this class extends.
  *
  * Every test calls the real library through MoneroWalletFull, and skips when it is not found. The wallets are written
  * to a temporary directory, which the JVM removes with its files.
  */
-@Tag("unit")
-class MoneroWalletFullTest {
-
-    // the test wallet of monero-python's config.ini, which its suites restore from the seed
-    private val seed = "vortex degrees outbreak teeming gimmick school rounded tonic observant injury leech ought problems ahead upcoming ledge textbook cigar atrium trash dunes eavesdrop dullness evolved vortex"
-    private val primaryAddress = "48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2"
-    private val privateViewKey = "e8c2288181bad9ec410d7322efd65f663c6da57bd1d1198636278a039743a600"
-    private val privateSpendKey = "be7a2f71097f146bdf0fb5bb8edfe2240a9767e15adee74d95af1b5a64f29a0c"
-    private val publicViewKey = "42e465bdcd00de50516f1c7049bbe26bd3c11195e8dae5cceb38bad92d484269"
-    private val publicSpendKey = "b58d33a1dac23d334539cbed3657b69a5c967d6860357e24ab4d11899a312a6b"
-
-    // the payment id of the python tests of integrated addresses
-    private val paymentId = "03284e41c342f036"
-
-    // the seed of monero-python's test_monero_wallet_common.ini, which is two words short of a mnemonic
-    private val brokenSeed = "memoir desk algebra inbound innocent unplugs fully okay five inflamed giant factual ritual toyed topic snake unhappy guarded tweezers haunted inundate giant"
+class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the server that python gives a wallet which must not reach a daemon
     private val offlineServerUri = "offline_server_uri"
@@ -66,10 +46,15 @@ class MoneroWalletFullTest {
     @TempDir
     lateinit var tempDir: Path
 
-    @BeforeTest
-    fun requireLibrary() {
-        NativeTestSupport.assumeAvailable()
-    }
+    override fun createTestWallet(): MoneroWallet = testWallet()
+
+    override fun createRandomWallet(): MoneroWallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+
+    override fun closeWallet(wallet: MoneroWallet) = (wallet as MoneroWalletFull).close()
+
+    override fun seedLanguages(wallet: MoneroWallet): List<String> = (wallet as MoneroWalletFull).getSeedLanguages()
+
+    override val defaultLanguage: String = MoneroWalletFull.DEFAULT_LANGUAGE
 
     // ------------------------------- CREATE A WALLET ----------------------------------
 
@@ -315,22 +300,6 @@ class MoneroWalletFullTest {
     // ------------------------------- SEED AND KEYS ----------------------------------
 
     @Test
-    fun getSeed_ReadsTheTestWallet() {
-        testWallet().use { wallet ->
-            val seed = wallet.getSeed()
-            validateMnemonic(seed)
-            assertEquals(this.seed, seed)
-        }
-    }
-
-    @Test
-    fun getSeedLanguage_IsTheDefaultLanguage() {
-        testWallet().use { wallet ->
-            assertEquals(MoneroWalletFull.DEFAULT_LANGUAGE, wallet.getSeedLanguage())
-        }
-    }
-
-    @Test
     fun getSeedLanguage_IsTheLanguageOfTheConfig() {
         val config = config()
         config.language = "Spanish"
@@ -340,56 +309,10 @@ class MoneroWalletFullTest {
     }
 
     @Test
-    fun getSeedLanguages_ListsTheLanguagesOfASeed() {
-        testWallet().use { wallet ->
-            val languages = wallet.getSeedLanguages()
-            assertTrue(languages.isNotEmpty())
-            for (language in languages) assertTrue(language.isNotEmpty())
-            assertTrue(languages.contains(MoneroWalletFull.DEFAULT_LANGUAGE), languages.toString())
-        }
-    }
-
-    @Test
     fun getSeedLanguages_NeedsNoWallet() {
         val wallet = testWallet()
         wallet.close()
         assertTrue(wallet.getSeedLanguages().contains(MoneroWalletFull.DEFAULT_LANGUAGE))
-    }
-
-    @Test
-    fun getPrivateViewKey_ReadsTheTestWallet() {
-        testWallet().use { wallet ->
-            val key = wallet.getPrivateViewKey()
-            validatePrivateKey(key)
-            assertEquals(privateViewKey, key)
-        }
-    }
-
-    @Test
-    fun getPrivateSpendKey_ReadsTheTestWallet() {
-        testWallet().use { wallet ->
-            val key = wallet.getPrivateSpendKey()
-            validatePrivateKey(key)
-            assertEquals(privateSpendKey, key)
-        }
-    }
-
-    @Test
-    fun getPublicViewKey_ReadsTheTestWallet() {
-        testWallet().use { wallet ->
-            val key = wallet.getPublicViewKey()
-            validatePrivateKey(key)
-            assertEquals(publicViewKey, key)
-        }
-    }
-
-    @Test
-    fun getPublicSpendKey_ReadsTheTestWallet() {
-        testWallet().use { wallet ->
-            val key = wallet.getPublicSpendKey()
-            validatePrivateKey(key)
-            assertEquals(publicSpendKey, key)
-        }
     }
 
     @Test
@@ -427,15 +350,6 @@ class MoneroWalletFullTest {
     }
 
     // ------------------------------- ADDRESSES, ACCOUNTS AND SUBADDRESSES ----------------------------------
-
-    @Test
-    fun getPrimaryAddress_ReadsTheTestWallet() {
-        testWallet().use { wallet ->
-            validateAddress(wallet.getPrimaryAddress())
-            assertEquals(primaryAddress, wallet.getPrimaryAddress())
-            assertEquals(primaryAddress, wallet.getAddress(0, 0))
-        }
-    }
 
     @Test
     fun getAddress_OfASubaddress_IsAnAddressOfItsOwn() {
@@ -513,65 +427,6 @@ class MoneroWalletFullTest {
 
     // ------------------------------- INTEGRATED ADDRESSES ----------------------------------
 
-    @Test
-    fun getIntegratedAddress_WithoutAStandardAddress_UsesThePrimaryAddress() {
-        testWallet().use { wallet ->
-            val integrated = wallet.getIntegratedAddress("", "a".repeat(16))
-            assertEquals(primaryAddress, integrated.standardAddress)
-            assertEquals("a".repeat(16), integrated.paymentId)
-        }
-    }
-
-    @Test
-    fun getIntegratedAddress_WithoutAPaymentId_IsAnError() {
-        testWallet().use { wallet ->
-            val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "") }
-            assertEquals("Payment ID shouldn't be left unspecified", error.message)
-        }
-    }
-
-    @Test
-    fun getIntegratedAddress_WithAnInvalidAddress_IsAnError() {
-        testWallet().use { wallet ->
-            val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress("notanaddress", "a".repeat(16)) }
-            assertEquals("Invalid address", error.message)
-        }
-    }
-
-    @Test
-    fun getIntegratedAddress_WithASubaddress_IsAnError() {
-        testWallet().use { wallet ->
-            val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(wallet.getAddress(0, 1), "a".repeat(16)) }
-            assertEquals("Subaddress shouldn't be used", error.message)
-        }
-    }
-
-    @Test
-    fun getIntegratedAddress_WithAnIntegratedAddress_IsAnError() {
-        testWallet().use { wallet ->
-            val integrated = wallet.getIntegratedAddress("", "a".repeat(16)).integratedAddress
-            val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(integrated, "a".repeat(16)) }
-            assertEquals("Already integrated address", error.message)
-        }
-    }
-
-    @Test
-    fun decodeIntegratedAddress_ReadsItBack() {
-        testWallet().use { wallet ->
-            val integrated = wallet.getIntegratedAddress("", paymentId)
-            val decoded = wallet.decodeIntegratedAddress(integrated.integratedAddress!!)
-            assertEquals(integrated.standardAddress, decoded.standardAddress)
-            assertEquals(integrated.paymentId, decoded.paymentId)
-            assertEquals(integrated.integratedAddress, decoded.integratedAddress)
-
-            val invalid = assertFailsWith<MoneroError> { wallet.decodeIntegratedAddress("bad address") }
-            assertEquals("Invalid address", invalid.message)
-
-            val paymentIdError = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "invalid payment id") }
-            assertEquals("Invalid payment ID: invalid payment id", paymentIdError.message)
-        }
-    }
-
     // ------------------------------- MESSAGES ----------------------------------
 
     @Test
@@ -600,46 +455,7 @@ class MoneroWalletFullTest {
         }
     }
 
-    @Test
-    fun verifyMessage_WithoutASignatureHeader_IsNotGood() {
-        testWallet().use { wallet ->
-            assertEquals(false, wallet.verifyMessage("hello", primaryAddress, "not-a-signature").isGood)
-        }
-    }
-
-    @Test
-    fun verifyMessage_ThatIsNotBase58_IsNotGood() {
-        testWallet().use { wallet ->
-            assertEquals(false, wallet.verifyMessage("hello", primaryAddress, "SigV2!!!not-base58!!!").isGood)
-        }
-    }
-
-    @Test
-    fun verifyMessage_WithATruncatedSignature_IsNotGood() {
-        testWallet().use { wallet ->
-            val signature = wallet.signMessage("hello", SIGN_WITH_SPEND_KEY, 0, 0)
-            val truncated = signature.substring(0, 5) + signature.substring(5, signature.length - 10)
-            assertEquals(false, wallet.verifyMessage("hello", primaryAddress, truncated).isGood)
-        }
-    }
-
     // ------------------------------- PAYMENT URIS ----------------------------------
-
-    @Test
-    fun getPaymentUri_RoundTripsAConfig() {
-        testWallet().use { wallet ->
-            val config = MoneroTxConfig()
-            config.destinations = listOf(MoneroDestination(wallet.getAddress(0, 0), BigInteger.ZERO))
-            val uri = wallet.getPaymentUri(config)
-            assertSameJson(MoneroJson.serialize(config), MoneroJson.serialize(wallet.parsePaymentUri(uri)))
-
-            config.destinations = listOf(MoneroDestination(wallet.getAddress(0, 1), BigInteger.valueOf(425000000000L)))
-            config.recipientName = "John Doe"
-            config.note = "OMZG XMR FTW"
-            val fullUri = wallet.getPaymentUri(config)
-            assertSameJson(MoneroJson.serialize(config), MoneroJson.serialize(wallet.parsePaymentUri(fullUri)))
-        }
-    }
 
     @Test
     fun getPaymentUri_WithoutAnAddress_IsAnError() {
@@ -1078,15 +894,6 @@ class MoneroWalletFullTest {
     }
 
     @Test
-    fun getVersion_ReadsTheLibrary() {
-        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
-            val version = wallet.getVersion()
-            assertTrue(version.number!! > 0)
-            assertNotNull(version.isRelease)
-        }
-    }
-
-    @Test
     fun setRestoreHeight_MovesWhereTheWalletScansFrom() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.setRestoreHeight(10)
@@ -1185,21 +992,6 @@ class MoneroWalletFullTest {
         val config = config()
         config.seed = seed
         return MoneroWalletFull.createWallet(config)
-    }
-
-    // python validates these with MoneroUtils, which is a test of its own here; the checks read the same shape
-    private fun validateMnemonic(seed: String) {
-        assertEquals(25, seed.split(" ").size, seed)
-    }
-
-    private fun validatePrivateKey(key: String) {
-        assertTrue(Regex("[0-9a-f]{64}").matches(key), key)
-    }
-
-    private fun validateAddress(address: String) {
-        // a standard address of mainnet starts with 4, a subaddress with 8, and both are 95 characters
-        assertEquals(95, address.length, address)
-        assertTrue(address.startsWith("4") || address.startsWith("8"), address)
     }
 
     // the participants make a wallet that is final: it has the address of the setup, answers its threshold and its

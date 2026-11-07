@@ -25,6 +25,7 @@ Pull requests are welcome. If it's a big change, open an issue first so two peop
 
 - A change comes with its tests, and a fix with a test that fails without it.
 - Tests that call monero-c skip themselves when it isn't found (`NativeTestSupport.assumeAvailable()`). Tests that need a node are tagged `integration` and use `RegtestSupport`, which points them at the containers of `src/test/docker/docker-compose.yml`. Every other class of tests is tagged `unit`, and `TestTagsTest` fails if a class has neither tag.
+- What every wallet has to pass is in `BaseMoneroWalletTest`, as in `test_monero_wallet_common.py` of monero-python: the test class of a wallet extends it and says how to make a wallet. A test that only one kind of wallet can pass is in the class of that wallet.
 - A test that mirrors one of monero-python can carry its marks: `@NotSupported` passes while the test throws a "not supported" error, and `@NotImplemented` skips it while it fails, and says in the log when it passes, so the mark can go.
 - How to run them is in [Running tests](README.md#running-tests) of the README. The Android module builds with `-Pandroid`, see [android/README.md](android/README.md).
 - The Native workflow builds monero-c from the submodule, which takes a while the first time the submodule changes.
