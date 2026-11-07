@@ -95,31 +95,74 @@ open class MoneroTxWallet : MoneroTx {
     /**
      * Get the inputs that the wallet spent in the transaction.
      *
-     * @return the inputs of the transaction, as wallet outputs
+     * @param query is the query that the inputs have to meet, or null for all of them
+     * @return the inputs of the transaction, as wallet outputs, that meet the query
      */
-    fun getInputsWallet(): List<MoneroOutputWallet> {
-        return inputs?.filterIsInstance<MoneroOutputWallet>() ?: emptyList()
+    fun getInputsWallet(query: MoneroOutputQuery? = null): List<MoneroOutputWallet> {
+        val inputs = inputs?.filterIsInstance<MoneroOutputWallet>() ?: return emptyList()
+        return if (query == null) inputs else inputs.filter { query.meetsCriteria(it) }
+    }
+
+    /**
+     * Remove from the transaction the inputs that do not meet a query. The inputs that are not outputs of a wallet are removed too.
+     *
+     * @param query is the query that the inputs have to meet
+     * @return the inputs that are left, as wallet outputs
+     */
+    fun filterInputsWallet(query: MoneroOutputQuery): List<MoneroOutputWallet> {
+        val kept = getInputsWallet(query)
+        inputs = kept
+        return kept
     }
 
     /**
      * Get the outputs that the wallet received in the transaction.
      *
-     * @return the outputs of the transaction, as wallet outputs
+     * @param query is the query that the outputs have to meet, or null for all of them
+     * @return the outputs of the transaction, as wallet outputs, that meet the query
      */
-    fun getOutputsWallet(): List<MoneroOutputWallet> {
-        return outputs?.filterIsInstance<MoneroOutputWallet>() ?: emptyList()
+    fun getOutputsWallet(query: MoneroOutputQuery? = null): List<MoneroOutputWallet> {
+        val outputs = outputs?.filterIsInstance<MoneroOutputWallet>() ?: return emptyList()
+        return if (query == null) outputs else outputs.filter { query.meetsCriteria(it) }
+    }
+
+    /**
+     * Remove from the transaction the outputs that do not meet a query. The outputs that are not outputs of a wallet are removed too.
+     *
+     * @param query is the query that the outputs have to meet
+     * @return the outputs that are left, as wallet outputs
+     */
+    fun filterOutputsWallet(query: MoneroOutputQuery): List<MoneroOutputWallet> {
+        val kept = getOutputsWallet(query)
+        outputs = kept
+        return kept
     }
 
     /**
      * Get the transfers of the transaction: the outgoing transfer, then the incoming ones.
      *
-     * @return the transfers of the transaction
+     * @param query is the query that the transfers have to meet, or null for all of them
+     * @return the transfers of the transaction that meet the query
      */
-    fun getTransfers(): List<MoneroTransfer> {
+    fun getTransfers(query: MoneroTransferQuery? = null): List<MoneroTransfer> {
         val transfers = ArrayList<MoneroTransfer>()
-        outgoingTransfer?.let { transfers.add(it) }
-        incomingTransfers?.let { transfers.addAll(it) }
+        outgoingTransfer?.let { if (query == null || query.meetsCriteria(it)) transfers.add(it) }
+        incomingTransfers?.forEach { if (query == null || query.meetsCriteria(it)) transfers.add(it) }
         return transfers
+    }
+
+    /**
+     * Remove from the transaction the transfers that do not meet a query: the outgoing transfer is removed, and so are the incoming
+     * ones.
+     *
+     * @param query is the query that the transfers have to meet
+     * @return the transfers that are left: the outgoing transfer, then the incoming ones
+     */
+    fun filterTransfers(query: MoneroTransferQuery): List<MoneroTransfer> {
+        val kept = getTransfers(query)
+        outgoingTransfer = kept.firstOrNull { it is MoneroOutgoingTransfer } as MoneroOutgoingTransfer?
+        incomingTransfers = kept.filterIsInstance<MoneroIncomingTransfer>()
+        return kept
     }
 
     /**
