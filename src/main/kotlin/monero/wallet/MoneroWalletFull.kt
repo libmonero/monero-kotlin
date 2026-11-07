@@ -32,6 +32,8 @@ import monero.wallet.model.MoneroMessageSignatureType
 import monero.wallet.model.MoneroSubaddress
 import monero.wallet.model.MoneroSyncResult
 import monero.wallet.model.MoneroWalletListener
+import monero.wallet.model.MoneroTransfer
+import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxSetsResult
@@ -403,6 +405,28 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
             val out = PointerByReference()
             val result = MoneroNative.json(lib.monero_wallet_get_txs(h, query?.let { MoneroJson.serialize(it) }, out), out, MoneroWalletBlocksResult::class.java)
             result.getTxs()
+        }
+    }
+
+    /**
+     * Get the incoming and the outgoing transfers of the wallet. Each transfer is in its transaction, which holds the transfers of
+     * the answer and not the other ones. A transaction that the wallet makes to one of its own subaddresses has an outgoing transfer
+     * and an incoming one. While a sync runs, the call waits for it.
+     *
+     * @param query is the query that the transfers have to match, or null for all of them
+     * @return the transfers of the wallet that meet the query
+     * @throws MoneroError if the wallet is closed, or the query has an account index or a subaddress index that is negative
+     */
+    override fun getTransfers(query: MoneroTransferQuery?): List<MoneroTransfer> {
+        checkNotClosed()
+        if (query != null) {
+            val indices = listOfNotNull(query.accountIndex, query.subaddressIndex) + (query.subaddressIndices ?: emptyList())
+            if (indices.any { it < 0 }) throw MoneroError("The indices of a transfer query can not be negative: $indices")
+        }
+        return run { lib, h ->
+            val out = PointerByReference()
+            val result = MoneroNative.json(lib.monero_wallet_get_transfers(h, query?.let { MoneroJson.serialize(it) }, out), out, MoneroWalletBlocksResult::class.java)
+            result.getTransfers()
         }
     }
 

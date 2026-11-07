@@ -16,6 +16,7 @@ import monero.common.MoneroError
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroOutputQuery
+import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY
@@ -1083,7 +1084,6 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
                 "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
-                "getTransfers" to { wallet.getTransfers() },
                 "getTxNote" to { wallet.getTxNote("") },
                 "getAddressBookEntries" to { wallet.getAddressBookEntries() },
                 "addListener" to { wallet.addListener(MoneroWalletListener()) },
@@ -1137,6 +1137,35 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             assertEquals(2, wallet.getAccounts().size)
             assertEquals(label, wallet.getSubaddress(1, 0).label)
         }
+    }
+
+    // ------------------------------- TRANSFERS ----------------------------------
+
+    // like the transactions, the transfers of a wallet come from a node
+    @Test
+    fun transfers_OfAWalletThatIsNotConnected_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTransfers() }.message)
+            assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTransfers(0) }.message)
+            assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTransfers(MoneroTransferQuery().also { it.isIncoming = true }) }.message)
+        }
+    }
+
+    @Test
+    fun transfers_WithAnIndexThatIsNegative_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertFailsWith<MoneroError> { wallet.getTransfers(MoneroTransferQuery().also { it.accountIndex = -1 }) }
+            assertFailsWith<MoneroError> { wallet.getTransfers(MoneroTransferQuery().also { it.accountIndex = 0; it.subaddressIndex = -1 }) }
+            assertFailsWith<MoneroError> { wallet.getTransfers(MoneroTransferQuery().also { it.subaddressIndices = listOf(1, -2) }) }
+            assertFailsWith<MoneroError> { wallet.getTransfers(-1, 0) }
+        }
+    }
+
+    @Test
+    fun transfers_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getTransfers() }
     }
 
     // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
