@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Tag
  * server that does not answer. The ones that need a node are in [MoneroRpcConnectionIntegrationTest].
  *
  * Not ported: the comparison of the priorities (test_priority), which is a function of the connection manager of python and not
- * of monero-c, and the invalid credentials against a node that needs a login, which the node of the compose does not.
+ * of monero-c.
  */
 @Tag("unit")
 class MoneroRpcConnectionTest {

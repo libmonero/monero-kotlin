@@ -14,7 +14,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroError
-import monero.common.MoneroRpcConnection
 import monero.daemon.MoneroDaemonRpc
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroDestination
@@ -26,7 +25,7 @@ import org.junit.jupiter.api.io.TempDir
 
 /**
  * Full wallet integration tests. They need monero-c and a regtest node, which integration-tests.yml starts with the
- * docker-compose.yml of monero-c, and they move its chain: they mine to the wallets that they create, and pay with
+ * docker-compose.yml of src/test/docker, and they move its chain: they mine to the wallets that they create, and pay with
  * what they mine. What they assert about the chain is relative to the chain that they find.
  */
 @Tag("integration")
@@ -46,7 +45,7 @@ class MoneroWalletFullIntegrationTest {
     // A random wallet scans a regtest chain from the genesis block, and reaches the height of the daemon
     @Test
     fun testSyncFromGenesis() {
-        MoneroDaemonRpc(RegtestSupport.daemonUri).use { daemon ->
+        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
             createWallet().use { wallet ->
                 assertTrue(wallet.isConnectedToDaemon())
                 assertFalse(wallet.isSynced())
@@ -235,7 +234,7 @@ class MoneroWalletFullIntegrationTest {
 
         // the connection is not in the files, so the wallet that is opened connects again
         MoneroWalletFull.openWallet(senderConfig).use { wallet ->
-            wallet.setDaemonConnection(MoneroRpcConnection(RegtestSupport.daemonUri))
+            wallet.setDaemonConnection(RegtestSupport.daemonConnection())
             wallet.sync()
             assertEquals(expected, wallet.getBalance())
         }
@@ -363,7 +362,7 @@ class MoneroWalletFullIntegrationTest {
         config.path = tempDir.resolve("wallet-${System.nanoTime()}").toString()
         config.password = password
         config.networkType = MoneroNetworkType.MAINNET
-        config.server = MoneroRpcConnection(RegtestSupport.daemonUri)
+        config.server = RegtestSupport.daemonConnection()
         config.regtest = true
         return config
     }

@@ -1,38 +1,73 @@
 package monero
 
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.time.Duration
 import monero.common.MoneroError
+import monero.common.MoneroJson
+import monero.common.MoneroRpcConnection
 import org.junit.jupiter.api.Assumptions.abort
 import org.junit.jupiter.api.Assumptions.assumeTrue
 
 /**
- * What the integration tests share: the regtest node that integration-tests.yml starts with the docker-compose.yml of
- * monero-c, and the mining that moves its chain. Set the environment variable MONERO_C_TEST_DAEMON_URI to the URI of the
- * node when it is not the one of that file.
+ * What the integration tests share: the regtest nodes and the wallet RPC servers that integration-tests.yml starts with
+ * src/test/docker/docker-compose.yml, which are the ones of monero-python, and the mining that moves the chain. The tests use the second
+ * node and the first wallet RPC server. Each of the settings is the one of that file, and an environment variable changes it:
+ * MONERO_C_TEST_DAEMON_URI, MONERO_C_TEST_DAEMON_USERNAME, MONERO_C_TEST_DAEMON_PASSWORD, MONERO_C_TEST_WALLET_RPC_URI,
+ * MONERO_C_TEST_WALLET_RPC_USERNAME and MONERO_C_TEST_WALLET_RPC_PASSWORD.
  */
 object RegtestSupport {
 
     val daemonUri: String = System.getenv("MONERO_C_TEST_DAEMON_URI") ?: "http://127.0.0.1:18081"
+    val daemonUsername: String = System.getenv("MONERO_C_TEST_DAEMON_USERNAME") ?: "rpc_daemon_user"
+    val daemonPassword: String = System.getenv("MONERO_C_TEST_DAEMON_PASSWORD") ?: "abc123"
 
-    // the wallet RPC server of the same compose, which has no login
     val walletRpcUri: String = System.getenv("MONERO_C_TEST_WALLET_RPC_URI") ?: "http://127.0.0.1:18082"
+    val walletRpcUsername: String = System.getenv("MONERO_C_TEST_WALLET_RPC_USERNAME") ?: "rpc_user"
+    val walletRpcPassword: String = System.getenv("MONERO_C_TEST_WALLET_RPC_PASSWORD") ?: "abc123"
 
     // the primary address of the test wallet of monero-python's config.ini, which the mining calls pay by default
     const val MINING_ADDRESS = "48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2"
 
-    private val http by lazy { HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build() }
+    private const val CHECK_TIMEOUT_MS = 2000L
+
+    /**
+     * A connection to the node, with its login. The caller closes it.
+     */
+    fun daemonConnection() = MoneroRpcConnection(daemonUri, daemonUsername, daemonPassword)
+
+    /**
+     * A connection to the wallet RPC server, with its login. The caller closes it.
+     */
+    fun walletRpcConnection() = MoneroRpcConnection(walletRpcUri, walletRpcUsername, walletRpcPassword)
 
     /**
      * Skip the test if monero-c can not be loaded, or no node answers at the URI.
+     *
+     * @throws MoneroError if the node answers, and does not accept the login
      */
     fun assumeAvailable() {
         NativeTestSupport.assumeAvailable()
-        assumeTrue(isDaemonUp(), "no monerod at $daemonUri: start the compose of monero-c, or set MONERO_C_TEST_DAEMON_URI")
+        assumeTrue(isUp(daemonConnection()), "no monerod at $daemonUri: start the compose of src/test/docker, or set MONERO_C_TEST_DAEMON_URI")
         startChain()
+    }
+
+    /**
+     * Skip the test if monero-c can not be loaded, or no wallet RPC server answers at its URI.
+     *
+     * @throws MoneroError if the server answers, and does not accept the login
+     */
+    fun assumeWalletRpcAvailable() {
+        NativeTestSupport.assumeAvailable()
+        assumeTrue(isUp(walletRpcConnection()), "no monero-wallet-rpc at $walletRpcUri: start the compose of src/test/docker, or set MONERO_C_TEST_WALLET_RPC_URI")
+    }
+
+    // a server that answers and refuses the login is a mistake of the setup, and a skipped test would hide it
+    private fun isUp(connection: MoneroRpcConnection): Boolean {
+        connection.use {
+            it.checkConnection(CHECK_TIMEOUT_MS)
+            if (it.isOnline == true && it.isAuthenticated == false) {
+                throw MoneroError("The server at ${it.uri} does not accept the login of the tests: set the user name and the password of the compose of src/test/docker in the environment variables")
+            }
+            return it.isConnected() == true
+        }
     }
 
     /**
@@ -41,46 +76,14 @@ object RegtestSupport {
      * fetches nothing.
      */
     private fun startChain() {
-        val request = HttpRequest.newBuilder(URI.create(daemonUri + "/get_height")).timeout(Duration.ofSeconds(2)).GET().build()
-
         // a node that goes away after the check of assumeAvailable skips the test, it does not fail it
-        val body = try {
-            http.send(request, HttpResponse.BodyHandlers.ofString()).body()
-        } catch (e: java.io.IOException) {
+        val json = try {
+            daemonConnection().use { it.sendPathRequest("get_height", timeoutMs = CHECK_TIMEOUT_MS) }
+        } catch (e: MoneroError) {
             abort("the node at $daemonUri went away: $e")
         }
-        val height = Regex("\"height\":\\s*(\\d+)").find(body)?.groupValues?.get(1)?.toLong()
-        if (height != null && height <= 1) mineBlocks(1)
-    }
-
-    /**
-     * Skip the test if monero-c can not be loaded, or no wallet RPC server answers at its URI.
-     */
-    fun assumeWalletRpcAvailable() {
-        NativeTestSupport.assumeAvailable()
-        assumeTrue(isWalletRpcUp(), "no monero-wallet-rpc at $walletRpcUri: start the compose of monero-c, or set MONERO_C_TEST_WALLET_RPC_URI")
-    }
-
-    fun isWalletRpcUp(): Boolean {
-        return try {
-            val request = HttpRequest.newBuilder(URI.create(walletRpcUri + "/json_rpc"))
-                .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(2))
-                .POST(HttpRequest.BodyPublishers.ofString("""{"jsonrpc":"2.0","id":"0","method":"get_version"}"""))
-                .build()
-            http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 200
-        } catch (_: java.io.IOException) {
-            false
-        }
-    }
-
-    fun isDaemonUp(): Boolean {
-        return try {
-            val request = HttpRequest.newBuilder(URI.create(daemonUri + "/get_height")).timeout(Duration.ofSeconds(2)).GET().build()
-            http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 200
-        } catch (_: java.io.IOException) {
-            false
-        }
+        val height = MoneroJson.mapper.readTree(json).path("height").asLong(-1)
+        if (height in 0..1) mineBlocks(1)
     }
 
     /**
@@ -91,16 +94,9 @@ object RegtestSupport {
      * @throws MoneroError if the daemon does not mine them
      */
     fun mineBlocks(numBlocks: Int, address: String = MINING_ADDRESS) {
-        val body = """{"jsonrpc": "2.0", "id": "0", "method": "generateblocks",""" +
-            """ "params": {"amount_of_blocks": $numBlocks, "wallet_address": "$address", "starting_nonce": 0}}"""
-        val request = HttpRequest.newBuilder(URI.create(daemonUri + "/json_rpc"))
-            .header("Content-Type", "application/json")
-            .timeout(Duration.ofSeconds(180))
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build()
-        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
-        if (response.statusCode() != 200 || !response.body().contains("\"status\": \"OK\"")) {
-            throw MoneroError("generateblocks did not mine: ${response.body()}")
-        }
+        val params = mapOf("amount_of_blocks" to numBlocks, "wallet_address" to address, "starting_nonce" to 0)
+        val json = daemonConnection().use { it.sendJsonRequest("generateblocks", params, 180_000) }
+        val status = MoneroJson.mapper.readTree(json).path("status").asText()
+        if (status != "OK") throw MoneroError("generateblocks did not mine: $json")
     }
 }

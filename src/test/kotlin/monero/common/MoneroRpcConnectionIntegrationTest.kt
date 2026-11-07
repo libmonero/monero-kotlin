@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Tag
 /**
  * Mirrors the tests of the RPC connection of monero-python (tests/test_monero_rpc_connection.py) that need a server: the
  * check of the connection to a node and to a wallet RPC server, and the three kinds of request. They need monero-c and the regtest
- * node and wallet RPC server that integration-tests.yml starts with the docker-compose.yml of monero-c. The ones that need no
+ * node and wallet RPC server that integration-tests.yml starts with the docker-compose.yml of src/test/docker, which have a login. The ones that need no
  * server are in [MoneroRpcConnectionTest].
  */
 @Tag("integration")
@@ -27,7 +27,7 @@ class MoneroRpcConnectionIntegrationTest {
         RegtestSupport.assumeAvailable()
     }
 
-    private fun nodeConnection() = MoneroRpcConnection(RegtestSupport.daemonUri).also { it.timeoutMs = timeoutMs }
+    private fun nodeConnection() = RegtestSupport.daemonConnection().also { it.timeoutMs = timeoutMs }
 
     // the check that python's RpcConnectionUtils.test_rpc_connection does
     private fun assertCheckConnection(connection: MoneroRpcConnection, uri: String) {
@@ -56,22 +56,29 @@ class MoneroRpcConnectionIntegrationTest {
     @Test
     fun testWalletRpcConnection() {
         RegtestSupport.assumeWalletRpcAvailable()
-        MoneroRpcConnection(RegtestSupport.walletRpcUri).also { it.timeoutMs = timeoutMs }.use { assertCheckConnection(it, RegtestSupport.walletRpcUri) }
+        RegtestSupport.walletRpcConnection().also { it.timeoutMs = timeoutMs }.use { assertCheckConnection(it, RegtestSupport.walletRpcUri) }
     }
 
-    // Can set credentials: the node has no login, so it accepts any
+    // Can set credentials
     @Test
     fun testSetCredentials() {
         MoneroRpcConnection(RegtestSupport.daemonUri).use { connection ->
+            // connection without credentials
             assertNull(connection.username)
             assertNull(connection.password)
 
-            connection.setCredentials("rpc_daemon_user", "abc123")
+            // the node has a login, so it does not accept the connection
+            assertTrue(connection.checkConnection())
+            assertEquals(true, connection.isOnline)
+            assertEquals(false, connection.isAuthenticated)
+            assertEquals(false, connection.isConnected())
+
+            connection.setCredentials(RegtestSupport.daemonUsername, RegtestSupport.daemonPassword)
             assertNull(connection.isOnline)
             assertNull(connection.isAuthenticated)
             assertNull(connection.isConnected())
-            assertEquals("rpc_daemon_user", connection.username)
-            assertEquals("abc123", connection.password)
+            assertEquals(RegtestSupport.daemonUsername, connection.username)
+            assertEquals(RegtestSupport.daemonPassword, connection.password)
 
             assertTrue(connection.checkConnection(), "Could not check connection")
             assertEquals(true, connection.isOnline)
@@ -84,6 +91,30 @@ class MoneroRpcConnectionIntegrationTest {
             assertNull(connection.isConnected())
             assertNull(connection.username)
             assertNull(connection.password)
+        }
+    }
+
+    // Test invalid credentials
+    @Test
+    fun testSetInvalidCredentials() {
+        nodeConnection().use { connection ->
+            val noUsername = assertFailsWith<MoneroError> { connection.setCredentials("", "abc123") }
+            assertTrue("username cannot be empty because password is not empty" in noUsername.message!!, noUsername.message)
+            val noPassword = assertFailsWith<MoneroError> { connection.setCredentials("user", "") }
+            assertTrue("password cannot be empty because username is not empty" in noPassword.message!!, noPassword.message)
+
+            // the credentials are the ones from before
+            assertEquals(RegtestSupport.daemonUsername, connection.username)
+            assertEquals(RegtestSupport.daemonPassword, connection.password)
+
+            // other credentials reach the node, which does not accept them
+            connection.setCredentials("user", "abc123")
+            assertEquals("user", connection.username)
+            assertEquals("abc123", connection.password)
+            assertTrue(connection.checkConnection())
+            assertEquals(true, connection.isOnline)
+            assertEquals(false, connection.isAuthenticated)
+            assertEquals(false, connection.isConnected())
         }
     }
 
