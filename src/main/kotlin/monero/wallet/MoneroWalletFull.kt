@@ -18,6 +18,7 @@ import monero.internal.MoneroNative
 import monero.internal.NativeWorker
 import monero.internal.SizeT
 import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroCheckReserve
 import monero.wallet.model.MoneroCheckTx
 import monero.daemon.model.MoneroKeyImage
 import monero.wallet.model.MoneroKeyImageExportResult
@@ -567,6 +568,49 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
      */
     override fun checkSpendProof(txHash: String, message: String?, signature: String): Boolean {
         return flag { lib, h, good -> lib.monero_wallet_check_spend_proof(h, txHash, message, signature, good) }
+    }
+
+    // ------------------------------- PROOFS OF RESERVES ----------------------------------
+
+    /**
+     * Get a signature that proves the whole balance of the wallet, which the one who has it checks with [checkReserveProof].
+     *
+     * @param message is a message that the signature carries, or null for none
+     * @return the signature
+     * @throws MoneroError if the wallet is closed, or it is view-only, which can not sign
+     */
+    override fun getReserveProofWallet(message: String?): String {
+        return string { lib, h, out -> lib.monero_wallet_get_reserve_proof_wallet(h, message, out) }
+    }
+
+    /**
+     * Get a signature that proves an amount that an account of the wallet holds.
+     *
+     * @param accountIdx is the index of the account
+     * @param amount is the amount to prove, in atomic units, which is at most what the account has
+     * @param message is a message that the signature carries, or null for none
+     * @return the signature
+     * @throws MoneroError if the wallet is closed, the amount is negative or does not fit 64 bits, the account is not there, or it
+     * does not have the amount
+     */
+    override fun getReserveProofAccount(accountIdx: Int, amount: BigInteger, message: String?): String {
+        if (amount.signum() < 0 || amount.bitLength() > 64) throw MoneroError("The amount of a reserve proof is not an amount of atomic units: $amount")
+        return string { lib, h, out -> lib.monero_wallet_get_reserve_proof_account(h, accountIdx, amount.toLong(), message, out) }
+    }
+
+    /**
+     * Check the proof of the reserve of a wallet.
+     *
+     * @param address is the primary address of the wallet that made the proof
+     * @param message is the message that the signature carries, or null or "" for none
+     * @param signature is the signature of [getReserveProofWallet] or [getReserveProofAccount]
+     * @return the result of the check: the amount that the proof shows, and how much of it the wallet spent in transactions that are not
+     * confirmed. A signature that does not prove the reserve is not an error: the result says it is not good
+     * @throws MoneroError if the wallet is closed, the address is not valid or is a subaddress, or the signature is not a signature
+     */
+    override fun checkReserveProof(address: String, message: String?, signature: String): MoneroCheckReserve {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_check_reserve_proof(h, address, message, signature, out) }
     }
 
     // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------

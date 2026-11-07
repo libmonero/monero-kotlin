@@ -6,6 +6,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import monero.wallet.model.MoneroCheckReserve
 import monero.wallet.model.MoneroCheckTx
 import monero.wallet.model.MoneroIncomingTransfer
 import monero.wallet.model.MoneroOutgoingTransfer
@@ -129,6 +130,23 @@ object TxAssertions {
             assertNull(check.inTxPool)
             assertNull(check.numConfirmations)
             assertNull(check.receivedAmount)
+        }
+    }
+
+    /**
+     * Check the result of checking a proof of a reserve, like TxWalletUtils.test_check_reserve of monero-python: a good one says the
+     * amount and the part of it that is spent in transactions that are not confirmed, and one that is not good says nothing of that.
+     */
+    fun validateCheckReserve(check: MoneroCheckReserve) {
+        assertNotNull(check.isGood)
+        if (check.isGood == true) {
+            assertNotNull(check.totalAmount)
+            assertTrue(check.totalAmount!!.signum() >= 0)
+            assertNotNull(check.unconfirmedSpentAmount)
+            assertTrue(check.unconfirmedSpentAmount!!.signum() >= 0)
+        } else {
+            assertNull(check.totalAmount)
+            assertNull(check.unconfirmedSpentAmount)
         }
     }
 }

@@ -1,6 +1,7 @@
 package monero.wallet
 
 import java.math.BigInteger
+import java.nio.file.Path
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,7 +14,10 @@ import monero.common.MoneroError
 import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxWallet
+import monero.daemon.model.MoneroNetworkType
+import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * The keys and the proofs of the transactions of a full wallet, against a regtest node, like the tests of monero-python
@@ -23,6 +27,9 @@ import org.junit.jupiter.api.Tag
  */
 @Tag("integration")
 class MoneroWalletFullProofsIntegrationTest {
+
+    @TempDir
+    lateinit var tempDir: Path
 
     // the most transactions that a test proves, as WalletUtils.MAX_TX_PROOFS of monero-python
     private val maxTxProofs = 25
@@ -195,5 +202,95 @@ class MoneroWalletFullProofsIntegrationTest {
         assertFalse(wallet.checkSpendProof(tx.hash!!, "This is the wrong message", right))
         val ofAnother = wallet.getSpendProof(txs[1].hash!!, "This is the right message")
         assertFalse(wallet.checkSpendProof(tx.hash!!, "This is the right message", ofAnother))
+    }
+
+    // Can prove the reserves of the wallet, which include what it spent in transactions that are not confirmed
+    @Test
+    fun testGetReserveProofWallet() {
+        val wallet = wallet()
+        val primary = wallet.getPrimaryAddress()
+        val signature = wallet.getReserveProofWallet("Test message")
+
+        val check = wallet.checkReserveProof(primary, "Test message", signature)
+        TxAssertions.validateCheckReserve(check)
+        assertEquals(true, check.isGood)
+        // the proof shows the outputs that the wallet had before the transaction in the pool spent them
+        assertTrue(wallet.getTxs().any { it.inTxPool == true })
+        assertTrue(check.unconfirmedSpentAmount!!.signum() > 0, "the transaction in the pool spent outputs")
+        assertTrue(check.totalAmount!! >= wallet.getBalance())
+
+        // without a message, and for its integrated address
+        assertEquals(true, wallet.checkReserveProof(primary, null, wallet.getReserveProofWallet(null)).isGood)
+        assertEquals(true, wallet.checkReserveProof(wallet.getIntegratedAddress(null, TxHistoryWallet.PAYMENT_ID).integratedAddress!!, "Test message", signature).isGood)
+
+        // the wrong message
+        val wrong = wallet.checkReserveProof(primary, "Wrong message", signature)
+        assertEquals(false, wrong.isGood)
+        TxAssertions.validateCheckReserve(wrong)
+
+        // an address that the proof is not of, a subaddress, a signature that is not one, and an address that is not one
+        assertEquals("The given address isn't found in the proof", assertFailsWith<MoneroError> { wallet.checkReserveProof(RegtestSupport.MINING_ADDRESS, "Test message", signature) }.message)
+        assertEquals("Address must not be a subaddress", assertFailsWith<MoneroError> { wallet.checkReserveProof(wallet.getAddress(0, 1), "Test message", signature) }.message)
+        assertEquals("Signature header check error", assertFailsWith<MoneroError> { wallet.checkReserveProof(primary, "Test message", "wrong signature") }.message)
+        assertEquals("Must provide signature to check reserve proof", assertFailsWith<MoneroError> { wallet.checkReserveProof(primary, "Test message", "") }.message)
+        assertEquals("Invalid address", assertFailsWith<MoneroError> { wallet.checkReserveProof("invalid_address", "Test message", signature) }.message)
+    }
+
+    // The proof of a wallet that has nothing in the pool shows its balance, and none of it spent
+    @Test
+    fun testGetReserveProofWalletWithoutUnconfirmedTxs() {
+        val config = MoneroWalletConfig()
+        config.path = tempDir.resolve("wallet").toString()
+        config.password = "supersecretpassword123"
+        config.networkType = MoneroNetworkType.MAINNET
+        config.server = RegtestSupport.daemonConnection()
+        config.regtest = true
+        MoneroWalletFull.createWallet(config).use { wallet ->
+            RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
+            RegtestSupport.mineBlocks(130)
+            wallet.sync()
+            assertTrue(wallet.getTxs().none { it.inTxPool == true })
+
+            val check = wallet.checkReserveProof(wallet.getPrimaryAddress(), "Test message", wallet.getReserveProofWallet("Test message"))
+            TxAssertions.validateCheckReserve(check)
+            assertEquals(true, check.isGood)
+            assertEquals(wallet.getBalance(), check.totalAmount)
+            assertEquals(BigInteger.ZERO, check.unconfirmedSpentAmount)
+        }
+    }
+
+    // Can prove the reserves of the accounts that have funds, and not those that have none or have less than the amount
+    @Test
+    fun testGetReserveProofAccount() {
+        val wallet = wallet()
+        val primary = wallet.getPrimaryAddress()
+        val accounts = wallet.getAccounts().filter { it.balance!!.signum() > 0 }
+        assertTrue(accounts.size > 1, "Must have more than one account with funds")
+
+        var signature = ""
+        for (account in accounts) {
+            val amount = account.balance!!.divide(BigInteger.TWO)
+            signature = wallet.getReserveProofAccount(account.index!!, amount, "Test message")
+            val check = wallet.checkReserveProof(primary, "Test message", signature)
+            TxAssertions.validateCheckReserve(check)
+            assertEquals(true, check.isGood)
+            assertTrue(check.totalAmount!! >= amount, "the proof shows at least the amount that was asked")
+        }
+
+        // the amounts that can not be proved: none, and more than the balance of the account. An amount over the balance of the first
+        // account is proved all the same, as monero-python notes (monero-project/monero#6595), so that one is not asserted
+        val account = accounts[1]
+        assertEquals("Proved amount must be greater than 0", assertFailsWith<MoneroError> { wallet.getReserveProofAccount(account.index!!, BigInteger.ZERO, "Test message") }.message)
+        assertEquals("Not enough balance in this account for the requested minimum reserve amount", assertFailsWith<MoneroError> { wallet.getReserveProofAccount(account.index!!, account.balance!!.add(TxAssertions.MAX_FEE), "Test message") }.message)
+        assertEquals("Account index is out of bound", assertFailsWith<MoneroError> { wallet.getReserveProofAccount(99, BigInteger.ONE, "Test message") }.message)
+        assertFailsWith<MoneroError> { wallet.getReserveProofAccount(0, BigInteger.ONE.negate(), "Test message") }
+
+        // the proof of the last account, checked for an address that is not its own, a subaddress, the wrong message and a wrong signature
+        assertFailsWith<MoneroError> { wallet.checkReserveProof(RegtestSupport.MINING_ADDRESS, "Test message", signature) }
+        assertFailsWith<MoneroError> { wallet.checkReserveProof(wallet.getAddress(0, 1), "Test message", signature) }
+        val wrong = wallet.checkReserveProof(primary, "Wrong message", signature)
+        assertEquals(false, wrong.isGood)
+        TxAssertions.validateCheckReserve(wrong)
+        assertFailsWith<MoneroError> { wallet.checkReserveProof(primary, "Test message", "wrong signature") }
     }
 }

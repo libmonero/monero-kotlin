@@ -1428,4 +1428,42 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.getSpendProof(hash1) }
         assertFailsWith<MoneroError> { wallet.checkSpendProof(hash1, null, "signature") }
     }
+
+    // ------------------------------- PROOFS OF RESERVES ----------------------------------
+
+    @Test
+    fun reserveProofs_OfAccountsThatCanNotBeProved_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("Account index is out of bound", assertFailsWith<MoneroError> { wallet.getReserveProofAccount(99, BigInteger.ONE, "message") }.message)
+            // a wallet that has nothing is refused before the amount is looked at
+            assertEquals("Zero balance", assertFailsWith<MoneroError> { wallet.getReserveProofAccount(0, BigInteger.ONE, "message") }.message)
+            assertFailsWith<MoneroError> { wallet.getReserveProofAccount(0, BigInteger.ONE.negate(), "message") }
+            assertFailsWith<MoneroError> { wallet.getReserveProofAccount(0, BigInteger.ONE.shiftLeft(64), "message") }
+        }
+    }
+
+    @Test
+    fun checkReserveProof_WithAnAddressThatIsNotValid_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("Invalid address", assertFailsWith<MoneroError> { wallet.checkReserveProof("invalid_address", null, "signature") }.message)
+        }
+    }
+
+    // the check of a signature needs a daemon, which the tests of the proofs against a regtest node have
+    @Test
+    fun checkReserveProof_OfAWalletThatIsNotConnected_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertFailsWith<MoneroError> { wallet.checkReserveProof(wallet.getPrimaryAddress(), null, "signature") }
+        }
+    }
+
+    @Test
+    fun reserveProofs_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        val address = wallet.getPrimaryAddress()
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getReserveProofWallet("message") }
+        assertFailsWith<MoneroError> { wallet.getReserveProofAccount(0, BigInteger.ONE, "message") }
+        assertFailsWith<MoneroError> { wallet.checkReserveProof(address, "message", "signature") }
+    }
 }
