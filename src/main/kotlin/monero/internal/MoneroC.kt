@@ -375,6 +375,22 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
 
+    fun monero_wallet_get_outputs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
+
+    fun monero_wallet_export_outputs(wallet: Pointer, all: Boolean, hex: PointerByReference): Int
+
+    fun monero_wallet_import_outputs(wallet: Pointer, outputsHex: String, numImported: IntByReference): Int
+
+    fun monero_wallet_freeze_output(wallet: Pointer, keyImage: String): Int
+
+    fun monero_wallet_thaw_output(wallet: Pointer, keyImage: String): Int
+
+    fun monero_wallet_is_output_frozen(wallet: Pointer, keyImage: String, frozen: ByteByReference): Int
+
+    fun monero_wallet_export_key_images(wallet: Pointer, all: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_import_key_images(wallet: Pointer, keyImagesJson: String, offset: Long, json: PointerByReference): Int
+
     fun monero_wallet_create_txs(wallet: Pointer, configJson: String, json: PointerByReference): Int
 
     fun monero_wallet_relay_tx(wallet: Pointer, txMetadata: String, out: PointerByReference): Int
