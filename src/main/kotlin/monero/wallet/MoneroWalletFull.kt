@@ -36,6 +36,7 @@ import monero.wallet.model.MoneroTransfer
 import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
+import monero.wallet.model.MoneroTxSet
 import monero.wallet.model.MoneroTxSetsResult
 import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletBlocksResult
@@ -540,6 +541,25 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     }
 
     /**
+     * Create a transaction that transfers funds from the wallet. The transaction is relayed only when the config says
+     * so: a transaction that is not relayed carries the metadata that [relayTx] takes. The config can not be split into
+     * several transactions: [createTxs] does that.
+     *
+     * @param config is the configuration of the transfer, which names the account to send from and the destinations,
+     * and says whether to relay
+     * @return the transaction that the config makes, with its fee and its metadata
+     * @throws MoneroError if the wallet is closed, it is not connected to the daemon, the configuration is invalid,
+     * or the wallet has less unlocked money than the transfer and its fee need
+     */
+    override fun createTx(config: MoneroTxConfig): MoneroTxWallet {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_create_tx(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+        }.getTxs().singleOrNull() ?: throw MoneroError("monero-c did not create one transaction")
+    }
+
+    /**
      * Create one or more transactions that transfer funds from the wallet. The transactions are relayed only when the
      * config says so: a transaction that is not relayed carries the metadata that [relayTx] takes.
      *
@@ -581,6 +601,83 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
      */
     override fun relayTx(tx: MoneroTxWallet): String {
         return string { lib, h, out -> lib.monero_wallet_relay_tx_json(h, MoneroJson.serialize(tx), out) }
+    }
+
+    /**
+     * Relay transactions that [createTxs] made without relaying, from their metadata.
+     *
+     * @param txMetadatas are the metadata of the transactions, which a transaction of [createTxs] carries
+     * @return the hashes of the relayed transactions
+     * @throws MoneroError if the wallet is closed, one of the metadata is not the metadata of a transaction, or the
+     * daemon refuses a transaction
+     */
+    override fun relayTxs(txMetadatas: List<String>): List<String> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.strings(lib.monero_wallet_relay_txs(h, txMetadatas.toTypedArray(), SizeT(txMetadatas.size.toLong()), out), out)
+        }
+    }
+
+    /**
+     * Relay transactions that [createTxs] made without relaying, from the transactions themselves: the C ABI reads the
+     * metadata from the JSON of the transactions.
+     *
+     * @param txs are the transactions to relay, which [createTxs] returned
+     * @return the hashes of the relayed transactions
+     * @throws MoneroError if the wallet is closed, a transaction has no metadata, or the daemon refuses a transaction
+     */
+    override fun relayTxs(txs: Collection<MoneroTxWallet>): List<String> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.strings(lib.monero_wallet_relay_txs_json(h, MoneroJson.serialize(txs.toList()), out), out)
+        }
+    }
+
+    /**
+     * Describe the unsigned or the multisig hex of a tx set as structured transactions.
+     *
+     * @param txSet is a tx set with its unsigned tx hex or its multisig tx hex
+     * @return the tx set with the structured transactions
+     * @throws MoneroError if the wallet is closed, or the set has no hex that the wallet can describe
+     */
+    override fun describeTxSet(txSet: MoneroTxSet): MoneroTxSet {
+        checkNotClosed()
+        return txSetOf(run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_describe_tx_set(h, MoneroJson.serialize(txSet), out), out, MoneroTxSetsResult::class.java)
+        })
+    }
+
+    /**
+     * Sign the unsigned transactions that a view-only wallet made, with the wallet that has the keys.
+     *
+     * @param unsignedTxHex is the unsigned tx hex of the set that the view-only wallet made
+     * @return the tx set with the signed transactions and their hex
+     * @throws MoneroError if the wallet is closed, is view-only, or the hex is not unsigned transactions of this wallet
+     */
+    override fun signTxs(unsignedTxHex: String): MoneroTxSet {
+        checkNotClosed()
+        return txSetOf(run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.json(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out, MoneroTxSetsResult::class.java)
+        })
+    }
+
+    /**
+     * Submit the signed transactions of a view-only wallet to the daemon.
+     *
+     * @param signedTxHex is the signed tx hex, from [signTxs]
+     * @return the hashes of the submitted transactions
+     * @throws MoneroError if the wallet is closed, the hex is not signed transactions, or the daemon refuses them
+     */
+    override fun submitTxs(signedTxHex: String): List<String> {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.strings(lib.monero_wallet_submit_txs(h, signedTxHex, out), out)
+        }
     }
 
     // ------------------------------- THE DAEMON ----------------------------------
@@ -1093,6 +1190,10 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     }
 
     // ------------------------------- PRIVATE ------------------------------------
+
+    private fun txSetOf(result: MoneroTxSetsResult): MoneroTxSet {
+        return result.txSets?.singleOrNull() ?: throw MoneroError("monero-c did not return one tx set")
+    }
 
     private fun checkNotClosed() {
         if (closed) throw MoneroError("Wallet is closed")

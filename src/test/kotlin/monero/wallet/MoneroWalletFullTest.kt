@@ -22,6 +22,7 @@ import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
+import monero.wallet.model.MoneroTxSet
 import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.io.TempDir
@@ -734,6 +735,58 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.relayTx(MoneroTxWallet()) }
         }
+    }
+
+    @Test
+    fun createTx_OfAWalletThatIsNotConnected_IsAnError() {
+        testWallet().use { wallet ->
+            val config = MoneroTxConfig()
+            config.accountIndex = 0
+            config.destinations = listOf(MoneroDestination(primaryAddress, BigInteger.valueOf(1000000000000L)))
+            assertEquals("Failed to get height", assertFailsWith<MoneroError> { wallet.createTx(config) }.message)
+        }
+    }
+
+    @Test
+    fun createTx_WithoutAnAccountOrADestination_IsAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.createTx(MoneroTxConfig()) }
+            val config = MoneroTxConfig()
+            config.destinations = listOf(MoneroDestination(primaryAddress, BigInteger.valueOf(1000000000000L)))
+            assertEquals("Must specify account index to send from", assertFailsWith<MoneroError> { wallet.createTx(config) }.message)
+        }
+    }
+
+    @Test
+    fun relayTxs_OfWhatAreNotTxs_AreAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.relayTxs(listOf("this is not the metadata of a transaction")) }
+            assertFailsWith<MoneroError> { wallet.relayTxs(listOf(MoneroTxWallet())) }
+        }
+    }
+
+    @Test
+    fun signDescribeAndSubmitTxs_OfWhatIsNotTheHexOfTxs_AreAnError() {
+        testWallet().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.signTxs("this is not the hex of transactions") }
+            assertFailsWith<MoneroError> { wallet.describeUnsignedTxSet("this is not the hex of transactions") }
+            assertFailsWith<MoneroError> { wallet.describeMultisigTxSet("this is not the hex of transactions") }
+            assertFailsWith<MoneroError> { wallet.describeTxSet(MoneroTxSet()) }
+            assertFailsWith<MoneroError> { wallet.submitTxs("this is not the hex of transactions") }
+        }
+    }
+
+    @Test
+    fun txsFunctions_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        val txConfig = MoneroTxConfig()
+        assertFailsWith<MoneroError> { wallet.createTx(txConfig) }
+        assertFailsWith<MoneroError> { wallet.relayTxs(listOf("")) }
+        assertFailsWith<MoneroError> { wallet.relayTxs(listOf(MoneroTxWallet())) }
+        assertFailsWith<MoneroError> { wallet.describeTxSet(MoneroTxSet()) }
+        assertFailsWith<MoneroError> { wallet.signTxs("") }
+        assertFailsWith<MoneroError> { wallet.submitTxs("") }
     }
 
     // ------------------------------- MULTISIG ----------------------------------
