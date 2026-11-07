@@ -495,4 +495,9 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     @NotSupported
     @Test
     override fun getAddressIndex_OfTheAddressesOfTheWallet() = super.getAddressIndex_OfTheAddressesOfTheWallet()
+
+
+    @NotSupported
+    @Test
+    override fun getAllBalances_AddUpAcrossTheSubaddressesTheAccountsAndTheWallet() = super.getAllBalances_AddUpAcrossTheSubaddressesTheAccountsAndTheWallet()
 }

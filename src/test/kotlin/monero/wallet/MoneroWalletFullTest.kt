@@ -1043,15 +1043,35 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun balances_OfAnAccountOrASubaddress_AreNotImplementedYet() {
+    fun balances_OfAnAccountOrASubaddress_AreTheOnesOfThem() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals(BigInteger.ZERO, wallet.getBalance())
             assertEquals(BigInteger.ZERO, wallet.getBalance(null, null))
             assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance())
-            for (call in listOf<() -> Unit>({ wallet.getBalance(0) }, { wallet.getBalance(0, 0) }, { wallet.getUnlockedBalance(0) }, { wallet.getUnlockedBalance(0, 0) })) {
-                val error = assertFailsWith<MoneroError> { call() }
-                assertTrue("not implemented yet" in error.message!!, error.message)
-            }
+            assertEquals(BigInteger.ZERO, wallet.getBalance(0))
+            assertEquals(BigInteger.ZERO, wallet.getBalance(0, 0))
+            assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance(0))
+            assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance(0, 1))
+        }
+    }
+
+    @Test
+    fun balances_OfASubaddressWithoutAnAccount_Fail() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.getBalance(null, 0) }
+            assertEquals("Cannot provide a subaddress index without an account index", error.message)
+            assertFailsWith<MoneroError> { wallet.getUnlockedBalance(null, 0) }
+        }
+    }
+
+    // monero-cpp derives the addresses of an account that the wallet has not made, as it does for the addresses out of range, so the
+    // account has nothing: its balance is zero, and it is not an error
+    @Test
+    fun balances_OfAnAccountThatWasNotMade_AreZero() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals(1, wallet.getAccounts().size)
+            assertEquals(BigInteger.ZERO, wallet.getBalance(99))
+            assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance(99, 0))
         }
     }
 

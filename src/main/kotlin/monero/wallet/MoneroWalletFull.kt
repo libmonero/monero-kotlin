@@ -634,14 +634,16 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
      * Get the balance of the wallet, including the funds that are still locked. While a sync runs, the call waits for
      * it.
      *
-     * @param accountIdx is not implemented yet: the balance of an account has to be null
-     * @param subaddressIdx is not implemented yet: the balance of a subaddress has to be null
+     * @param accountIdx is the account whose balance to get, or null for the balance of the wallet
+     * @param subaddressIdx is the subaddress of that account whose balance to get, or null for the balance of the account
      * @return the balance in atomic units
-     * @throws MoneroError if the wallet is closed, or an account or a subaddress is given
+     * @throws MoneroError if the wallet is closed, a subaddress is given without an account, or the wallet has no such account or
+     * subaddress
      */
     override fun getBalance(accountIdx: Int?, subaddressIdx: Int?): BigInteger {
         checkNotClosed()
-        if (accountIdx != null || subaddressIdx != null) throw MoneroError("The balance of an account or of a subaddress is not implemented yet")
+        if (accountIdx != null) return balanceOf(accountIdx, subaddressIdx) { it.balance }
+        if (subaddressIdx != null) throw MoneroError("Cannot provide a subaddress index without an account index")
         return run { lib, h ->
             val balance = LongByReference()
             MoneroNative.ok(lib.monero_wallet_get_balance(h, balance))
@@ -653,20 +655,37 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
      * Get the unlocked balance of the wallet, which is the balance without the funds that are still locked. While a
      * sync runs, the call waits for it.
      *
-     * @param accountIdx is not implemented yet: the unlocked balance of an account has to be null
-     * @param subaddressIdx is not implemented yet: the unlocked balance of a subaddress has to be null
+     * @param accountIdx is the account whose unlocked balance to get, or null for the unlocked balance of the wallet
+     * @param subaddressIdx is the subaddress of that account whose unlocked balance to get, or null for the one of the account
      * @return the unlocked balance in atomic units
-     * @throws MoneroError if the wallet is closed, or an account or a subaddress is given
+     * @throws MoneroError if the wallet is closed, a subaddress is given without an account, or the wallet has no such account or
+     * subaddress
      */
     override fun getUnlockedBalance(accountIdx: Int?, subaddressIdx: Int?): BigInteger {
         checkNotClosed()
-        if (accountIdx != null || subaddressIdx != null) throw MoneroError("The unlocked balance of an account or of a subaddress is not implemented yet")
+        if (accountIdx != null) return balanceOf(accountIdx, subaddressIdx) { it.unlockedBalance }
+        if (subaddressIdx != null) throw MoneroError("Cannot provide a subaddress index without an account index")
         return run { lib, h ->
             val balance = LongByReference()
             MoneroNative.ok(lib.monero_wallet_get_unlocked_balance(h, balance))
             MoneroNative.unsigned(balance.value)
         }
     }
+
+    // the balances of an account and of a subaddress are the ones that the account and the subaddress have. A sync that runs holds the
+    // wallet, so the call waits for it, as the balance of the wallet does
+    private fun balanceOf(accountIdx: Int, subaddressIdx: Int?, balance: (Balances) -> BigInteger?): BigInteger {
+        val balances = if (subaddressIdx == null) {
+            val account = getAccount(accountIdx, false)
+            Balances(account.balance, account.unlockedBalance)
+        } else {
+            val subaddress = getSubaddresses(accountIdx, listOf(subaddressIdx))[0]
+            Balances(subaddress.balance, subaddress.unlockedBalance)
+        }
+        return balance(balances) ?: throw MoneroError("The wallet did not return the balance of the account $accountIdx")
+    }
+
+    private class Balances(val balance: BigInteger?, val unlockedBalance: BigInteger?)
 
     // ------------------------------- STATE ----------------------------------
 

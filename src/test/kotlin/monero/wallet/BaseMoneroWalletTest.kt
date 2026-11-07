@@ -533,4 +533,34 @@ abstract class BaseMoneroWalletTest {
             assertEquals("Invalid address", invalid.message)
         }
     }
+
+    // Can get the balances of the wallet, of its accounts and of their subaddresses, which add up
+    @Test
+    open fun getAllBalances_AddUpAcrossTheSubaddressesTheAccountsAndTheWallet() {
+        withTestWallet { wallet ->
+            if (wallet.getAccounts().size < 2) wallet.createAccount()
+            val accounts = wallet.getAccounts(true)
+            var accountsBalance = BigInteger.ZERO
+            var accountsUnlockedBalance = BigInteger.ZERO
+            for (account in accounts) {
+                accountsBalance = accountsBalance.add(account.balance!!)
+                accountsUnlockedBalance = accountsUnlockedBalance.add(account.unlockedBalance!!)
+
+                var subaddressesBalance = BigInteger.ZERO
+                var subaddressesUnlockedBalance = BigInteger.ZERO
+                for (subaddress in account.subaddresses!!) {
+                    subaddressesBalance = subaddressesBalance.add(subaddress.balance!!)
+                    subaddressesUnlockedBalance = subaddressesUnlockedBalance.add(subaddress.unlockedBalance!!)
+
+                    // consistent with the accounts
+                    assertEquals(subaddress.balance, wallet.getBalance(subaddress.accountIndex, subaddress.index))
+                    assertEquals(subaddress.unlockedBalance, wallet.getUnlockedBalance(subaddress.accountIndex, subaddress.index))
+                }
+                assertEquals(subaddressesBalance, wallet.getBalance(account.index))
+                assertEquals(subaddressesUnlockedBalance, wallet.getUnlockedBalance(account.index))
+            }
+            assertEquals(accountsBalance, wallet.getBalance())
+            assertEquals(accountsUnlockedBalance, wallet.getUnlockedBalance())
+        }
+    }
 }

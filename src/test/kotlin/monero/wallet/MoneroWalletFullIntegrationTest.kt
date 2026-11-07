@@ -78,6 +78,40 @@ class MoneroWalletFullIntegrationTest {
         }
     }
 
+    // The balance of a wallet is the one of its accounts, and the one of an account is the one of its subaddresses, with funds in them.
+    // Blocks can only be mined to a primary address, so the funds of a subaddress are sent to it
+    @Test
+    fun testBalancesOfAccountsAndSubaddresses() {
+        createWallet().use { wallet ->
+            val account = wallet.createAccount("savings")
+            val subaddress = wallet.createSubaddress(account.index!!, "rent")
+            RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
+            RegtestSupport.mineBlocks(130)
+            wallet.sync()
+
+            wallet.createTxs(txConfig(subaddress.address!!, amount)).single().let { wallet.relayTx(assertNotNull(it.metadata)) }
+            RegtestSupport.mineBlocks(blocksToUnlock)
+            wallet.sync()
+
+            val rent = wallet.getBalance(account.index, subaddress.index)
+            assertEquals(amount, rent)
+            assertEquals(amount, wallet.getUnlockedBalance(account.index, subaddress.index))
+            assertEquals(BigInteger.ZERO, wallet.getBalance(account.index, 0))
+            assertTrue(wallet.getBalance(0, 0).signum() > 0)
+
+            // the balance of an account is the one of its subaddresses, and the one of the wallet is the one of its accounts
+            assertEquals(rent, wallet.getBalance(account.index))
+            assertEquals(rent, wallet.getUnlockedBalance(account.index))
+            assertEquals(wallet.getBalance(0, 0), wallet.getBalance(0))
+            assertEquals(wallet.getBalance(0).add(rent), wallet.getBalance())
+            assertEquals(wallet.getBalance(), wallet.getUnlockedBalance())
+
+            val accounts = wallet.getAccounts(true)
+            assertEquals(wallet.getBalance(), accounts.fold(BigInteger.ZERO) { sum, it -> sum.add(it.balance) })
+            assertEquals(true, wallet.getSubaddress(account.index!!, subaddress.index!!).isUsed)
+        }
+    }
+
     // A wallet that syncs in the background gets the blocks that are mined after it started
     @Test
     fun testSyncInTheBackground() {
