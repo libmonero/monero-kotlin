@@ -18,6 +18,9 @@ object RegtestSupport {
 
     val daemonUri: String = System.getenv("MONERO_C_TEST_DAEMON_URI") ?: "http://127.0.0.1:18081"
 
+    // the wallet RPC server of the same compose, which has no login
+    val walletRpcUri: String = System.getenv("MONERO_C_TEST_WALLET_RPC_URI") ?: "http://127.0.0.1:18082"
+
     // the primary address of the test wallet of monero-python's config.ini, which the mining calls pay by default
     const val MINING_ADDRESS = "48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2"
 
@@ -48,6 +51,27 @@ object RegtestSupport {
         }
         val height = Regex("\"height\":\\s*(\\d+)").find(body)?.groupValues?.get(1)?.toLong()
         if (height != null && height <= 1) mineBlocks(1)
+    }
+
+    /**
+     * Skip the test if monero-c can not be loaded, or no wallet RPC server answers at its URI.
+     */
+    fun assumeWalletRpcAvailable() {
+        NativeTestSupport.assumeAvailable()
+        assumeTrue(isWalletRpcUp(), "no monero-wallet-rpc at $walletRpcUri: start the compose of monero-c, or set MONERO_C_TEST_WALLET_RPC_URI")
+    }
+
+    fun isWalletRpcUp(): Boolean {
+        return try {
+            val request = HttpRequest.newBuilder(URI.create(walletRpcUri + "/json_rpc"))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(2))
+                .POST(HttpRequest.BodyPublishers.ofString("""{"jsonrpc":"2.0","id":"0","method":"get_version"}"""))
+                .build()
+            http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode() == 200
+        } catch (_: java.io.IOException) {
+            false
+        }
     }
 
     fun isDaemonUp(): Boolean {

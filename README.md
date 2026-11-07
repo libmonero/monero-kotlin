@@ -252,7 +252,7 @@ MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so .
 docker compose -f external/monero-c/tests/c/integration/docker-compose.yml down -v
 ```
 
-The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one.
+The node is expected at `http://127.0.0.1:18081`: set the environment variable `MONERO_C_TEST_DAEMON_URI` for another one. The tests that need the wallet RPC server of the same file expect it at `http://127.0.0.1:18082`, and skip when it does not answer: set `MONERO_C_TEST_WALLET_RPC_URI` for another one.
 
 ### Logs
 
