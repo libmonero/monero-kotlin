@@ -442,6 +442,16 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_subaddresses(wallet: Pointer, accountIdx: Int, subaddressIndices: IntArray?, numSubaddressIndices: SizeT, json: PointerByReference): Int
 
+    fun monero_wallet_get_accounts(wallet: Pointer, includeSubaddresses: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_create_account(wallet: Pointer, label: String?, json: PointerByReference): Int
+
+    fun monero_wallet_create_subaddress(wallet: Pointer, accountIdx: Int, label: String?, json: PointerByReference): Int
+
+    fun monero_wallet_set_subaddress_label(wallet: Pointer, accountIdx: Int, subaddressIdx: Int, label: String?): Int
+
+    fun monero_wallet_get_address_index(wallet: Pointer, address: String, json: PointerByReference): Int
+
     fun monero_wallet_sign_message(wallet: Pointer, message: String, signatureType: Int, accountIdx: Int, subaddressIdx: Int, out: PointerByReference): Int
 
     fun monero_wallet_verify_message(wallet: Pointer, message: String, address: String, signature: String, json: PointerByReference): Int
