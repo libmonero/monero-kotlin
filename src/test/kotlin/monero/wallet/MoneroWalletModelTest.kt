@@ -1099,4 +1099,44 @@ class MoneroWalletModelTest {
         assertEquals(listOf("a", "b"), set.txs!!.map { it.hash })
         assertTrue(set.txs!!.all { it.txSet === set })
     }
+
+    // ------------------------------- the constructors ---------------------------------
+
+    @Test
+    fun addressBookEntry_OfTheArguments_HasThem() {
+        val entry = MoneroAddressBookEntry(0, address, "friend", "e".repeat(16))
+        assertEquals(0L, entry.index)
+        assertEquals(address, entry.address)
+        assertEquals("friend", entry.description)
+        assertEquals("e".repeat(16), entry.paymentId)
+        assertEquals(entry.paymentId, readJson(write(entry), MoneroAddressBookEntry::class.java).paymentId)
+        assertNull(MoneroAddressBookEntry(1, address, "friend").paymentId)
+    }
+
+    @Test
+    fun accountTag_OfTheArguments_HasThem() {
+        val tag = MoneroAccountTag("savings", "Savings accounts")
+        assertEquals("savings", tag.tag)
+        assertEquals("Savings accounts", tag.label)
+        assertNull(tag.accountIndices)
+        assertEquals(listOf(0, 1), MoneroAccountTag("savings", "Savings accounts", listOf(0, 1)).accountIndices)
+        assertSameJson("""{"tag":"savings","label":"Savings accounts"}""", write(tag))
+    }
+
+    @Test
+    fun decodedAddress_OfTheArguments_HasThem() {
+        val decoded = MoneroDecodedAddress(address, MoneroAddressType.PRIMARY_ADDRESS, MoneroNetworkType.MAINNET)
+        assertEquals(address, decoded.address)
+        assertEquals(MoneroAddressType.PRIMARY_ADDRESS, decoded.addressType)
+        assertEquals(MoneroNetworkType.MAINNET, decoded.networkType)
+        assertSameJson("""{"address":"$address","addressType":0,"networkType":0}""", write(decoded))
+    }
+
+    @Test
+    fun syncResult_OfTheArguments_HasThem() {
+        val result = MoneroSyncResult(12, true)
+        assertEquals(12L, result.numBlocksFetched)
+        assertEquals(true, result.receivedMoney)
+        assertSameJson("""{"numBlocksFetched":12,"receivedMoney":true}""", write(result))
+    }
 }

@@ -21,6 +21,7 @@ import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroAddAuxiliaryPowResult
 import monero.daemon.model.MoneroAltChain
+import monero.daemon.model.MoneroAuxiliaryPow
 import monero.daemon.model.MoneroBan
 import monero.daemon.model.MoneroBlock
 import monero.daemon.model.MoneroBlockHeader
@@ -1032,5 +1033,13 @@ class MoneroDaemonModelTest {
         val json = """{"difficulty":"0x1f4"}"""
         assertEquals("0x1f4", readJson(json, MoneroMinerData::class.java).difficulty)
         assertEquals(json, write(readJson(json, MoneroMinerData::class.java)))
+    }
+
+    @Test
+    fun auxiliaryPow_OfTheArguments_HasThem() {
+        val pow = MoneroAuxiliaryPow("a".repeat(64), "b".repeat(64))
+        assertEquals("a".repeat(64), pow.id)
+        assertEquals("b".repeat(64), pow.hash)
+        assertSameJson("""{"id":"${"a".repeat(64)}","hash":"${"b".repeat(64)}"}""", write(pow))
     }
 }

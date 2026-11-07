@@ -10,6 +10,19 @@ class MoneroAccountTag {
 
     constructor()
 
+    /**
+     * Construct a tag.
+     *
+     * @param tag is the tag
+     * @param label is the label of the tag
+     * @param accountIndices are the indices of the accounts that have the tag
+     */
+    constructor(tag: String?, label: String?, accountIndices: List<Int>? = null) {
+        this.tag = tag
+        this.label = label
+        this.accountIndices = accountIndices
+    }
+
     constructor(other: MoneroAccountTag) {
         this.tag = other.tag
         this.label = other.label

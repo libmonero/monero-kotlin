@@ -12,6 +12,19 @@ class MoneroDecodedAddress {
 
     constructor()
 
+    /**
+     * Construct a decoded address.
+     *
+     * @param address is the address
+     * @param addressType is the type of the address
+     * @param networkType is the network that the address is for
+     */
+    constructor(address: String?, addressType: MoneroAddressType?, networkType: MoneroNetworkType?) {
+        this.address = address
+        this.addressType = addressType
+        this.networkType = networkType
+    }
+
     constructor(other: MoneroDecodedAddress) {
         this.address = other.address
         this.addressType = other.addressType

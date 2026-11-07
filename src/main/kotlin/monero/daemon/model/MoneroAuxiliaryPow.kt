@@ -9,6 +9,17 @@ class MoneroAuxiliaryPow {
 
     constructor()
 
+    /**
+     * Construct the proof of work of an auxiliary chain.
+     *
+     * @param id is the id of the chain
+     * @param hash is the hash of the block of the chain
+     */
+    constructor(id: String?, hash: String?) {
+        this.id = id
+        this.hash = hash
+    }
+
     constructor(other: MoneroAuxiliaryPow) {
         this.id = other.id
         this.hash = other.hash
