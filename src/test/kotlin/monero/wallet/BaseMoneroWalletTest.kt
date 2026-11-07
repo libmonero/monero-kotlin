@@ -15,6 +15,10 @@ import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroTxConfig
 import org.junit.jupiter.api.Tag
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroSubaddress
 
 /**
  * The tests that every wallet has to pass, whatever it is, like BaseTestMoneroWallet of monero-python (tests/test_monero_wallet_common.py):
@@ -304,6 +308,229 @@ abstract class BaseMoneroWalletTest {
             val error = assertFailsWith<MoneroError> { wallet.getPaymentUri(config) }
             // python matches the prefix of the message, whose reason names the missing parameter
             assertTrue(error.message!!.contains("Cannot make URI from supplied parameters"), error.message)
+        }
+    }
+
+    // ------------------------------- ACCOUNTS AND SUBADDRESSES ----------------------------------
+
+    protected fun validateSubaddress(subaddress: MoneroSubaddress, full: Boolean = true) {
+        assertNotNull(subaddress.accountIndex)
+        assertNotNull(subaddress.index)
+        assertTrue(subaddress.accountIndex!! >= 0)
+        assertTrue(subaddress.index!! >= 0)
+        assertFalse(subaddress.address.isNullOrEmpty())
+        assertTrue(subaddress.label == null || subaddress.label != "", "the label is ${subaddress.label}")
+        if (full) {
+            assertNotNull(subaddress.balance)
+            assertNotNull(subaddress.unlockedBalance)
+            assertTrue(subaddress.balance!!.signum() >= 0)
+            assertTrue(subaddress.unlockedBalance!!.signum() >= 0)
+            assertTrue(subaddress.numUnspentOutputs!! >= 0)
+            assertNotNull(subaddress.isUsed)
+            if (subaddress.balance!!.signum() > 0) assertTrue(subaddress.isUsed!!)
+            assertTrue(subaddress.numBlocksToUnlock!! >= 0)
+        }
+    }
+
+    protected fun validateAccount(account: MoneroAccount, full: Boolean = true) {
+        assertNotNull(account.index)
+        assertTrue(account.index!! >= 0)
+        validateAddress(account.primaryAddress!!)
+        if (full) {
+            assertNotNull(account.balance)
+            assertNotNull(account.unlockedBalance)
+            assertTrue(account.balance!!.signum() >= 0)
+            assertTrue(account.unlockedBalance!!.signum() >= 0)
+
+            // the balances of the subaddresses add up to the ones of the account
+            val subaddresses = account.subaddresses
+            if (!subaddresses.isNullOrEmpty()) {
+                var balance = BigInteger.ZERO
+                var unlockedBalance = BigInteger.ZERO
+                for ((i, subaddress) in subaddresses.withIndex()) {
+                    validateSubaddress(subaddress)
+                    assertEquals(account.index, subaddress.accountIndex)
+                    assertEquals(i, subaddress.index)
+                    balance = balance.add(subaddress.balance!!)
+                    unlockedBalance = unlockedBalance.add(subaddress.unlockedBalance!!)
+                }
+                assertEquals(account.balance, balance, "The balances of the subaddresses are not the one of the account ${account.index}")
+                assertEquals(account.unlockedBalance, unlockedBalance, "The unlocked balances of the subaddresses are not the one of the account ${account.index}")
+            }
+        }
+        assertTrue(account.tag == null || account.tag != "")
+    }
+
+    // Can get accounts without subaddresses
+    @Test
+    open fun getAccounts_WithoutSubaddresses() {
+        withTestWallet { wallet ->
+            val accounts = wallet.getAccounts()
+            assertTrue(accounts.isNotEmpty())
+            for (account in accounts) {
+                validateAccount(account)
+                assertTrue(account.subaddresses.isNullOrEmpty())
+            }
+        }
+    }
+
+    // Can get accounts with subaddresses
+    @Test
+    open fun getAccounts_WithSubaddresses() {
+        withTestWallet { wallet ->
+            val accounts = wallet.getAccounts(true)
+            assertTrue(accounts.isNotEmpty())
+            for (account in accounts) {
+                validateAccount(account)
+                assertTrue(account.subaddresses!!.isNotEmpty())
+            }
+        }
+    }
+
+    // Can create an account without a label
+    @Test
+    open fun createAccount_WithoutALabel() {
+        withTestWallet { wallet ->
+            val accountsBefore = wallet.getAccounts()
+            val created = wallet.createAccount()
+            validateAccount(created)
+            assertEquals(accountsBefore.size, wallet.getAccounts().size - 1)
+            assertEquals(accountsBefore.size, created.index)
+        }
+    }
+
+    // Can create an account with a label
+    @Test
+    open fun createAccount_WithALabel() {
+        withTestWallet { wallet ->
+            val accountsBefore = wallet.getAccounts()
+            val label = java.util.UUID.randomUUID().toString()
+            var created = wallet.createAccount(label)
+            validateAccount(created)
+            assertEquals(accountsBefore.size, wallet.getAccounts().size - 1)
+            assertEquals(label, wallet.getSubaddress(created.index!!, 0).label)
+            validateAccount(wallet.getAccount(created.index!!))
+
+            // an account with the same label
+            created = wallet.createAccount(label)
+            validateAccount(created)
+            assertEquals(accountsBefore.size, wallet.getAccounts().size - 2)
+            assertEquals(label, wallet.getSubaddress(created.index!!, 0).label)
+            validateAccount(wallet.getAccount(created.index!!))
+        }
+    }
+
+    // Can set account labels
+    @Test
+    open fun setAccountLabel_SetsTheLabelOfTheFirstSubaddress() {
+        withTestWallet { wallet ->
+            if (wallet.getAccounts().size < 2) wallet.createAccount()
+            val label = java.util.UUID.randomUUID().toString()
+            wallet.setAccountLabel(1, label)
+            assertEquals(label, wallet.getSubaddress(1, 0).label)
+        }
+    }
+
+    // Can get the subaddresses of an account
+    @Test
+    open fun getSubaddresses_OfEveryAccount() {
+        withTestWallet { wallet ->
+            val accounts = wallet.getAccounts()
+            assertTrue(accounts.isNotEmpty())
+            for (account in accounts) {
+                val subaddresses = wallet.getSubaddresses(account.index!!)
+                assertTrue(subaddresses.isNotEmpty())
+                for (subaddress in subaddresses) {
+                    validateSubaddress(subaddress)
+                    assertEquals(account.index, subaddress.accountIndex)
+                }
+            }
+        }
+    }
+
+    // Can get the subaddresses of an account at some indices
+    @Test
+    open fun getSubaddresses_ByIndices() {
+        withTestWallet { wallet ->
+            for (account in wallet.getAccounts()) {
+                var subaddresses = wallet.getSubaddresses(account.index!!)
+                assertTrue(subaddresses.isNotEmpty())
+
+                // leave out the first one, if there is another
+                if (subaddresses.size > 1) subaddresses = subaddresses.drop(1)
+                val indices = subaddresses.map { it.index!! }
+                assertTrue(indices.isNotEmpty())
+
+                val fetched = wallet.getSubaddresses(account.index!!, indices)
+                assertSameJson(MoneroJson.serialize(subaddresses), MoneroJson.serialize(fetched))
+            }
+        }
+    }
+
+    // Can create a subaddress with and without a label
+    @Test
+    open fun createSubaddress_WithAndWithoutALabel() {
+        withTestWallet { wallet ->
+            if (wallet.getAccounts().size < 2) wallet.createAccount()
+            assertTrue(wallet.getAccounts().size > 1)
+            for (accountIdx in 0..1) {
+
+                // without a label
+                var subaddresses = wallet.getSubaddresses(accountIdx)
+                var created = wallet.createSubaddress(accountIdx)
+                assertNull(created.label)
+                validateSubaddress(created)
+                var subaddressesNew = wallet.getSubaddresses(accountIdx)
+                assertEquals(subaddresses.size, subaddressesNew.size - 1)
+                assertSameJson(MoneroJson.serialize(created), MoneroJson.serialize(subaddressesNew.last()))
+
+                // with a label
+                subaddresses = wallet.getSubaddresses(accountIdx)
+                val label = java.util.UUID.randomUUID().toString()
+                created = wallet.createSubaddress(accountIdx, label)
+                assertEquals(label, created.label)
+                validateSubaddress(created)
+                subaddressesNew = wallet.getSubaddresses(accountIdx)
+                assertEquals(subaddresses.size, subaddressesNew.size - 1)
+                assertSameJson(MoneroJson.serialize(created), MoneroJson.serialize(subaddressesNew.last()))
+            }
+        }
+    }
+
+    // Can set subaddress labels
+    @Test
+    open fun setSubaddressLabel_SetsTheLabelsOfTheSubaddresses() {
+        withTestWallet { wallet ->
+            while (wallet.getSubaddresses(0).size < 3) wallet.createSubaddress(0)
+            for (subaddressIdx in wallet.getSubaddresses(0).indices) {
+                val label = java.util.UUID.randomUUID().toString()
+                wallet.setSubaddressLabel(0, subaddressIdx, label)
+                assertEquals(label, wallet.getSubaddress(0, subaddressIdx).label)
+            }
+        }
+    }
+
+    // Can get the account and the subaddress of an address
+    @Test
+    open fun getAddressIndex_OfTheAddressesOfTheWallet() {
+        withTestWallet { wallet ->
+            val accounts = wallet.getAccounts(true)
+            val accountIdx = accounts.size - 1
+            val subaddressIdx = accounts[accountIdx].subaddresses!!.size - 1
+            val address = wallet.getAddress(accountIdx, subaddressIdx)
+            assertTrue(address.isNotEmpty())
+
+            val subaddress = wallet.getAddressIndex(address)
+            assertEquals(accountIdx, subaddress.accountIndex)
+            assertEquals(subaddressIdx, subaddress.index)
+
+            // an address that is valid and is not the wallet's
+            val notFound = assertFailsWith<MoneroError> { wallet.getAddressIndex("49cvU1JnXFAH7r1RbDLJw78aaDnhW4sCKRbLaTYa9eHvcz9PK1YXwod5npWZvMyQ8L4waVjUhuCp6btFyELkRpA4SWNKeQH") }
+            assertEquals("Address doesn't belong to the wallet", notFound.message)
+
+            // an address that is not one
+            val invalid = assertFailsWith<MoneroError> { wallet.getAddressIndex("this is definitely not an address") }
+            assertEquals("Invalid address", invalid.message)
         }
     }
 }

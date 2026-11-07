@@ -1,5 +1,6 @@
 package monero.wallet
 
+import monero.NotSupported
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -438,7 +439,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     fun getSubaddresses_WithoutIndices_Fails() {
         testWallet().use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getSubaddresses(0) }
-            assertTrue("indices are needed" in error.message!!, error.message)
+            assertTrue("not supported" in error.message!!, error.message)
         }
     }
 
@@ -450,4 +451,48 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
             assertEquals(primaryAddress, subaddresses[0].address)
         }
     }
+
+    // ------------------------------- WHAT A KEYS-ONLY WALLET CAN NOT DO ----------------------------------
+
+    // the accounts and the subaddresses are made and read by a wallet that can enumerate them, which a keys-only wallet can not
+
+    @NotSupported
+    @Test
+    override fun getAccounts_WithoutSubaddresses() = super.getAccounts_WithoutSubaddresses()
+
+    @NotSupported
+    @Test
+    override fun getAccounts_WithSubaddresses() = super.getAccounts_WithSubaddresses()
+
+    @NotSupported
+    @Test
+    override fun createAccount_WithoutALabel() = super.createAccount_WithoutALabel()
+
+    @NotSupported
+    @Test
+    override fun createAccount_WithALabel() = super.createAccount_WithALabel()
+
+    @NotSupported
+    @Test
+    override fun setAccountLabel_SetsTheLabelOfTheFirstSubaddress() = super.setAccountLabel_SetsTheLabelOfTheFirstSubaddress()
+
+    @NotSupported
+    @Test
+    override fun getSubaddresses_OfEveryAccount() = super.getSubaddresses_OfEveryAccount()
+
+    @NotSupported
+    @Test
+    override fun getSubaddresses_ByIndices() = super.getSubaddresses_ByIndices()
+
+    @NotSupported
+    @Test
+    override fun createSubaddress_WithAndWithoutALabel() = super.createSubaddress_WithAndWithoutALabel()
+
+    @NotSupported
+    @Test
+    override fun setSubaddressLabel_SetsTheLabelsOfTheSubaddresses() = super.setSubaddressLabel_SetsTheLabelsOfTheSubaddresses()
+
+    @NotSupported
+    @Test
+    override fun getAddressIndex_OfTheAddressesOfTheWallet() = super.getAddressIndex_OfTheAddressesOfTheWallet()
 }

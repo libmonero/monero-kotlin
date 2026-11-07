@@ -170,6 +170,70 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     }
 
     /**
+     * Get the accounts of the wallet.
+     *
+     * @param includeSubaddresses is whether to include the subaddresses of each account
+     * @param tag is not supported: a full wallet has no tags of accounts, so it has to be null
+     * @return the accounts of the wallet
+     * @throws MoneroError if the wallet is closed, or a tag is given
+     */
+    override fun getAccounts(includeSubaddresses: Boolean, tag: String?): List<MoneroAccount> {
+        checkNotClosed()
+        if (tag != null) throw MoneroError("The accounts can not be asked by a tag: a full wallet has no tags of accounts")
+        return json { lib, h, out -> lib.monero_wallet_get_accounts(h, includeSubaddresses, out) }
+    }
+
+    /**
+     * Create an account, with the next index.
+     *
+     * @param label is the label of the account, or null or "" for none
+     * @return the account that was created
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun createAccount(label: String?): MoneroAccount {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_create_account(h, label, out) }
+    }
+
+    /**
+     * Create a subaddress in an account.
+     *
+     * @param accountIdx is the index of the account
+     * @param label is the label of the subaddress, or null or "" for none
+     * @return the subaddress that was created
+     * @throws MoneroError if the wallet is closed, or it has no such account
+     */
+    override fun createSubaddress(accountIdx: Int, label: String?): MoneroSubaddress {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_create_subaddress(h, accountIdx, label, out) }
+    }
+
+    /**
+     * Set the label of a subaddress.
+     *
+     * @param accountIdx is the index of the account of the subaddress
+     * @param subaddressIdx is the index of the subaddress within the account
+     * @param label is the label to set, or null or "" to clear it
+     * @throws MoneroError if the wallet is closed, or it has no such subaddress
+     */
+    override fun setSubaddressLabel(accountIdx: Int, subaddressIdx: Int, label: String?) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_subaddress_label(h, accountIdx, subaddressIdx, label)) }
+    }
+
+    /**
+     * Get the subaddress that an address belongs to, with its account and subaddress indices.
+     *
+     * @param address is the address
+     * @return the subaddress of the address
+     * @throws MoneroError if the wallet is closed, the address is not valid, or it does not belong to the wallet
+     */
+    override fun getAddressIndex(address: String): MoneroSubaddress {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_get_address_index(h, address, out) }
+    }
+
+    /**
      * Get a subaddress of an account. The C ABI has a function for it that a full wallet does not answer, so this reads
      * the subaddress through the plural call.
      *

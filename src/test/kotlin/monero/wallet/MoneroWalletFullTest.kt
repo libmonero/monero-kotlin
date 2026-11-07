@@ -1060,9 +1060,8 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     fun functionsNotWrittenYet_AreNotSupported() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val calls = mapOf<String, () -> Unit>(
-                "getAccounts" to { wallet.getAccounts() },
-                "createAccount" to { wallet.createAccount() },
-                "createSubaddress" to { wallet.createSubaddress(0) },
+                "getAccountTags" to { wallet.getAccountTags() },
+                "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
                 "getOutputs" to { wallet.getOutputs() },
                 "getTxNote" to { wallet.getTxNote("") },
                 "getAddressBookEntries" to { wallet.getAddressBookEntries() },
@@ -1082,5 +1081,40 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.waitForNextBlock() }
+    }
+
+    // ------------------------------- ACCOUNTS ----------------------------------
+
+    @Test
+    fun getAccounts_WithATag_IsNotSupported() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.getAccounts(false, "savings") }
+            assertTrue("no tags of accounts" in error.message!!, error.message)
+        }
+    }
+
+    @Test
+    fun accounts_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getAccounts() }
+        assertFailsWith<MoneroError> { wallet.createAccount() }
+        assertFailsWith<MoneroError> { wallet.createSubaddress(0) }
+        assertFailsWith<MoneroError> { wallet.setSubaddressLabel(0, 0, "label") }
+        assertFailsWith<MoneroError> { wallet.getAddressIndex(wallet.javaClass.name) }
+    }
+
+    @Test
+    fun createAccount_OfAWalletOnDisk_IsKeptAfterASave() {
+        val path = walletPath()
+        val label = "kept"
+        MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
+            wallet.createAccount(label)
+            wallet.save()
+        }
+        MoneroWalletFull.openWallet(config(path)).use { wallet ->
+            assertEquals(2, wallet.getAccounts().size)
+            assertEquals(label, wallet.getSubaddress(1, 0).label)
+        }
     }
 }

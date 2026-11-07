@@ -173,7 +173,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : Monero
      */
     override fun getSubaddresses(accountIdx: Int, subaddressIndices: List<Int>?): List<MoneroSubaddress> {
         checkNotClosed()
-        if (subaddressIndices == null) throw MoneroError("The subaddress indices are needed: a keys-only wallet can not enumerate its subaddresses")
+        if (subaddressIndices == null) throw MoneroError("Getting the subaddresses of an account without their indices is not supported: a keys-only wallet can not enumerate them")
         return run { lib, h ->
             val out = PointerByReference()
             val indices = subaddressIndices.toIntArray()
