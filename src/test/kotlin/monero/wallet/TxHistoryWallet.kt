@@ -28,11 +28,6 @@ object TxHistoryWallet {
         Runtime.getRuntime().addShutdownHook(Thread { close(kind) })
     }
 
-    /**
-     * The full wallet.
-     */
-    fun get(): MoneroWalletFull = get(FullTestWallets) as MoneroWalletFull
-
     @Synchronized
     private fun close(kind: TestWallets) {
         wallets.remove(kind)?.let { runCatching { it.close() } }
