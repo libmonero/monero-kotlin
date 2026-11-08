@@ -1,6 +1,7 @@
 package monero
 
 import java.io.File
+import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -12,6 +13,9 @@ import org.junit.platform.commons.support.AnnotationSupport
 /**
  * Every class of tests is tagged `unit` or `integration`, as the tests of monero-python are marked: the first run without a node, and
  * the second need one and are not run by `test` (build.gradle.kts). A class without a tag would run with the unit tests, whatever it needs.
+ *
+ * The classes that run are the ones that are not abstract and have a test, their own or one that they inherit, since an abstract class of
+ * tests, such as the one that the full wallet and the wallet RPC share, has no tag: it would pass it to a subclass of the other kind.
  */
 @Tag("unit")
 class TestTagsTest {
@@ -21,7 +25,7 @@ class TestTagsTest {
         val root = File(TestTagsTest::class.java.protectionDomain.codeSource.location.toURI())
         val classes = root.walkTopDown().filter { it.isFile && it.name.endsWith(".class") && '$' !in it.name }
             .map { Class.forName(it.relativeTo(root).path.removeSuffix(".class").replace(File.separatorChar, '.')) }
-            .filter { type -> type.declaredMethods.any { isTest(it) } }
+            .filter { type -> !Modifier.isAbstract(type.modifiers) && hasTest(type) }
             .toList()
         assertTrue(classes.size > 10, "The classes of tests are not found in $root")
 
@@ -30,6 +34,9 @@ class TestTagsTest {
             assertEquals(1, tags.size, "${type.name} has to be tagged unit or integration, and only one of them: $tags")
         }
     }
+
+    // the class has a test of its own, or inherits one
+    private fun hasTest(type: Class<*>): Boolean = generateSequence(type) { it.superclass }.any { superType -> superType.declaredMethods.any { isTest(it) } }
 
     private fun isTest(method: java.lang.reflect.Method): Boolean {
         return AnnotationSupport.isAnnotated(method, org.junit.jupiter.api.Test::class.java) ||

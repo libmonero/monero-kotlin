@@ -26,6 +26,7 @@ import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxSet
 import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletConfig
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.io.TempDir
 import monero.wallet.model.MoneroWalletListener
 
@@ -39,6 +40,7 @@ import monero.wallet.model.MoneroWalletListener
  * Every test calls the real library through MoneroWalletFull, and skips when it is not found. The wallets are written
  * to a temporary directory, which the JVM removes with its files.
  */
+@Tag("unit")
 class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the server that python gives a wallet which must not reach a daemon

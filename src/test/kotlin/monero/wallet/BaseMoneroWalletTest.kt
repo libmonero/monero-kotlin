@@ -14,7 +14,6 @@ import monero.common.MoneroJson
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroTxConfig
-import org.junit.jupiter.api.Tag
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import monero.wallet.model.MoneroAccount
@@ -28,9 +27,9 @@ import monero.wallet.model.MoneroSubaddress
  *
  * What only one kind of wallet does, such as a wallet file or a chain, is tested by its own class.
  *
- * Every test calls the real library, and skips when it is not found.
+ * The class has no tag: the tests that a subclass runs are unit tests or integration tests according to the wallet that it makes, so the
+ * subclass is tagged (TestTagsTest). Every test calls the real library, and skips when it is not found.
  */
-@Tag("unit")
 abstract class BaseMoneroWalletTest {
 
     // the test wallet of monero-python's config.ini, which its suites restore from the seed
@@ -71,6 +70,18 @@ abstract class BaseMoneroWalletTest {
     protected abstract fun seedLanguages(wallet: MoneroWallet): List<String>
 
     protected abstract val defaultLanguage: String
+
+    /**
+     * A subaddress of a wallet that a test makes with [createRandomWallet]. A wallet that computes the addresses of its subaddresses
+     * has one at any index, and a wallet of a server has the ones that were created.
+     */
+    protected open fun subaddressOf(wallet: MoneroWallet): String = wallet.getAddress(1, 1)
+
+    /**
+     * Whether an integrated address that is asked for without a payment id gets one that the wallet makes, which a server does, and not
+     * an error, which a wallet of the library does.
+     */
+    protected open val makesAPaymentId: Boolean = false
 
     @BeforeTest
     fun requireLibrary() {
@@ -121,7 +132,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getSeedLanguage_IsTheDefaultLanguage() {
+    open fun getSeedLanguage_IsTheDefaultLanguage() {
         withTestWallet { wallet ->
             assertEquals(defaultLanguage, wallet.getSeedLanguage())
         }
@@ -156,7 +167,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getPublicViewKey_ReadsTheTestWallet() {
+    open fun getPublicViewKey_ReadsTheTestWallet() {
         withTestWallet { wallet ->
             val key = wallet.getPublicViewKey()
             validatePrivateKey(key)
@@ -165,7 +176,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getPublicSpendKey_ReadsTheTestWallet() {
+    open fun getPublicSpendKey_ReadsTheTestWallet() {
         withTestWallet { wallet ->
             val key = wallet.getPublicSpendKey()
             validatePrivateKey(key)
@@ -212,7 +223,7 @@ abstract class BaseMoneroWalletTest {
     @Test
     fun getIntegratedAddress_WithASubaddress_IsAnError() {
         withRandomWallet { wallet ->
-            val subaddress = wallet.getAddress(1, 1)
+            val subaddress = subaddressOf(wallet)
             val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(subaddress, "a".repeat(16)) }
             assertEquals("Subaddress shouldn't be used", error.message)
         }
@@ -228,10 +239,16 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithoutAPaymentId_IsAnError() {
+    fun getIntegratedAddress_WithoutAPaymentId() {
         withRandomWallet { wallet ->
-            val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "") }
-            assertEquals("Payment ID shouldn't be left unspecified", error.message)
+            if (makesAPaymentId) {
+                val integrated = wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "")
+                assertEquals(wallet.getPrimaryAddress(), integrated.standardAddress)
+                assertTrue(Regex("[0-9a-f]{16}").matches(integrated.paymentId!!), integrated.paymentId)
+            } else {
+                val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "") }
+                assertEquals("Payment ID shouldn't be left unspecified", error.message)
+            }
         }
     }
 

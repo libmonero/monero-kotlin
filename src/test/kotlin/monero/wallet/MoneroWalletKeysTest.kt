@@ -1,5 +1,6 @@
 package monero.wallet
 
+import org.junit.jupiter.api.Tag
 import monero.NotSupported
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -31,6 +32,7 @@ import monero.wallet.model.MoneroWalletConfig
  * invalid signature type cannot be written in Kotlin, whose enumeration has no invalid value, and the errors of the
  * python binding's own not-supported surface, which this class does not expose at all.
  */
+@Tag("unit")
 class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     // the accounts and subaddresses that the python keys suite walks

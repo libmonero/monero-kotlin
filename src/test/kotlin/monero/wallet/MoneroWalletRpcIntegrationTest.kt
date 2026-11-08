@@ -8,8 +8,12 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import monero.NotImplemented
+import monero.NotSupported
 import monero.RegtestSupport
+import monero.ModelTestSupport.assertSameJson
 import monero.common.MoneroError
+import monero.common.MoneroJson
 import monero.common.MoneroUtils
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroAccountTag
@@ -18,10 +22,11 @@ import org.junit.jupiter.api.Tag
 
 /**
  * The wallet of a monero-wallet-rpc server, against the server of src/test/docker, like the tests of monero-python
- * (tests/test_monero_wallet_rpc.py) that create wallets on the server, open them and close them. They need monero-c and the server.
+ * (tests/test_monero_wallet_rpc.py), which extend the common tests: the ones of [BaseMoneroWalletTest], that every wallet has to pass,
+ * and the ones that create wallets on the server, open them and close them. They need monero-c and the server.
  */
 @Tag("integration")
-class MoneroWalletRpcIntegrationTest {
+class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     private val walletPassword = "supersecretpassword123"
 
@@ -29,6 +34,161 @@ class MoneroWalletRpcIntegrationTest {
     fun requireLibraryAndServer() {
         RegtestSupport.assumeWalletRpcAvailable()
     }
+
+    // ------------------------------- THE COMMON TESTS ----------------------------------
+
+    // The test wallet of the common tests is the wallet of the test seed, made on the server. The test wallet of monero-python is one that
+    // has been used: it has several accounts, and several subaddresses in the first one, which a wallet that a server makes has not
+    override fun createTestWallet(): MoneroWallet {
+        val wallet = createWalletOnServer(config().also {
+            it.seed = seed
+            it.restoreHeight = 0
+        })
+        try {
+            while (wallet.getAccounts().size < 4) wallet.createAccount()
+            while (wallet.getSubaddresses(0).size < 3) wallet.createSubaddress(0)
+            return wallet
+        } catch (e: Throwable) {
+            runCatching { wallet.close() }
+            throw e
+        }
+    }
+
+    override fun createRandomWallet(): MoneroWallet = createWalletOnServer(config())
+
+    override fun closeWallet(wallet: MoneroWallet) = wallet.close(false)
+
+    override fun seedLanguages(wallet: MoneroWallet): List<String> = (wallet as MoneroWalletRpc).getSeedLanguages()
+
+    override val defaultLanguage: String = "English"
+
+    override fun subaddressOf(wallet: MoneroWallet): String = wallet.createSubaddress(0).address!!
+
+    override val makesAPaymentId: Boolean = true
+
+    private fun createWalletOnServer(config: MoneroWalletConfig): MoneroWalletRpc {
+        val wallet = newClient()
+        try {
+            wallet.createWallet(config)
+            return wallet
+        } catch (e: Throwable) {
+            runCatching { wallet.close() }
+            throw e
+        }
+    }
+
+    // monero-wallet-rpc does not say the language of the seed of a wallet
+    @Test
+    @NotSupported
+    override fun getSeedLanguage_IsTheDefaultLanguage() = super.getSeedLanguage_IsTheDefaultLanguage()
+
+    // monero-wallet-rpc does not give the public keys of a wallet, which monero-python marks as a TODO of monero-project
+    @Test
+    @NotImplemented
+    override fun getPublicViewKey_ReadsTheTestWallet() = super.getPublicViewKey_ReadsTheTestWallet()
+
+    @Test
+    @NotImplemented
+    override fun getPublicSpendKey_ReadsTheTestWallet() = super.getPublicSpendKey_ReadsTheTestWallet()
+
+    // Does not report the progress of a sync, which the server does not tell
+    @Test
+    fun testSyncProgress() {
+        withTestWallet { wallet ->
+            val listener = WalletNotificationCollector()
+            val expected = "Monero Wallet RPC does not support reporting sync progress"
+            assertEquals(expected, assertFailsWith<MoneroError> { wallet.sync(listener) }.message)
+            assertEquals(expected, assertFailsWith<MoneroError> { wallet.sync(0, listener) }.message)
+        }
+    }
+
+    // Can get a subaddress, with the function of the server that gets the subaddresses of an account
+    @Test
+    fun testGetSubaddressRpc() {
+        withTestWallet { wallet ->
+            val accountIdx = 0
+            val subaddressIdx = 0
+            val subaddress = wallet.getSubaddress(accountIdx, subaddressIdx)
+            validateSubaddress(subaddress)
+            assertEquals(accountIdx, subaddress.accountIndex)
+            assertEquals(subaddressIdx, subaddress.index)
+
+            val plural = wallet.getSubaddresses(accountIdx, listOf(subaddressIdx))
+            assertEquals(1, plural.size)
+            assertSameJson(MoneroJson.serialize(subaddress), MoneroJson.serialize(plural[0]))
+            assertEquals(subaddress.address, wallet.getAddress(accountIdx, subaddressIdx))
+        }
+    }
+
+    // The address of a subaddress that the wallet has not made is empty, and the server has no account that the wallet has not made
+    @Test
+    fun testGetSubaddressAddressOutOfRange() {
+        withTestWallet { wallet ->
+            val accounts = wallet.getAccounts(true)
+            val accountIdx = accounts.size - 1
+            val subaddressIdx = accounts[accountIdx].subaddresses!!.size
+            assertEquals("", wallet.getAddress(accountIdx, subaddressIdx))
+            assertFailsWith<MoneroError> { wallet.getAddress(accounts.size, 0) }
+        }
+    }
+
+    // Can save the wallet
+    @Test
+    fun testSave() {
+        withTestWallet { wallet -> wallet.save() }
+    }
+
+    // The server does not tell the height of the chain, its peers, or the height of a date, and the wallet does not tell its network, where it
+    // restores from, or whether it and its daemon are synced
+    @Test
+    @NotSupported
+    fun testGetDaemonMaxPeerHeight() {
+        withTestWallet { wallet -> wallet.getDaemonMaxPeerHeight() }
+    }
+
+    @Test
+    @NotSupported
+    fun testGetDaemonHeight() {
+        withTestWallet { wallet -> wallet.getDaemonHeight() }
+    }
+
+    @Test
+    @NotSupported
+    fun testGetHeightByDate() {
+        withTestWallet { wallet -> wallet.getHeightByDate(2025, 1, 1) }
+    }
+
+    @Test
+    @NotSupported
+    fun testGetNetworkType() {
+        withTestWallet { wallet -> wallet.getNetworkType() }
+    }
+
+    @Test
+    @NotSupported
+    fun testGetRestoreHeight() {
+        withTestWallet { wallet -> wallet.getRestoreHeight() }
+    }
+
+    @Test
+    @NotSupported
+    fun testIsSynced() {
+        withTestWallet { wallet -> wallet.isSynced() }
+    }
+
+    @Test
+    @NotSupported
+    fun testIsDaemonSynced() {
+        withTestWallet { wallet -> wallet.isDaemonSynced() }
+    }
+
+    @Test
+    @NotSupported
+    fun testIsDaemonTrusted() {
+        withTestWallet { wallet -> wallet.isDaemonTrusted() }
+    }
+
+    // ------------------------------- THE TESTS OF THE SERVER ----------------------------------
 
     private fun newClient() = MoneroWalletRpc(RegtestSupport.walletRpcConnection())
 
