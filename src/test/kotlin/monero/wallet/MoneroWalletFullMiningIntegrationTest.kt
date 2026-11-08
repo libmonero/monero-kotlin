@@ -40,15 +40,17 @@ class MoneroWalletFullMiningIntegrationTest {
         return MoneroWalletFull.createWallet(config)
     }
 
-    // runs the test with the node and a wallet connected to it, and leaves the node not mining
+    // Runs the test with the node and a wallet connected to it, and leaves the node not mining, which stops it with the node and not with the
+    // wallet: the wallet is what the tests test, and a stop of the wallet that failed in the cleanup of a test, with a node that was not
+    // asked anything else, hid the result of the test. The error of a stop that finds the node stopped is ignored
     private fun withMining(test: (MoneroDaemonRpc, MoneroWalletFull) -> Unit) {
         MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
             newWallet().use { wallet ->
                 try {
-                    if (daemon.getMiningStatus().isActive == true) wallet.stopMining()
+                    if (daemon.getMiningStatus().isActive == true) daemon.stopMining()
                     test(daemon, wallet)
                 } finally {
-                    if (daemon.getMiningStatus().isActive == true) wallet.stopMining()
+                    if (daemon.getMiningStatus().isActive == true) runCatching { daemon.stopMining() }
                 }
             }
         }
@@ -82,8 +84,7 @@ class MoneroWalletFullMiningIntegrationTest {
         }
     }
 
-    // The defaults are one thread, not in the background and not on battery. The node was found not mining when a test stopped what the defaults
-    // had started, so this test does not stop it: withMining stops it if it is still on
+    // The defaults are one thread, not in the background and not on battery. The test leaves the stop to withMining
     @Test
     fun testMiningWithTheDefaults() {
         withMining { daemon, wallet ->
