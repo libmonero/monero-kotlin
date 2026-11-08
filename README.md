@@ -17,6 +17,7 @@ A Kotlin library for creating Monero applications using RPC and a C ABI to [mone
 
 * Supports a daemon RPC client.
 * Supports a keys-only wallet, and a full wallet with its files, sync, transactions and multisig.
+* Supports a wallet RPC client for the wallets of a monero-wallet-rpc server.
 * Daemon implementations are interchangeable by conforming to a [common interface](src/main/kotlin/monero/daemon/MoneroDaemon.kt).
 * Uses a clearly defined [data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
 * Fetch and process binary data from the daemon (e.g. raw blocks).
@@ -115,6 +116,29 @@ MoneroWalletFull.createWallet(config).use { wallet ->
 MoneroWalletFull.openWallet(config).use { wallet ->
     wallet.setDaemonConnection(MoneroRpcConnection("http://localhost:38081"))
     wallet.sync()
+}
+```
+
+A wallet RPC client lives on a monero-wallet-rpc server, which keeps the keys, the files and the sync, and has one wallet open at a time. It has no wallet open until it opens or creates one on the server, and `use` closes that wallet on the server. It has the functions of a full wallet, except the few that a server does not support, which throw an error.
+
+```kotlin
+// connect to the server, and create a wallet on it
+MoneroWalletRpc("http://localhost:28084", "rpc_user", "abc123").use { wallet ->
+    val config = MoneroWalletConfig()
+    config.path = "mywallet"
+    config.password = "abctesting123"
+    wallet.createWallet(config)
+
+    wallet.sync()
+    val balance = wallet.getBalance()                  // atomic units
+
+    // tag the accounts, which only a wallet of a server can do
+    wallet.tagAccounts("savings", listOf(0))
+}
+
+// open it again
+MoneroWalletRpc("http://localhost:28084", "rpc_user", "abc123").use { wallet ->
+    wallet.openWallet("mywallet", "abctesting123")
 }
 ```
 
