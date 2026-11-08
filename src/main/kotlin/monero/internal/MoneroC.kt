@@ -439,6 +439,28 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_wait_for_next_block_timeout(wallet: Pointer, timeoutMs: Int, height: LongByReference, timedOut: ByteByReference): Int
 
+    fun monero_wallet_scan_txs(wallet: Pointer, txHashes: Array<String>, numTxHashes: SizeT): Int
+
+    fun monero_wallet_rescan_blockchain(wallet: Pointer): Int
+
+    fun monero_wallet_rescan_spent(wallet: Pointer): Int
+
+    // the threads and the two flags are optional: null is one thread, and false
+    fun monero_wallet_start_mining(wallet: Pointer, numThreads: LongByReference?, backgroundMining: ByteByReference?, ignoreBattery: ByteByReference?): Int
+
+    fun monero_wallet_stop_mining(wallet: Pointer): Int
+
+    // wallet: listeners
+    fun monero_wallet_listener_create(callbacks: WalletListenerCallbacks, out: PointerByReference): Int
+
+    fun monero_wallet_listener_free(listener: Pointer?)
+
+    fun monero_wallet_add_listener(wallet: Pointer, listener: Pointer): Int
+
+    fun monero_wallet_remove_listener(wallet: Pointer, listener: Pointer): Int
+
+    fun monero_wallet_remove_listeners(wallet: Pointer): Int
+
     // the one call that any thread can make on a wallet, which the others can not
     fun monero_wallet_request_shutdown(wallet: Pointer): Int
 
@@ -572,4 +594,65 @@ internal class DaemonListenerCallbacks : Structure() {
 
     @JvmField
     var onBlockHeader: DaemonBlockHeaderCallback? = null
+}
+
+/**
+ * Called with the progress of a sync. The message is only valid during the call, and the call is made on a thread of monero-c that the
+ * listener owns, one callback after the other.
+ */
+internal interface WalletSyncProgressCallback : Callback {
+    fun invoke(userData: Pointer?, height: Long, startHeight: Long, endHeight: Long, percentDone: Double, message: Pointer?)
+}
+
+/**
+ * Called with the height of each new block.
+ */
+internal interface WalletNewBlockCallback : Callback {
+    fun invoke(userData: Pointer?, height: Long)
+}
+
+/**
+ * Called with the balance and the unlocked balance, in atomic units, when they change.
+ */
+internal interface WalletBalancesChangedCallback : Callback {
+    fun invoke(userData: Pointer?, newBalance: Long, newUnlockedBalance: Long)
+}
+
+/**
+ * Called with the JSON of the output that the wallet received or spent, in its transaction and its block. The string is only valid
+ * during the call.
+ */
+internal interface WalletOutputCallback : Callback {
+    fun invoke(userData: Pointer?, outputJson: Pointer?)
+}
+
+/**
+ * The callbacks of a wallet listener. monero-c copies the struct when the listener is created, and skips a callback that is null.
+ */
+@Structure.FieldOrder("structSize", "userData", "onSyncProgress", "onNewBlock", "onBalancesChanged", "onOutputReceived", "onOutputSpent")
+internal class WalletListenerCallbacks : Structure() {
+    /**
+     * The size of the struct as this code was built with it, which the program sets before the create call (monero_c_wallet.h,
+     * struct_size).
+     */
+    @JvmField
+    var structSize: Int = 0
+
+    @JvmField
+    var userData: Pointer? = null
+
+    @JvmField
+    var onSyncProgress: WalletSyncProgressCallback? = null
+
+    @JvmField
+    var onNewBlock: WalletNewBlockCallback? = null
+
+    @JvmField
+    var onBalancesChanged: WalletBalancesChangedCallback? = null
+
+    @JvmField
+    var onOutputReceived: WalletOutputCallback? = null
+
+    @JvmField
+    var onOutputSpent: WalletOutputCallback? = null
 }
