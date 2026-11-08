@@ -184,6 +184,21 @@ class MoneroWalletRpc(rpc: MoneroRpcConnection) : MoneroWalletNative(connect(rpc
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_account_tag_label(h, tag, label)) }
     }
 
+    // ------------------------------- MINING ----------------------------------
+
+    /**
+     * Start mining on the daemon of the server, to the primary address of the wallet. The server has to trust its daemon. It does not
+     * start without threads, so the wallet gives it one when it has none, as a full wallet does.
+     *
+     * @param numThreads is the number of threads that mine, or null or 0 for one
+     * @param backgroundMining is whether to mine in the background, or null for not
+     * @param ignoreBattery is whether to mine on battery power, or null for not
+     * @throws MoneroError if the wallet is closed, the server does not trust its daemon, or the daemon is mining already
+     */
+    override fun startMining(numThreads: Long?, backgroundMining: Boolean?, ignoreBattery: Boolean?) {
+        super.startMining(if (numThreads == null || numThreads == 0L) 1 else numThreads, backgroundMining, ignoreBattery)
+    }
+
     private companion object {
 
         const val NO_WALLET_FILE = "No wallet file"
