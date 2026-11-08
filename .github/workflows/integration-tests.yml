@@ -50,7 +50,8 @@ jobs:
     name: Integration tests, Linux x86_64 (regtest node)
     needs: wait-build
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # the tests run for the full wallet and for the wallet of a server, which took 10 minutes for the full wallet alone
+    timeout-minutes: 60
 
     env:
       COMPOSE_FILE: src/test/docker/docker-compose.yml
