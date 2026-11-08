@@ -6,6 +6,9 @@ import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.internal.MoneroNative
+import monero.internal.SizeT
+import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroAccountTag
 import monero.wallet.model.MoneroWalletConfig
 
 /**
@@ -116,6 +119,69 @@ class MoneroWalletRpc(rpc: MoneroRpcConnection) : MoneroWalletNative(connect(rpc
     fun stop() {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_rpc_stop(h)) }
+    }
+
+    // ------------------------------- ACCOUNTS AND TAGS ----------------------------------
+
+    /**
+     * Get the accounts of the wallet, or the ones that a tag is on.
+     *
+     * @param includeSubaddresses is whether to include the subaddresses of each account
+     * @param tag is the tag of the accounts to get, or null or "" for all of them
+     * @return the accounts of the wallet
+     * @throws MoneroError if the wallet is closed, or the server has no tag of that name
+     */
+    override fun getAccounts(includeSubaddresses: Boolean, tag: String?): List<MoneroAccount> {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_rpc_get_accounts(h, includeSubaddresses, tag, false, out) }
+    }
+
+    /**
+     * Get the tags of the accounts, with their labels and the accounts that each of them is on.
+     *
+     * @return the tags
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun getAccountTags(): List<MoneroAccountTag> {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_get_account_tags(h, out) }
+    }
+
+    /**
+     * Put a tag on accounts. An account has one tag, so a tag on an account that has another replaces it.
+     *
+     * @param tag is the tag
+     * @param accountIndices are the indices of the accounts to tag
+     * @throws MoneroError if the wallet is closed, or an account is not there
+     */
+    override fun tagAccounts(tag: String, accountIndices: List<Int>) {
+        checkNotClosed()
+        val indices = accountIndices.toIntArray()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_tag_accounts(h, tag, indices, SizeT(indices.size.toLong()))) }
+    }
+
+    /**
+     * Take the tag off accounts.
+     *
+     * @param accountIndices are the indices of the accounts to untag
+     * @throws MoneroError if the wallet is closed, or an account is not there
+     */
+    override fun untagAccounts(accountIndices: List<Int>) {
+        checkNotClosed()
+        val indices = accountIndices.toIntArray()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_untag_accounts(h, indices, SizeT(indices.size.toLong()))) }
+    }
+
+    /**
+     * Set the label of a tag.
+     *
+     * @param tag is the tag
+     * @param label is the label of the tag
+     * @throws MoneroError if the wallet is closed, or the tag is not one that the server has
+     */
+    override fun setAccountTagLabel(tag: String, label: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_account_tag_label(h, tag, label)) }
     }
 
     private companion object {

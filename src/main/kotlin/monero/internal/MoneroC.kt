@@ -450,6 +450,15 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_stop_mining(wallet: Pointer): Int
 
+    // wallet: the tags of the accounts, which a wallet of a monero-wallet-rpc server has and a full wallet has not
+    fun monero_wallet_set_account_tag_label(wallet: Pointer, tag: String, label: String): Int
+
+    fun monero_wallet_get_account_tags(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_tag_accounts(wallet: Pointer, tag: String, accountIndices: IntArray, numAccountIndices: SizeT): Int
+
+    fun monero_wallet_untag_accounts(wallet: Pointer, accountIndices: IntArray, numAccountIndices: SizeT): Int
+
     // wallet: listeners
     fun monero_wallet_listener_create(callbacks: WalletListenerCallbacks, out: PointerByReference): Int
 

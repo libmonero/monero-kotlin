@@ -12,6 +12,7 @@ import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.common.MoneroUtils
 import monero.daemon.model.MoneroNetworkType
+import monero.wallet.model.MoneroAccountTag
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Tag
 
@@ -185,6 +186,88 @@ class MoneroWalletRpcIntegrationTest {
             val connection = wallet.getRpcConnection()
             assertEquals(RegtestSupport.walletRpcUri, connection.uri)
             assertEquals(RegtestSupport.walletRpcUsername, connection.username)
+        }
+    }
+
+    // a wallet of the server with four accounts, and a subaddress in the second one
+    private fun walletWithAccounts(): MoneroWalletRpc {
+        val wallet = newClient()
+        try {
+            wallet.createWallet(config())
+            repeat(3) { wallet.createAccount("account ${it + 1}") }
+            wallet.createSubaddress(1, "subaddress")
+            return wallet
+        } catch (e: Throwable) {
+            runCatching { wallet.close() }
+            throw e
+        }
+    }
+
+    // Can get the accounts of the wallet, with their subaddresses when they are asked for
+    @Test
+    fun testGetAccounts() {
+        walletWithAccounts().use { wallet ->
+            val accounts = wallet.getAccounts()
+            assertEquals(listOf(0, 1, 2, 3), accounts.map { it.index })
+            assertTrue(accounts.all { it.primaryAddress != null && it.balance != null && it.unlockedBalance != null })
+
+            // the label of an account is the one of its first subaddress
+            val withSubaddresses = wallet.getAccounts(true)
+            assertEquals(listOf("account 1", "account 2", "account 3"), withSubaddresses.drop(1).map { it.subaddresses!![0].label })
+            assertEquals(listOf(1, 2, 1, 1), withSubaddresses.map { it.subaddresses!!.size })
+            assertEquals(wallet.getPrimaryAddress(), withSubaddresses[0].subaddresses!![0].address)
+        }
+    }
+
+    // Can tag accounts and query accounts by tag
+    @Test
+    fun testAccountTags() {
+        walletWithAccounts().use { wallet ->
+            // tag some of the accounts
+            val tag = MoneroAccountTag("my_tag_" + UUID.randomUUID(), "my tag label", listOf(0, 1))
+            wallet.tagAccounts(tag.tag!!, tag.accountIndices!!)
+
+            // query accounts by tag
+            val tagged = wallet.getAccounts(false, tag.tag)
+            assertEquals(listOf(0, 1), tagged.map { it.index })
+            assertEquals(listOf(tag.tag, tag.tag), tagged.map { it.tag })
+
+            // set tag label
+            wallet.setAccountTagLabel(tag.tag!!, tag.label!!)
+
+            // fetch tags and ensure the new tag is contained
+            val found = wallet.getAccountTags().single { it.tag == tag.tag }
+            assertEquals(tag.label, found.label)
+            assertEquals(tag.accountIndices, found.accountIndices)
+
+            // re-tag an account
+            val tag2 = MoneroAccountTag("my_tag_" + UUID.randomUUID(), "my tag label 2", listOf(1))
+            wallet.tagAccounts(tag2.tag!!, tag2.accountIndices!!)
+            val tagged2 = wallet.getAccounts(false, tag2.tag)
+            assertEquals(listOf(1), tagged2.map { it.index })
+            assertEquals(tag2.tag, tagged2[0].tag)
+
+            // re-query the original tag, which applies to one account now
+            val retagged = wallet.getAccounts(false, tag.tag)
+            assertEquals(listOf(0), retagged.map { it.index })
+            assertEquals(tag.tag, retagged[0].tag)
+
+            // untag and query accounts
+            wallet.untagAccounts(listOf(0, 1))
+            assertEquals(emptyList(), wallet.getAccountTags())
+            assertFailsWith<MoneroError> { wallet.getAccounts(false, tag.tag) }
+
+            // a tag that was never registered may be an error or nothing
+            runCatching { assertEquals(emptyList(), wallet.getAccounts(false, "non_existing_tag")) }
+        }
+    }
+
+    // Can not tag an account that is not there
+    @Test
+    fun testTagAccountThatIsNotThere() {
+        walletWithAccounts().use { wallet ->
+            assertFailsWith<MoneroError> { wallet.tagAccounts("my_tag", listOf(99)) }
+            assertEquals(emptyList(), wallet.getAccountTags())
         }
     }
 }

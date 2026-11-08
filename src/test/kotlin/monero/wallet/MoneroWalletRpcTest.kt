@@ -99,5 +99,10 @@ class MoneroWalletRpcTest {
         assertFailsWith<MoneroError> { wallet.getSeedLanguages() }
         assertFailsWith<MoneroError> { wallet.setPollPeriodInMs(1000) }
         assertFailsWith<MoneroError> { wallet.stop() }
+        assertFailsWith<MoneroError> { wallet.getAccounts() }
+        assertFailsWith<MoneroError> { wallet.getAccountTags() }
+        assertFailsWith<MoneroError> { wallet.tagAccounts("tag", listOf(0)) }
+        assertFailsWith<MoneroError> { wallet.untagAccounts(listOf(0)) }
+        assertFailsWith<MoneroError> { wallet.setAccountTagLabel("tag", "label") }
     }
 }
