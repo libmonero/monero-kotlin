@@ -26,6 +26,8 @@ repositories {
     mavenCentral()
 }
 
+val jacocoCli by configurations.creating
+
 dependencies {
     api("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     implementation("net.java.dev.jna:jna:5.15.0")
@@ -34,6 +36,10 @@ dependencies {
 
     // runs the tests from the files of unitTests, without Gradle. It is the version of the launcher that kotlin-test brings
     testRuntimeOnly("org.junit.platform:junit-platform-console:1.10.1")
+
+    // makes the report of the coverage from what the agent of JaCoCo wrote, for the tests that run from the files of unitTests. The jar with the
+    // classifier nodeps has its libraries inside
+    jacocoCli("org.jacoco:org.jacoco.cli:${jacoco.toolVersion}:nodeps") { isTransitive = false }
 }
 
 kotlin {
@@ -82,7 +88,8 @@ val integrationTest by tasks.registering(Test::class) {
 }
 
 // The tests, and the files they need to run without building anything: the classes, the resources and the libraries, as unit-tests.yml of
-// GitHub runs them on every platform. The classes stay as directories, since the tests look for the classes of the model there
+// GitHub runs them on every platform. The classes stay as directories, since the tests look for the classes of the model there. The agent
+// of JaCoCo and its command line are there too, for integration-tests.yml to run the tests with them and make the report of the coverage
 val unitTests by tasks.registering(Sync::class) {
     dependsOn(tasks.testClasses)
     into(layout.buildDirectory.dir("unit-tests"))
@@ -91,6 +98,15 @@ val unitTests by tasks.registering(Sync::class) {
     from(layout.buildDirectory.dir("resources/main")) { into("resources/main") }
     from(layout.buildDirectory.dir("resources/test")) { into("resources/test") }
     from(configurations.testRuntimeClasspath.map { classpath -> classpath.filter { it.isFile } }) { into("lib") }
+    // the agent is a jar inside the jar of the dependency
+    from(provider { zipTree(configurations["jacocoAgent"].singleFile) }) {
+        include("jacocoagent.jar")
+        into("jacoco")
+    }
+    from(jacocoCli) {
+        into("jacoco")
+        rename { "jacococli.jar" }
+    }
 }
 
 // The coverage of the library, which the tests make: ./gradlew test jacocoTestReport. The XML is the one that Codacy reads

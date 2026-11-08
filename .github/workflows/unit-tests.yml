@@ -59,6 +59,8 @@ jobs:
             os: ubuntu-24.04
             monero-c: linux-x86_64
             library: libmonero_c.so
+            # the coverage is of this platform: the tests run with the agent of JaCoCo that Build put with them, and codacy.yml sends the report
+            agent: -javaagent:unit-tests/jacoco/jacocoagent.jar=destfile=coverage/jacoco.exec,includes=monero.*
           - platform: Linux arm64
             os: ubuntu-24.04-arm
             monero-c: linux-arm64
@@ -126,7 +128,7 @@ jobs:
           # the logs of the tests go in the results that are uploaded
           MONERO_KOTLIN_TEST_LOG_DIR: test-results/logs
         run: >
-          java -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
+          java ${{ matrix.agent }} -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
           --disable-banner --details=summary
           --exclude-tag integration
           --class-path unit-tests/classes/main
@@ -141,4 +143,21 @@ jobs:
         with:
           name: unit-test-results-${{ matrix.os }}
           path: test-results
+          if-no-files-found: ignore
+
+      # the report that Codacy reads, from the classes that ran. Whatever the tests did, the agent wrote what they ran
+      - name: Make the coverage report
+        if: always() && matrix.agent && hashFiles('coverage/jacoco.exec') != ''
+        run: |
+          mkdir coverage-reports
+          java -jar unit-tests/jacoco/jacococli.jar report coverage/jacoco.exec \
+            --classfiles unit-tests/classes/main \
+            --xml coverage-reports/jacocoTestReport.xml
+
+      - name: Upload the coverage report
+        if: always() && matrix.agent
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          path: coverage-reports
           if-no-files-found: ignore

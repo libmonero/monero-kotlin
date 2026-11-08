@@ -117,7 +117,8 @@ jobs:
           # the logs of the tests go in the results that are uploaded
           MONERO_KOTLIN_TEST_LOG_DIR: test-results/logs
         run: >
-          java -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
+          java -javaagent:unit-tests/jacoco/jacocoagent.jar=destfile=coverage/jacoco.exec,includes=monero.*
+          -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
           --disable-banner --details=summary
           --include-tag integration --fail-if-no-tests
           --class-path unit-tests/classes/main
@@ -125,6 +126,24 @@ jobs:
           --class-path unit-tests/resources/test
           --scan-class-path unit-tests/classes/test
           --reports-dir test-results
+
+      # the report that Codacy reads, from the classes that ran. Whatever the tests did, the agent wrote what they ran. The coverage of the unit
+      # tests is the one of unit-tests.yml, and codacy.yml sends both
+      - name: Make the coverage report
+        if: always() && hashFiles('coverage/jacoco.exec') != ''
+        run: |
+          mkdir coverage-reports
+          java -jar unit-tests/jacoco/jacococli.jar report coverage/jacoco.exec \
+            --classfiles unit-tests/classes/main \
+            --xml coverage-reports/jacocoTestReport.xml
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          path: coverage-reports
+          if-no-files-found: ignore
 
       - name: Dump the logs of the containers
         if: always()

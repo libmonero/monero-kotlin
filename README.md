@@ -294,11 +294,12 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 
 ## Continuous integration
 
-* **Build** builds the library and the unit tests, uploads the unit tests, with the files they need to run (`./gradlew unitTests`), and collects the coverage of the unit tests.
+* **Build** builds the library and the unit tests, and uploads the unit tests, with the files they need to run, and the agent and the command line of JaCoCo for the coverage (`./gradlew unitTests`).
 * **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes. Its compilation, dependencies included, is cached with ccache, which only the runs on main save.
-* **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything.
+* **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything. On Linux x86_64 it runs them with the agent of JaCoCo that Build uploaded with them, and uploads the report of the coverage.
 * **Android** builds the android module and the example application, with the `monero-native-android` archive of the release of monero-c that the submodule is pinned at, and uploads the AAR. It fails if the release is not the one of the submodule.
-* **Integration tests** waits for the same runs, starts the nodes and the wallet RPC servers of `src/test/docker/docker-compose.yml`, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test, and uploads the logs of the containers.
+* **Integration tests** waits for the same runs, starts the nodes and the wallet RPC servers of `src/test/docker/docker-compose.yml`, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test, and uploads the logs of the containers. It runs the tests with the agent of JaCoCo that Build uploaded with the unit tests, and uploads the report of the coverage.
+* **Codacy Coverage Reporter** sends the reports of the coverage of Unit tests and Integration tests to Codacy, which merges them, when both have ended, for pull requests and for main.
 
 ## Related projects
 

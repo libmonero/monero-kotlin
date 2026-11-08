@@ -1,5 +1,5 @@
 # Builds the library and the unit tests of the data model. The tests run on every platform in unit-tests.yml, from the files that this
-# uploads, and coverage.yml collects the coverage with the library of monero-c that Native built
+# uploads, and they come with the agent of JaCoCo that unit-tests.yml and integration-tests.yml run the tests with, for the coverage
 name: Build
 
 on:
