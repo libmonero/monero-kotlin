@@ -23,8 +23,7 @@ interface TestWallets {
     fun assumeAvailable()
 
     /**
-     * Make a wallet that is connected to the node, and has not synced. A wallet with no seed is a random one, which starts at the height
-     * of the chain. The test closes it.
+     * Make a wallet that is connected to the node, and has not synced. A wallet with no seed is a random one. The test closes it.
      *
      * @param seed is the seed to restore the wallet from, or null for a random wallet
      * @param restoreHeight is the height to restore it from, or null for the default
@@ -78,6 +77,20 @@ object FullTestWallets : TestWallets {
         config.regtest = true
         config.seed = seed
         config.restoreHeight = restoreHeight
+        return MoneroWalletFull.createWallet(config)
+    }
+
+    /**
+     * Make a random wallet that is not connected to a node: its server is one that is not there, as the OFFLINE_SERVER_URI of monero-python.
+     * The test closes it.
+     */
+    fun createUnconnected(): MoneroWalletNative {
+        val config = MoneroWalletConfig()
+        config.path = directory.resolve("wallet-${System.nanoTime()}").toString()
+        config.password = PASSWORD
+        config.networkType = MoneroNetworkType.MAINNET
+        config.server = MoneroRpcConnection("offline_server_uri")
+        config.regtest = true
         return MoneroWalletFull.createWallet(config)
     }
 

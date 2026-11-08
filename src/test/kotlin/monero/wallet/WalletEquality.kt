@@ -68,6 +68,23 @@ object WalletEquality {
         assertOutputsEqual(w1.getOutputs(outputQuery), w2.getOutputs(outputQuery))
     }
 
+    /**
+     * Compare two full wallets: what [assertOnChain] compares, and the network, the restore height, the connection to the daemon and the
+     * language of the seed.
+     */
+    fun assertFullOnChain(w1: MoneroWalletNative, w2: MoneroWalletNative) {
+        assertOnChain(w1, w2)
+        assertEquals(w1.getNetworkType(), w2.getNetworkType())
+        assertEquals(w1.getRestoreHeight(), w2.getRestoreHeight())
+        // the connection has also what the last check of it found, which differs between two wallets
+        val connection1 = assertNotNull(w1.getDaemonConnection())
+        val connection2 = assertNotNull(w2.getDaemonConnection())
+        assertEquals(connection1.uri, connection2.uri)
+        assertEquals(connection1.username, connection2.username)
+        assertEquals(connection1.password, connection2.password)
+        assertEquals(w1.getSeedLanguage(), w2.getSeedLanguage())
+    }
+
     // ------------------------------- ACCOUNTS ----------------------------------
 
     fun assertAccountsEqual(accounts1: List<MoneroAccount>, accounts2: List<MoneroAccount>) {
