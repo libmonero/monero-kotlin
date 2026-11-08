@@ -1119,12 +1119,20 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         }
     }
 
+    // the sync of a wallet that has no node fails the same with a listener, which is not notified
     @Test
-    fun sync_WithAListener_IsNotImplementedYet() {
+    fun sync_WithAListener_OfAWalletThatIsNotConnected_IsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
-            val error = assertFailsWith<MoneroError> { wallet.sync(null, MoneroWalletListener()) }
-            assertTrue("not implemented yet" in error.message!!, error.message)
-            assertFailsWith<MoneroError> { wallet.sync(MoneroWalletListener()) }
+            val listener = object : MoneroWalletListener() {
+                var notified = 0
+                override fun onSyncProgress(height: Long, startHeight: Long, endHeight: Long, percentDone: Double, message: String?) {
+                    notified++
+                }
+            }
+            assertEquals("Wallet is not connected to daemon", assertFailsWith<MoneroError> { wallet.sync(null, listener) }.message)
+            assertEquals("Wallet is not connected to daemon", assertFailsWith<MoneroError> { wallet.sync(listener) }.message)
+            assertEquals(0, listener.notified)
+            assertEquals(emptyList(), wallet.getListeners())
         }
     }
 
@@ -1168,7 +1176,6 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
                 "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
-                "addListener" to { wallet.addListener(MoneroWalletListener()) },
                 "rescanBlockchain" to { wallet.rescanBlockchain() },
                 "startMining" to { wallet.startMining() }
             )
@@ -1619,5 +1626,88 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.addAddressBookEntry(address, "no") }
         assertFailsWith<MoneroError> { wallet.editAddressBookEntry(0, null, "no") }
         assertFailsWith<MoneroError> { wallet.deleteAddressBookEntry(0) }
+    }
+
+    // ------------------------------- LISTENERS ----------------------------------
+
+    @Test
+    fun listeners_OfANewWallet_AreNone() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals(emptyList(), wallet.getListeners())
+        }
+    }
+
+    // Can stop listening: the listeners are the ones that were added, in order, and none after they are removed
+    @Test
+    fun listeners_AreWhatWasAdded_UntilTheyAreRemoved() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val first = MoneroWalletListener()
+            val second = MoneroWalletListener()
+            wallet.addListener(first)
+            assertEquals(listOf(first), wallet.getListeners())
+            wallet.addListener(second)
+            assertEquals(listOf(first, second), wallet.getListeners())
+
+            // adding one again leaves it as it is
+            wallet.addListener(first)
+            assertEquals(listOf(first, second), wallet.getListeners())
+
+            wallet.removeListener(first)
+            assertEquals(listOf(second), wallet.getListeners())
+            wallet.removeListener(second)
+            assertEquals(emptyList(), wallet.getListeners())
+
+            // the one that was removed can be added again
+            wallet.addListener(first)
+            assertEquals(listOf(first), wallet.getListeners())
+        }
+    }
+
+    @Test
+    fun removeListeners_RemovesAllOfThem() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            repeat(3) { wallet.addListener(MoneroWalletListener()) }
+            assertEquals(3, wallet.getListeners().size)
+            wallet.removeListeners()
+            assertEquals(emptyList(), wallet.getListeners())
+            wallet.removeListeners()
+            wallet.addListener(MoneroWalletListener())
+            assertEquals(1, wallet.getListeners().size)
+        }
+    }
+
+    @Test
+    fun removeListener_ThatIsNotRegistered_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.removeListener(MoneroWalletListener()) }
+            assertEquals("Listener is not registered with wallet", error.message)
+
+            val listener = MoneroWalletListener()
+            wallet.addListener(listener)
+            wallet.removeListener(listener)
+            assertFailsWith<MoneroError> { wallet.removeListener(listener) }
+        }
+    }
+
+    // a wallet that is closed with listeners registered frees them, and does not wait for them
+    @Test
+    fun close_OfAWalletWithListeners_Returns() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        repeat(3) { wallet.addListener(MoneroWalletListener()) }
+        wallet.close()
+        assertTrue(wallet.isClosed())
+    }
+
+    @Test
+    fun listeners_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        val listener = MoneroWalletListener()
+        wallet.addListener(listener)
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.addListener(MoneroWalletListener()) }
+        assertFailsWith<MoneroError> { wallet.removeListener(listener) }
+        assertFailsWith<MoneroError> { wallet.getListeners() }
+        assertFailsWith<MoneroError> { wallet.removeListeners() }
+        assertFailsWith<MoneroError> { wallet.sync(listener) }
     }
 }

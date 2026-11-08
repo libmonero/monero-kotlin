@@ -13,7 +13,7 @@ open class MoneroWalletListener {
      * @param height is the height of the synced block
      * @param startHeight is the starting height of the sync request
      * @param endHeight is the ending height of the sync request
-     * @param percentDone is the sync progress as a percentage
+     * @param percentDone is the sync progress, from 0 to 1
      * @param message is a human-readable description of the current progress
      */
     open fun onSyncProgress(height: Long, startHeight: Long, endHeight: Long, percentDone: Double, message: String?) {

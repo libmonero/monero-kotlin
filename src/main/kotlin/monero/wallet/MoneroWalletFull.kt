@@ -17,6 +17,7 @@ import monero.internal.MoneroC
 import monero.internal.MoneroNative
 import monero.internal.NativeWorker
 import monero.internal.SizeT
+import monero.internal.WalletEvents
 import monero.wallet.model.MoneroAccount
 import monero.wallet.model.MoneroAddressBookEntry
 import monero.wallet.model.MoneroCheckReserve
@@ -68,6 +69,78 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
     private var closed = false
 
     private val shutdownLock = ReentrantReadWriteLock()
+
+    // the listeners that were added, with the native listener of each: the lock of the map orders the adds and the removes of the
+    // callers, and close frees what is left
+    private val listeners = LinkedHashMap<MoneroWalletListener, WalletEvents>()
+
+    // ------------------------------- LISTENERS ----------------------------------
+
+    /**
+     * Register a listener, which is notified of the sync of the wallet, of its new blocks, of the changes of its balances and of the
+     * outputs that it receives and spends, one notification after the other and in order. They are notified on a thread of the listener,
+     * which does not hold the other calls of the wallet, so a notification can call the wallet. A notification that does not return
+     * holds the next ones, and the close of the wallet and the sync that caused them. A listener that throws is skipped for that
+     * notification. A listener that is registered already stays as it is.
+     *
+     * @param listener is the listener to register
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun addListener(listener: MoneroWalletListener) {
+        checkNotClosed()
+        synchronized(listeners) {
+            if (listener in listeners) return
+            val events = WalletEvents(listener)
+            try {
+                run { lib, h -> MoneroNative.ok(lib.monero_wallet_add_listener(h, events.handle)) }
+            } catch (e: Throwable) {
+                events.close()
+                throw e
+            }
+            listeners[listener] = events
+        }
+    }
+
+    /**
+     * Unregister a listener. The notifications that were made before are delivered to it before this returns.
+     *
+     * @param listener is a listener that was registered with the wallet
+     * @throws MoneroError if the wallet is closed, or the listener is not registered
+     */
+    override fun removeListener(listener: MoneroWalletListener) {
+        checkNotClosed()
+        synchronized(listeners) {
+            val events = listeners[listener] ?: throw MoneroError("Listener is not registered with wallet")
+            run { lib, h -> MoneroNative.ok(lib.monero_wallet_remove_listener(h, events.handle)) }
+            listeners.remove(listener)
+            events.close()
+        }
+    }
+
+    /**
+     * Get the listeners that are registered with the wallet, in the order that they were added.
+     *
+     * @return the listeners
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun getListeners(): List<MoneroWalletListener> {
+        checkNotClosed()
+        return synchronized(listeners) { listeners.keys.toList() }
+    }
+
+    /**
+     * Unregister all the listeners of the wallet.
+     *
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun removeListeners() {
+        checkNotClosed()
+        synchronized(listeners) {
+            run { lib, h -> MoneroNative.ok(lib.monero_wallet_remove_listeners(h)) }
+            listeners.values.forEach { it.close() }
+            listeners.clear()
+        }
+    }
 
     // ------------------------------- SEED, KEYS AND ADDRESSES ----------------------------------
 
@@ -1035,14 +1108,21 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
      *
      * @param startHeight is the height to sync from, ignored when it is less than the height that the wallet has
      * already scanned
-     * @param listener is not implemented yet: the sync does not notify one, so it has to be null
+     * @param listener is notified of the progress of the sync, one notification after the other, and has been notified of all of it when
+     * this returns, or null for none. It is not registered with the wallet, so it is not notified after the sync
      * @return the result of the sync
-     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon, or a listener is given
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
      */
     override fun sync(startHeight: Long?, listener: MoneroWalletListener?): MoneroSyncResult {
         checkNotClosed()
-        if (listener != null) throw MoneroError("The sync of a full wallet with a listener is not implemented yet")
-        return json { lib, h, out -> lib.monero_wallet_sync(h, startHeight?.let { LongByReference(it) }, null, out) }
+        val events = listener?.let { WalletEvents(it) }
+        try {
+            val result: MoneroSyncResult = json { lib, h, out -> lib.monero_wallet_sync(h, startHeight?.let { LongByReference(it) }, events?.handle, out) }
+            events?.flush()
+            return result
+        } finally {
+            events?.close()
+        }
     }
 
     /**
@@ -1318,6 +1398,11 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
         shutdownLock.writeLock().lock()
         try {
             worker.close()
+            // the wallet is closed and not freed yet, so freeing a listener removes it from a handle that is there
+            synchronized(listeners) {
+                listeners.values.forEach { it.close() }
+                listeners.clear()
+            }
             MoneroNative.lib.monero_wallet_free(handle)
         } finally {
             shutdownLock.writeLock().unlock()
