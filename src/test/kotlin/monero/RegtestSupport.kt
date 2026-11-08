@@ -1,5 +1,6 @@
 package monero
 
+import java.net.URI
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
@@ -9,9 +10,10 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 /**
  * What the integration tests share: the regtest nodes and the wallet RPC servers that integration-tests.yml starts with
  * src/test/docker/docker-compose.yml, which are the ones of monero-python, and the mining that moves the chain. The tests use the second
- * node and the first wallet RPC server. Each of the settings is the one of that file, and an environment variable changes it:
- * MONERO_C_TEST_DAEMON_URI, MONERO_C_TEST_DAEMON_USERNAME, MONERO_C_TEST_DAEMON_PASSWORD, MONERO_C_TEST_WALLET_RPC_URI,
- * MONERO_C_TEST_WALLET_RPC_USERNAME and MONERO_C_TEST_WALLET_RPC_PASSWORD.
+ * node and the three wallet RPC servers: a server has one open wallet, so the first one holds the wallet that the tests share, and the
+ * next two the wallets that a test makes. Each of the settings is the one of that file, and an environment variable changes it:
+ * MONERO_C_TEST_DAEMON_URI, MONERO_C_TEST_DAEMON_USERNAME, MONERO_C_TEST_DAEMON_PASSWORD, MONERO_C_TEST_WALLET_RPC_URI (of the first
+ * server: the next ones are on the ports that follow), MONERO_C_TEST_WALLET_RPC_USERNAME and MONERO_C_TEST_WALLET_RPC_PASSWORD.
  */
 object RegtestSupport {
 
@@ -34,9 +36,23 @@ object RegtestSupport {
     fun daemonConnection() = MoneroRpcConnection(daemonUri, daemonUsername, daemonPassword)
 
     /**
-     * A connection to the wallet RPC server, with its login. The caller closes it.
+     * The URI of a wallet RPC server. The first one is walletRpcUri, and the next ones are on the ports that follow, as in the compose.
+     *
+     * @param server is the index of the server, 0 for the first
      */
-    fun walletRpcConnection() = MoneroRpcConnection(walletRpcUri, walletRpcUsername, walletRpcPassword)
+    fun walletRpcServerUri(server: Int): String {
+        if (server == 0) return walletRpcUri
+        val uri = URI(walletRpcUri)
+        require(uri.port >= 0) { "The URI of the wallet RPC server has no port, so the next servers are not on the port that follows: $walletRpcUri" }
+        return URI(uri.scheme, uri.userInfo, uri.host, uri.port + server, uri.path, uri.query, uri.fragment).toString()
+    }
+
+    /**
+     * A connection to a wallet RPC server, with its login. The caller closes it.
+     *
+     * @param server is the index of the server, 0 for the first
+     */
+    fun walletRpcConnection(server: Int = 0) = MoneroRpcConnection(walletRpcServerUri(server), walletRpcUsername, walletRpcPassword)
 
     /**
      * Skip the test if monero-c can not be loaded, or no node answers at the URI.
@@ -52,11 +68,12 @@ object RegtestSupport {
     /**
      * Skip the test if monero-c can not be loaded, or no wallet RPC server answers at its URI.
      *
+     * @param server is the index of the server, 0 for the first
      * @throws MoneroError if the server answers, and does not accept the login
      */
-    fun assumeWalletRpcAvailable() {
+    fun assumeWalletRpcAvailable(server: Int = 0) {
         NativeTestSupport.assumeAvailable()
-        assumeTrue(isUp(walletRpcConnection()), "no monero-wallet-rpc at $walletRpcUri: start the compose of src/test/docker, or set MONERO_C_TEST_WALLET_RPC_URI")
+        assumeTrue(isUp(walletRpcConnection(server)), "no monero-wallet-rpc at ${walletRpcServerUri(server)}: start the compose of src/test/docker, or set MONERO_C_TEST_WALLET_RPC_URI")
     }
 
     // a server that answers and refuses the login is a mistake of the setup, and a skipped test would hide it

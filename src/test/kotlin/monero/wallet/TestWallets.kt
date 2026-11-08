@@ -2,10 +2,9 @@ package monero.wallet
 
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.IdentityHashMap
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import monero.RegtestSupport
-import monero.common.MoneroError
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroWalletConfig
 
@@ -40,10 +39,10 @@ interface TestWallets {
     fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative
 
     /**
-     * Make a wallet that [create] made, and that a test has not closed, ready to use again. The wallet of a server is not ready when
-     * another wallet took its place, since a server has one open wallet and a test that makes a wallet opens it. Any other wallet always is.
+     * Make a wallet that is connected to the node, and has not synced, for [TxHistoryWallet] to keep until the JVM ends, which no test
+     * closes. The wallet of a server is not on a server that [create] gives to a test.
      */
-    fun activate(wallet: MoneroWalletNative) {}
+    fun createShared(): MoneroWalletNative = create()
 }
 
 /**
@@ -88,20 +87,27 @@ object FullTestWallets : TestWallets {
 }
 
 /**
- * Wallets of the monero-wallet-rpc server of src/test/docker, which the server keeps under a name that it has not another wallet with.
+ * Wallets of the monero-wallet-rpc servers of src/test/docker, which a server keeps under a name that it has not another wallet with. A
+ * server has one open wallet, as the docker wallet manager of monero-python knows, so the first server holds the wallet that the tests
+ * share ([createShared]), and the wallets that a test makes go to the next two in turn: a test can have two wallets open, such as the
+ * one that sends and the one that receives, and none of them takes the place of the shared one.
  */
 object RpcTestWallets : TestWallets {
 
+    // the servers of the wallets of the tests, which are used in turn
+    private val SERVERS = listOf(1, 2)
+    private val turn = AtomicInteger()
+
     override fun assumeAvailable() {
         RegtestSupport.assumeAvailable()
-        RegtestSupport.assumeWalletRpcAvailable()
+        for (server in 0..SERVERS.last()) RegtestSupport.assumeWalletRpcAvailable(server)
     }
 
     override fun create(seed: String?, restoreHeight: Long?): MoneroWalletNative {
         val config = MoneroWalletConfig()
         config.seed = seed
         config.restoreHeight = restoreHeight
-        return create(config)
+        return create(config, nextServer())
     }
 
     // the server refreshes its open wallet by itself every 20 seconds, so this one can import outputs until then: a test has to use it at once
@@ -110,30 +116,19 @@ object RpcTestWallets : TestWallets {
         config.primaryAddress = address
         config.privateViewKey = privateViewKey
         config.restoreHeight = 0
-        return create(config)
+        return create(config, nextServer())
     }
 
-    // the name and the primary address of each wallet that was made, to open it again
-    private val made = IdentityHashMap<MoneroWalletNative, Pair<String, String>>()
+    override fun createShared(): MoneroWalletNative = create(MoneroWalletConfig(), 0)
 
-    override fun activate(wallet: MoneroWalletNative) {
-        wallet as MoneroWalletRpc
-        val (name, address) = synchronized(made) { made.getValue(wallet) }
-        val open = try {
-            wallet.getAccounts().firstOrNull()?.primaryAddress
-        } catch (_: MoneroError) {
-            null
-        }
-        if (open != address) wallet.openWallet(name, FullTestWallets.PASSWORD)
-    }
+    private fun nextServer(): Int = SERVERS[Math.floorMod(turn.getAndIncrement(), SERVERS.size)]
 
-    private fun create(config: MoneroWalletConfig): MoneroWalletNative {
-        val wallet = MoneroWalletRpc(RegtestSupport.walletRpcConnection())
+    private fun create(config: MoneroWalletConfig, server: Int): MoneroWalletNative {
+        val wallet = MoneroWalletRpc(RegtestSupport.walletRpcConnection(server))
         try {
             config.path = "kt-" + UUID.randomUUID().toString().replace("-", "")
             config.password = FullTestWallets.PASSWORD
             wallet.createWallet(config)
-            synchronized(made) { made[wallet] = config.path!! to wallet.getPrimaryAddress() }
             return wallet
         } catch (e: Throwable) {
             runCatching { wallet.close() }

@@ -30,9 +30,13 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     private val walletPassword = "supersecretpassword123"
 
+    // the server of the wallets of these tests, which are on the same one so that a test opens by name a wallet that it made: the first
+    // server holds the wallet that the other tests share
+    private val server = 1
+
     @BeforeTest
     fun requireLibraryAndServer() {
-        RegtestSupport.assumeWalletRpcAvailable()
+        RegtestSupport.assumeWalletRpcAvailable(server)
     }
 
     // ------------------------------- THE COMMON TESTS ----------------------------------
@@ -190,7 +194,7 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     // ------------------------------- THE TESTS OF THE SERVER ----------------------------------
 
-    private fun newClient() = MoneroWalletRpc(RegtestSupport.walletRpcConnection())
+    private fun newClient() = MoneroWalletRpc(RegtestSupport.walletRpcConnection(server))
 
     // the name of a wallet that the server has not
     private fun newName() = "kt-" + UUID.randomUUID().toString().replace("-", "")
@@ -344,7 +348,7 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
     fun testGetRpcConnection() {
         newClient().use { wallet ->
             val connection = wallet.getRpcConnection()
-            assertEquals(RegtestSupport.walletRpcUri, connection.uri)
+            assertEquals(RegtestSupport.walletRpcServerUri(server), connection.uri)
             assertEquals(RegtestSupport.walletRpcUsername, connection.username)
         }
     }

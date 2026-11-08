@@ -19,17 +19,13 @@ object TxHistoryWallet {
     private val wallets = HashMap<TestWallets, MoneroWalletNative>()
 
     /**
-     * The wallet of a kind, which is made on the first call, and is ready to use on every call. It needs monero-c and the regtest node of
-     * src/test/docker, and the server for the wallet of a server.
+     * The wallet of a kind, which is made on the first call. It needs monero-c and the regtest node of src/test/docker, and the server
+     * for the wallet of a server.
      */
     @Synchronized
-    fun get(kind: TestWallets): MoneroWalletNative {
-        val wallet = wallets[kind] ?: build(kind).also {
-            wallets[kind] = it
-            Runtime.getRuntime().addShutdownHook(Thread { close(kind) })
-        }
-        kind.activate(wallet)
-        return wallet
+    fun get(kind: TestWallets): MoneroWalletNative = wallets[kind] ?: build(kind).also {
+        wallets[kind] = it
+        Runtime.getRuntime().addShutdownHook(Thread { close(kind) })
     }
 
     /**
@@ -45,7 +41,7 @@ object TxHistoryWallet {
     // Five coinbases that matured go to the first account, which pays the second one with one transaction to three of its subaddresses, then
     // pays one of its own subaddresses, then pays its integrated address with a payment id, then pays an address that is not its own twice, then the second account pays the first one, and the last payment is left in the pool.
     private fun build(kind: TestWallets): MoneroWalletNative {
-        val wallet = kind.create()
+        val wallet = kind.createShared()
         try {
             RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
             RegtestSupport.mineBlocks(130)

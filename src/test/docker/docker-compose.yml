@@ -6,7 +6,8 @@
 # at that difficulty, and they mine hundreds of blocks; and the log level is 1, because at 3 the nodes write tens of megabytes of log
 # for those blocks, and the workflow uploads the logs.
 #
-# The tests use node_2 (18081) and xmr_wallet_1 (18082):
+# The tests use node_2 (18081) and the three wallet servers, since a server has one open wallet: xmr_wallet_1 (18082) holds the wallet that
+# the tests share, and the wallets that a test makes are on xmr_wallet_2 (18083) and xmr_wallet_3 (18084):
 #   docker compose -f src/test/docker/docker-compose.yml up -d node_1 node_2 xmr_wallet_1 xmr_wallet_2 xmr_wallet_3
 #   docker compose -f src/test/docker/docker-compose.yml down -v
 services:
