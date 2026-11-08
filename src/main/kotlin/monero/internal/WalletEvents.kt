@@ -4,6 +4,8 @@ import com.sun.jna.Pointer
 import com.sun.jna.ptr.PointerByReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
+import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.wallet.model.MoneroWalletBlocksResult
 import monero.wallet.model.MoneroWalletListener
@@ -105,12 +107,24 @@ internal class WalletEvents(private val listener: MoneroWalletListener) : AutoCl
     /**
      * Wait until the listener has been called for everything that monero-c has notified so far, like a sync of monero-c waits for the
      * callbacks that it caused. It returns at once when it is called by the listener.
+     *
+     * @param timeoutMs is how long to wait for the listener to take the notifications, since a listener that never returns would hold
+     * the thread of the sync that flushed in a wait that never ends
+     * @throws MoneroError if the listener does not take the notifications in the milliseconds, or the thread is interrupted while it
+     * waits for them
      */
-    fun flush() {
+    fun flush(timeoutMs: Long = FLUSH_TIMEOUT_MS) {
         if (Thread.currentThread() === dispatcher) return
         val flush = Flush(CountDownLatch(1))
         queue.offer(flush)
-        flush.done.await()
+        try {
+            if (!flush.done.await(timeoutMs, TimeUnit.MILLISECONDS)) {
+                throw MoneroError("the listener did not take the notifications in " + timeoutMs + "ms, it is slow or it never returns")
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw MoneroError("the wait for the listener of the wallet was interrupted", e)
+        }
     }
 
     /**
@@ -138,5 +152,9 @@ internal class WalletEvents(private val listener: MoneroWalletListener) : AutoCl
     companion object {
         private val STOP = Any()
         private const val JOIN_TIMEOUT_MS = 5000L
+
+        // a minute of notifications is a long sync behind a listener that logs them all; a listener that holds a lock
+        // of the caller of the sync is behind it still
+        private const val FLUSH_TIMEOUT_MS = 60_000L
     }
 }
