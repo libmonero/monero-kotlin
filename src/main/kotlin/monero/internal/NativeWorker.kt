@@ -16,14 +16,25 @@ import monero.common.MoneroError
  */
 internal class NativeWorker(name: String, private val closedMessage: String) : AutoCloseable {
 
+    private var thread: Thread? = null
+
     private val executor = Executors.newSingleThreadExecutor { task ->
-        Thread(null, task, name, STACK_SIZE).apply { isDaemon = true }
+        Thread(null, task, name, STACK_SIZE).apply {
+            isDaemon = true
+            thread = this
+        }
     }
 
     /**
      * Run a call on the thread of the worker, and wait for its result. An error of the call is thrown as it is.
      */
     fun <T> call(task: () -> T): T {
+
+        // the worker runs one call at a time: a call that waits on a call of its own worker waits
+        // on itself, which never ends
+        if (Thread.currentThread() === thread) {
+            throw MoneroError("A call of a worker can not wait on a call of the same worker")
+        }
         val future = try {
             executor.submit(Callable { task() })
         } catch (e: RejectedExecutionException) {

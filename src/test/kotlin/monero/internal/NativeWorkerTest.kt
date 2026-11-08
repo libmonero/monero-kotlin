@@ -59,6 +59,18 @@ class NativeWorkerTest {
         call.get(10, TimeUnit.SECONDS)
     }
 
+    // the worker runs one call at a time, so a call that waits on a call of its own worker would wait
+    // on itself forever
+    @Test
+    fun call_FromTheWorkerItself_Fails() {
+        NativeWorker("test", "The test is closed").use { worker ->
+            val error = assertThrows(MoneroError::class.java) {
+                worker.call { worker.call { 1 } }
+            }
+            assertEquals("A call of a worker can not wait on a call of the same worker", error.message)
+        }
+    }
+
     @Test
     fun call_OfAClosedWorker_Fails() {
         val worker = NativeWorker("test", "The test is closed")
