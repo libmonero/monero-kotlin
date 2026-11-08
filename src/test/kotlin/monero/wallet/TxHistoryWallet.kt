@@ -33,38 +33,50 @@ object TxHistoryWallet {
         wallets.remove(kind)?.let { runCatching { it.close() } }
     }
 
-    // Five coinbases that matured go to the first account, which pays the second one with one transaction to three of its subaddresses, then
-    // pays one of its own subaddresses, then pays its integrated address with a payment id, then pays an address that is not its own twice, then the second account pays the first one, and the last payment is left in the pool.
     private fun build(kind: TestWallets): MoneroWalletNative {
         val wallet = kind.createShared()
         try {
-            RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
-            RegtestSupport.mineBlocks(130)
-            wallet.sync()
-            wallet.createAccount()
-            wallet.createSubaddress(1)
-            wallet.createSubaddress(1)
-            wallet.createSubaddress(0)
-
-            send(wallet, 0, listOf(wallet.getAddress(1, 0) to 1, wallet.getAddress(1, 1) to 2, wallet.getAddress(1, 2) to 3))
-            confirm(wallet)
-            send(wallet, 0, listOf(wallet.getAddress(0, 1) to 1))
-            confirm(wallet)
-            send(wallet, 0, listOf(wallet.getIntegratedAddress(null, PAYMENT_ID).integratedAddress!! to 1))
-            confirm(wallet)
-            send(wallet, 0, listOf(RegtestSupport.MINING_ADDRESS to 1))
-            confirm(wallet)
-            send(wallet, 0, listOf(RegtestSupport.MINING_ADDRESS to 2))
-            confirm(wallet)
-            send(wallet, 1, listOf(wallet.getAddress(0, 0) to 1))
-            confirm(wallet)
-            send(wallet, 0, listOf(wallet.getAddress(1, 2) to 1))
-            wallet.sync()
+            populate(wallet)
             return wallet
         } catch (e: Throwable) {
             runCatching { wallet.close() }
             throw e
         }
+    }
+
+    /**
+     * Give a wallet that has not synced the history of this wallet: five coinbases that matured go to the first account, which pays the
+     * second one with one transaction to three of its subaddresses, then pays one of its own subaddresses, then pays its integrated address
+     * with a payment id, then pays an address that is not its own twice, then the second account pays the first one, and the last payment is
+     * left in the pool, or is confirmed too. A wallet that is made for a test of its own, which compares it with another and so needs the
+     * pool empty, has it confirmed.
+     *
+     * @param wallet is the wallet, which the caller closes
+     * @param inPool is whether the last payment stays in the pool
+     */
+    fun populate(wallet: MoneroWalletNative, inPool: Boolean = true) {
+        RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
+        RegtestSupport.mineBlocks(130)
+        wallet.sync()
+        wallet.createAccount()
+        wallet.createSubaddress(1)
+        wallet.createSubaddress(1)
+        wallet.createSubaddress(0)
+
+        send(wallet, 0, listOf(wallet.getAddress(1, 0) to 1, wallet.getAddress(1, 1) to 2, wallet.getAddress(1, 2) to 3))
+        confirm(wallet)
+        send(wallet, 0, listOf(wallet.getAddress(0, 1) to 1))
+        confirm(wallet)
+        send(wallet, 0, listOf(wallet.getIntegratedAddress(null, PAYMENT_ID).integratedAddress!! to 1))
+        confirm(wallet)
+        send(wallet, 0, listOf(RegtestSupport.MINING_ADDRESS to 1))
+        confirm(wallet)
+        send(wallet, 0, listOf(RegtestSupport.MINING_ADDRESS to 2))
+        confirm(wallet)
+        send(wallet, 1, listOf(wallet.getAddress(0, 0) to 1))
+        confirm(wallet)
+        send(wallet, 0, listOf(wallet.getAddress(1, 2) to 1))
+        if (inPool) wallet.sync() else confirm(wallet)
     }
 
     private fun send(wallet: MoneroWalletNative, accountIdx: Int, payments: List<Pair<String, Int>>) {
