@@ -1223,6 +1223,36 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_rescan_blockchain(h)) }
     }
 
+    // ------------------------------- MINING ----------------------------------
+
+    /**
+     * Start mining on the daemon of the wallet, to the primary address of the wallet. The daemon has to be one that the wallet trusts.
+     *
+     * @param numThreads is the number of threads that mine, or null for one
+     * @param backgroundMining is whether to mine in the background, or null for not
+     * @param ignoreBattery is whether to mine on battery power, or null for not
+     * @throws MoneroError if the wallet is closed, or it is not connected to a daemon that it trusts, or the daemon is mining already
+     */
+    override fun startMining(numThreads: Long?, backgroundMining: Boolean?, ignoreBattery: Boolean?) {
+        checkNotClosed()
+        run { lib, h ->
+            val threads = numThreads?.let { LongByReference(it) }
+            val background = backgroundMining?.let { ByteByReference(if (it) 1 else 0) }
+            val battery = ignoreBattery?.let { ByteByReference(if (it) 1 else 0) }
+            MoneroNative.ok(lib.monero_wallet_start_mining(h, threads, background, battery))
+        }
+    }
+
+    /**
+     * Stop mining on the daemon of the wallet.
+     *
+     * @throws MoneroError if the wallet is closed, or it is not connected to a daemon that it trusts
+     */
+    override fun stopMining() {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_stop_mining(h)) }
+    }
+
     /**
      * Check if the wallet is connected to a daemon.
      *

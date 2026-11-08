@@ -1175,8 +1175,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
-                "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
-                "startMining" to { wallet.startMining() }
+                "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) }
             )
             for ((name, call) in calls) {
                 val error = assertFailsWith<MoneroError>(name) { call() }
@@ -1750,5 +1749,24 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1)) }
         assertFailsWith<MoneroError> { wallet.rescanSpent() }
         assertFailsWith<MoneroError> { wallet.rescanBlockchain() }
+    }
+
+    // ------------------------------- MINING ----------------------------------
+
+    // the daemon of a wallet that has none is not trusted, and mines for no one
+    @Test
+    fun mining_OfAWalletThatIsNotConnected_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("This command requires a trusted daemon.", assertFailsWith<MoneroError> { wallet.startMining(1, false, true) }.message)
+            assertEquals("Couldn't stop mining due to unknown error.", assertFailsWith<MoneroError> { wallet.stopMining() }.message)
+        }
+    }
+
+    @Test
+    fun mining_OfAClosedWallet_Fails() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.startMining(1, false, true) }
+        assertFailsWith<MoneroError> { wallet.stopMining() }
     }
 }
