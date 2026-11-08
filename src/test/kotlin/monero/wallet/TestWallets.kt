@@ -5,6 +5,7 @@ import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import monero.RegtestSupport
+import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroWalletConfig
 
@@ -31,12 +32,22 @@ interface TestWallets {
     fun create(seed: String? = null, restoreHeight: Long? = null): MoneroWalletNative
 
     /**
-     * Make a view-only wallet of an address, which has never refreshed from the node, so it can import outputs. The test closes it.
+     * Make a view-only wallet of an address, which is connected to the node and has not synced, so it can import outputs, which a wallet
+     * that has synced can not. The test closes it.
      *
      * @param address is the primary address of the wallet
      * @param privateViewKey is the private view key of the wallet
      */
     fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative
+
+    /**
+     * Make a wallet of the keys of an address, which can sign transactions and is not connected to a node. The test closes it.
+     *
+     * @param address is the primary address of the wallet
+     * @param privateViewKey is the private view key of the wallet
+     * @param privateSpendKey is the private spend key of the wallet
+     */
+    fun createOffline(address: String, privateViewKey: String, privateSpendKey: String): MoneroWalletNative
 
     /**
      * Make a wallet that is connected to the node, and has not synced, for [TxHistoryWallet] to keep until the JVM ends, which no test
@@ -70,15 +81,23 @@ object FullTestWallets : TestWallets {
         return MoneroWalletFull.createWallet(config)
     }
 
+    override fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative =
+        fromKeys(address, privateViewKey, null, RegtestSupport.daemonConnection())
+
     // it has no server, so it is offline
-    override fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative {
+    override fun createOffline(address: String, privateViewKey: String, privateSpendKey: String): MoneroWalletNative =
+        fromKeys(address, privateViewKey, privateSpendKey, null)
+
+    private fun fromKeys(address: String, privateViewKey: String, privateSpendKey: String?, server: MoneroRpcConnection?): MoneroWalletNative {
         val config = MoneroWalletConfig()
         config.path = directory.resolve("wallet-${System.nanoTime()}").toString()
         config.password = PASSWORD
         config.networkType = MoneroNetworkType.MAINNET
         config.regtest = true
+        config.server = server
         config.primaryAddress = address
         config.privateViewKey = privateViewKey
+        config.privateSpendKey = privateSpendKey
         config.restoreHeight = 0
         return MoneroWalletFull.createWallet(config)
     }
@@ -93,6 +112,9 @@ object FullTestWallets : TestWallets {
  * one that sends and the one that receives, and none of them takes the place of the shared one.
  */
 object RpcTestWallets : TestWallets {
+
+    // the address of a node that is not there, as the OFFLINE_SERVER_URI of monero-python
+    private const val OFFLINE_SERVER_URI = "offline_server_uri"
 
     // the servers of the wallets of the tests, which are used in turn
     private val SERVERS = listOf(1, 2)
@@ -116,6 +138,17 @@ object RpcTestWallets : TestWallets {
         config.primaryAddress = address
         config.privateViewKey = privateViewKey
         config.restoreHeight = 0
+        return create(config, nextServer())
+    }
+
+    // the server is always connected to a node, so the wallet is given one that is not there, as monero-python does
+    override fun createOffline(address: String, privateViewKey: String, privateSpendKey: String): MoneroWalletNative {
+        val config = MoneroWalletConfig()
+        config.primaryAddress = address
+        config.privateViewKey = privateViewKey
+        config.privateSpendKey = privateSpendKey
+        config.restoreHeight = 0
+        config.server = MoneroRpcConnection(OFFLINE_SERVER_URI)
         return create(config, nextServer())
     }
 
