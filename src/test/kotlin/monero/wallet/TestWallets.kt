@@ -28,6 +28,14 @@ interface TestWallets {
      * @param restoreHeight is the height to restore it from, or null for the default
      */
     fun create(seed: String? = null, restoreHeight: Long? = null): MoneroWalletNative
+
+    /**
+     * Make a view-only wallet of an address, which has never refreshed from the node, so it can import outputs. The test closes it.
+     *
+     * @param address is the primary address of the wallet
+     * @param privateViewKey is the private view key of the wallet
+     */
+    fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative
 }
 
 /**
@@ -55,6 +63,19 @@ object FullTestWallets : TestWallets {
         return MoneroWalletFull.createWallet(config)
     }
 
+    // it has no server, so it is offline
+    override fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative {
+        val config = MoneroWalletConfig()
+        config.path = directory.resolve("wallet-${System.nanoTime()}").toString()
+        config.password = PASSWORD
+        config.networkType = MoneroNetworkType.MAINNET
+        config.regtest = true
+        config.primaryAddress = address
+        config.privateViewKey = privateViewKey
+        config.restoreHeight = 0
+        return MoneroWalletFull.createWallet(config)
+    }
+
     const val PASSWORD = "supersecretpassword123"
 }
 
@@ -69,13 +90,26 @@ object RpcTestWallets : TestWallets {
     }
 
     override fun create(seed: String?, restoreHeight: Long?): MoneroWalletNative {
+        val config = MoneroWalletConfig()
+        config.seed = seed
+        config.restoreHeight = restoreHeight
+        return create(config)
+    }
+
+    // the server refreshes its open wallet by itself every 20 seconds, so this one can import outputs until then: a test has to use it at once
+    override fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative {
+        val config = MoneroWalletConfig()
+        config.primaryAddress = address
+        config.privateViewKey = privateViewKey
+        config.restoreHeight = 0
+        return create(config)
+    }
+
+    private fun create(config: MoneroWalletConfig): MoneroWalletNative {
         val wallet = MoneroWalletRpc(RegtestSupport.walletRpcConnection())
         try {
-            val config = MoneroWalletConfig()
             config.path = "kt-" + UUID.randomUUID().toString().replace("-", "")
             config.password = FullTestWallets.PASSWORD
-            config.seed = seed
-            config.restoreHeight = restoreHeight
             wallet.createWallet(config)
             return wallet
         } catch (e: Throwable) {
