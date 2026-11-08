@@ -1176,7 +1176,6 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
                 "tagAccounts" to { wallet.tagAccounts("savings", listOf(0)) },
-                "rescanBlockchain" to { wallet.rescanBlockchain() },
                 "startMining" to { wallet.startMining() }
             )
             for ((name, call) in calls) {
@@ -1709,5 +1708,47 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.getListeners() }
         assertFailsWith<MoneroError> { wallet.removeListeners() }
         assertFailsWith<MoneroError> { wallet.sync(listener) }
+    }
+
+    // ------------------------------- SCAN AND RESCAN ----------------------------------
+
+    @Test
+    fun scanTxs_WithWhatIsNotAValidHash_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("Invalid transaction hash: zz", assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1, "zz")) }.message)
+            assertFailsWith<MoneroError> { wallet.scanTxs(listOf("a".repeat(63))) }
+        }
+    }
+
+    @Test
+    fun scanTxs_WithNoHash_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("No tx hashes given to scan", assertFailsWith<MoneroError> { wallet.scanTxs(emptyList()) }.message)
+        }
+    }
+
+    // the transactions come from the daemon, which a wallet with no node has not
+    @Test
+    fun scanTxs_OfAWalletThatIsNotConnected_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("Failed to get transaction from daemon", assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1)) }.message)
+        }
+    }
+
+    @Test
+    fun rescans_OfAWalletThatIsNotConnected_AreAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            assertEquals("Rescan spent can only be used with a trusted daemon", assertFailsWith<MoneroError> { wallet.rescanSpent() }.message)
+            assertEquals("Wallet is not connected to daemon", assertFailsWith<MoneroError> { wallet.rescanBlockchain() }.message)
+        }
+    }
+
+    @Test
+    fun scansAndRescans_OfAClosedWallet_Fail() {
+        val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1)) }
+        assertFailsWith<MoneroError> { wallet.rescanSpent() }
+        assertFailsWith<MoneroError> { wallet.rescanBlockchain() }
     }
 }

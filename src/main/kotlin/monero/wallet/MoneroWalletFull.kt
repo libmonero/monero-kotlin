@@ -1187,6 +1187,42 @@ class MoneroWalletFull private constructor(private val handle: Pointer) : Monero
         }
     }
 
+    // ------------------------------- SCAN AND RESCAN ----------------------------------
+
+    /**
+     * Scan transactions of the chain by their hashes, which adds to the wallet the ones that it is a party of, without syncing the blocks
+     * between them. The wallet has to be connected to a daemon.
+     *
+     * @param txHashes are the hashes of the transactions to scan
+     * @throws MoneroError if the wallet is closed, a hash is not a transaction hash, or the wallet is not connected to a daemon
+     */
+    override fun scanTxs(txHashes: List<String>) {
+        checkNotClosed()
+        txHashes.firstOrNull { !TX_HASH.matches(it) }?.let { throw MoneroError("Invalid transaction hash: $it") }
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_scan_txs(h, txHashes.toTypedArray(), SizeT(txHashes.size.toLong()))) }
+    }
+
+    /**
+     * Rescan the chain for the outputs of the wallet that were spent, which needs a daemon that the wallet trusts.
+     *
+     * @throws MoneroError if the wallet is closed, or it is not connected to a daemon that it trusts
+     */
+    override fun rescanSpent() {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_rescan_spent(h)) }
+    }
+
+    /**
+     * Rescan the chain from the start, which loses what the chain does not have: the destinations of the transactions that the wallet
+     * sent, their keys and their notes. The wallet has to sync again to have its transactions.
+     *
+     * @throws MoneroError if the wallet is closed, or it is not connected to a daemon
+     */
+    override fun rescanBlockchain() {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_rescan_blockchain(h)) }
+    }
+
     /**
      * Check if the wallet is connected to a daemon.
      *
