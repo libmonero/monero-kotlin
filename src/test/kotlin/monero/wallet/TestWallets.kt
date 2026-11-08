@@ -152,7 +152,18 @@ object RpcTestWallets : TestWallets {
         return create(config, nextServer())
     }
 
-    override fun createShared(): MoneroWalletNative = create(MoneroWalletConfig(), 0)
+    // The server refreshes its open wallet by itself every 20 seconds, and the transaction that TxHistoryWallet leaves in the pool would be
+    // in a block, and not in the pool, as soon as another test mines one: the shared wallet refreshes when it is asked to sync
+    override fun createShared(): MoneroWalletNative {
+        val wallet = create(MoneroWalletConfig(), 0)
+        try {
+            wallet.stopSyncing()
+            return wallet
+        } catch (e: Throwable) {
+            runCatching { wallet.close() }
+            throw e
+        }
+    }
 
     private fun nextServer(): Int = SERVERS[Math.floorMod(turn.getAndIncrement(), SERVERS.size)]
 
