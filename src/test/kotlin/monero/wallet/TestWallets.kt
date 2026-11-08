@@ -2,8 +2,10 @@ package monero.wallet
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.IdentityHashMap
 import java.util.UUID
 import monero.RegtestSupport
+import monero.common.MoneroError
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroWalletConfig
 
@@ -36,6 +38,12 @@ interface TestWallets {
      * @param privateViewKey is the private view key of the wallet
      */
     fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative
+
+    /**
+     * Make a wallet that [create] made, and that a test has not closed, ready to use again. The wallet of a server is not ready when
+     * another wallet took its place, since a server has one open wallet and a test that makes a wallet opens it. Any other wallet always is.
+     */
+    fun activate(wallet: MoneroWalletNative) {}
 }
 
 /**
@@ -105,12 +113,27 @@ object RpcTestWallets : TestWallets {
         return create(config)
     }
 
+    // the name and the primary address of each wallet that was made, to open it again
+    private val made = IdentityHashMap<MoneroWalletNative, Pair<String, String>>()
+
+    override fun activate(wallet: MoneroWalletNative) {
+        wallet as MoneroWalletRpc
+        val (name, address) = synchronized(made) { made.getValue(wallet) }
+        val open = try {
+            wallet.getAccounts().firstOrNull()?.primaryAddress
+        } catch (_: MoneroError) {
+            null
+        }
+        if (open != address) wallet.openWallet(name, FullTestWallets.PASSWORD)
+    }
+
     private fun create(config: MoneroWalletConfig): MoneroWalletNative {
         val wallet = MoneroWalletRpc(RegtestSupport.walletRpcConnection())
         try {
             config.path = "kt-" + UUID.randomUUID().toString().replace("-", "")
             config.password = FullTestWallets.PASSWORD
             wallet.createWallet(config)
+            synchronized(made) { made[wallet] = config.path!! to wallet.getPrimaryAddress() }
             return wallet
         } catch (e: Throwable) {
             runCatching { wallet.close() }

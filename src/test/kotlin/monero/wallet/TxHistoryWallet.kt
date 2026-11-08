@@ -19,13 +19,17 @@ object TxHistoryWallet {
     private val wallets = HashMap<TestWallets, MoneroWalletNative>()
 
     /**
-     * The wallet of a kind, which is made on the first call. It needs monero-c and the regtest node of src/test/docker, and the server
-     * for the wallet of a server.
+     * The wallet of a kind, which is made on the first call, and is ready to use on every call. It needs monero-c and the regtest node of
+     * src/test/docker, and the server for the wallet of a server.
      */
     @Synchronized
-    fun get(kind: TestWallets): MoneroWalletNative = wallets[kind] ?: build(kind).also {
-        wallets[kind] = it
-        Runtime.getRuntime().addShutdownHook(Thread { close(kind) })
+    fun get(kind: TestWallets): MoneroWalletNative {
+        val wallet = wallets[kind] ?: build(kind).also {
+            wallets[kind] = it
+            Runtime.getRuntime().addShutdownHook(Thread { close(kind) })
+        }
+        kind.activate(wallet)
+        return wallet
     }
 
     /**
