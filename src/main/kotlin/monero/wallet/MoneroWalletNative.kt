@@ -1424,13 +1424,19 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
      * a sync that runs on the wallet has to be stopped with [requestShutdown] from another thread first.
      *
      * @param save is whether to save the wallet before closing it
-     * @throws MoneroError if a save is asked for and the wallet has no path to write to, in which case it stays open
+     * @throws MoneroError if a save is asked for and the wallet has no path to write to, in which case it stays open, or if the close
+     * fails, in which case the wallet stays open too, unless it is one that [onCloseFailed] releases
      */
     @Synchronized
     override fun close(save: Boolean) {
         if (closed) return
         if (save) requirePath()
-        run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
+        var failure: MoneroError? = null
+        try {
+            run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
+        } catch (e: MoneroError) {
+            failure = onCloseFailed(e)
+        }
         closed = true
 
         // the write lock holds requestShutdown out while the handle dies: its read lock around the native call is what
@@ -1448,6 +1454,20 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         } finally {
             shutdownLock.writeLock().unlock()
         }
+        failure?.let { throw it }
+    }
+
+    /**
+     * What a wallet does when the close of its native wallet fails: it throws the error, and stays open, or it returns the error to
+     * throw after it frees the native handle, or null to throw nothing. A wallet that talks to a server is one that frees the handle,
+     * since the network of the server can be down and there is no way to try again.
+     *
+     * @param error is the error of the close
+     * @return the error to throw after the handle is freed, or null for none
+     * @throws MoneroError to throw it at once and leave the wallet open
+     */
+    internal open fun onCloseFailed(error: MoneroError): MoneroError? {
+        throw error
     }
 
     override fun close() {
