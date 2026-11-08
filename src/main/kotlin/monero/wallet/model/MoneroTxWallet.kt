@@ -220,6 +220,8 @@ open class MoneroTxWallet : MoneroTx {
             if (outgoing == null) outgoingTransfer = otherOutgoing else outgoing.merge(otherOutgoing)
         }
 
+        // monero-java resolves a tx that is incoming in the pool and outgoing in the block to incoming; this keeps
+        // the conflict, since the two are not one state of one tx
         isIncoming = Reconcile.value(isIncoming, other.isIncoming, "tx wallet isIncoming")
         isOutgoing = Reconcile.value(isOutgoing, other.isOutgoing, "tx wallet isOutgoing")
         note = Reconcile.value(note, other.note, "tx wallet note")

@@ -8,7 +8,8 @@ import monero.common.MoneroError
  */
 class MoneroTransferQuery : MoneroTransfer {
 
-    // true to match the incoming transfers, false to match the outgoing one, null to match both
+    // true to match the incoming transfers, false to match the outgoing one, null to match both. A transfer of a
+    // transaction whose direction is not known yet meets neither: monero-java has it meet both
     override var isIncoming: Boolean? = null
     var address: String? = null
     var addresses: List<String>? = null
