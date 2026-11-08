@@ -461,6 +461,44 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_remove_listeners(wallet: Pointer): Int
 
+    // wallet: the wallet of a monero-wallet-rpc server, which has the handle of the other wallets, so the functions above work on it
+    fun monero_wallet_rpc_connect(connection: Pointer, out: PointerByReference): Int
+
+    fun monero_wallet_rpc_open_wallet(wallet: Pointer, name: String, walletPassword: String?): Int
+
+    fun monero_wallet_rpc_create_wallet(wallet: Pointer, configJson: String): Int
+
+    fun monero_wallet_rpc_open(uri: String, username: String?, password: String?, name: String, walletPassword: String?, out: PointerByReference): Int
+
+    fun monero_wallet_rpc_create_random(uri: String, username: String?, password: String?, name: String, walletPassword: String?, language: String?, out: PointerByReference): Int
+
+    fun monero_wallet_rpc_create_from_seed(
+        uri: String, username: String?, password: String?, name: String, walletPassword: String?, seed: String, seedOffset: String?, restoreHeight: Long, language: String?, out: PointerByReference
+    ): Int
+
+    fun monero_wallet_rpc_create_from_keys(
+        uri: String, username: String?, password: String?, name: String, walletPassword: String?, address: String, privateViewKey: String, privateSpendKey: String?, restoreHeight: Long, language: String?, out: PointerByReference
+    ): Int
+
+    fun monero_wallet_rpc_stop(wallet: Pointer): Int
+
+    fun monero_wallet_rpc_get_seed_languages(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_rpc_get_connection(wallet: Pointer, json: PointerByReference): Int
+
+    fun monero_wallet_rpc_set_poll_period(wallet: Pointer, periodMs: Long): Int
+
+    // the account and the subaddress are optional
+    fun monero_wallet_rpc_get_balances(wallet: Pointer, accountIdx: IntByReference?, subaddressIdx: IntByReference?, json: PointerByReference): Int
+
+    fun monero_wallet_rpc_get_account(wallet: Pointer, accountIdx: Int, includeSubaddresses: Boolean, skipBalances: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_rpc_get_accounts(wallet: Pointer, includeSubaddresses: Boolean, tag: String?, skipBalances: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_rpc_get_subaddresses(wallet: Pointer, accountIdx: Int, subaddressIndices: IntArray?, numSubaddressIndices: SizeT, skipBalances: Boolean, json: PointerByReference): Int
+
+    fun monero_wallet_rpc_set_daemon_connection(wallet: Pointer, connectionJson: String, isTrusted: Boolean, sslOptionsJson: String?): Int
+
     // the one call that any thread can make on a wallet, which the others can not
     fun monero_wallet_request_shutdown(wallet: Pointer): Int
 
