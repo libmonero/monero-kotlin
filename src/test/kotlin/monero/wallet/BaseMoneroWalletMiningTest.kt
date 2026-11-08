@@ -30,16 +30,25 @@ abstract class BaseMoneroWalletMiningTest {
     // wallet: the wallet is what the tests test, and a stop of the wallet that failed in the cleanup of a test, with a node that was not
     // asked anything else, hid the result of the test. The error of a stop that finds the node stopped is ignored
     private fun withMining(test: (MoneroDaemonRpc, MoneroWalletNative) -> Unit) {
-        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
+        MoneroDaemonRpc(RegtestSupport.daemonConnection().also { it.timeoutMs = WARM_UP_TIMEOUT_MS }).use { daemon ->
             wallets.create().use { wallet ->
                 try {
                     if (daemon.getMiningStatus().isActive == true) daemon.stopMining()
+                    warmUp(daemon)
                     test(daemon, wallet)
                 } finally {
                     if (daemon.getMiningStatus().isActive == true) runCatching { daemon.stopMining() }
                 }
             }
         }
+    }
+
+    // The first time that the node mines, its miner initializes the dataset of RandomX, which took it 20 seconds in the workflow, and a stop that
+    // comes meanwhile waits for the miner: longer than the 15 seconds that a wallet waits for the node, so the stop of the wallet fails. The
+    // node mines and stops here first, with a connection that waits longer, and it keeps the dataset after
+    private fun warmUp(daemon: MoneroDaemonRpc) {
+        daemon.startMining(RegtestSupport.MINING_ADDRESS, 1, false, true)
+        daemon.stopMining()
     }
 
     // Can start and stop mining: the node mines to the address of the wallet with the threads that were asked for
@@ -94,5 +103,11 @@ abstract class BaseMoneroWalletMiningTest {
             assertFalse(daemon.getMiningStatus().isActive == true)
             assertFailsWith<MoneroError> { wallet.stopMining() }
         }
+    }
+
+    private companion object {
+
+        // the time that the connection of the tests to the node waits for the stop of the miner of a node that is not warm
+        const val WARM_UP_TIMEOUT_MS = 120_000L
     }
 }
