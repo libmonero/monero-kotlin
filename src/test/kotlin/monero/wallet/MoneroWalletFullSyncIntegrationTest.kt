@@ -37,9 +37,9 @@ class MoneroWalletFullSyncIntegrationTest {
         FullTestWallets.assumeAvailable()
     }
 
-    // Can sync a wallet with a randomly generated seed: it syncs from its restore height, which monero-c leaves at 0 for a wallet that it
-    // creates on the regtest chain, where monero-python expects the height of the chain, and it finds what a wallet of its seed that is
-    // restored from there finds
+    // Can sync a wallet with a randomly generated seed: it syncs from its restore height, which monero-c sets at 0 for a wallet that it creates
+    // on the regtest chain, since the estimate of the date that a new wallet starts from is past that chain, where monero-python expects the
+    // height of the chain, and it finds what a wallet of its seed that is restored from there finds
     @Test
     fun testSyncRandom() {
         MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
@@ -147,9 +147,10 @@ class MoneroWalletFullSyncIntegrationTest {
         testSyncSeed(firstReceiveHeight, firstReceiveHeight + 3)
     }
 
-    // Can sync a wallet created from seed from a start height greater than the restore height. monero-c scans from the restore height, and not
-    // from the start height that is past it, so the wallet has the payments between them, where monero-python expects its first transaction
-    // after the first payment
+    // Can sync a wallet created from seed from a start height greater than the restore height. From 1000 on, wallet2 starts a sync at the
+    // checkpoint of mainnet below the start height, which a regtest chain does not have, and goes on from block 1001: the wallet has the
+    // payments between there and the start height, where monero-python expects its first transaction after the first payment (the TODO.md of
+    // monero-c has it). It passes on a chain that is shorter
     @Test
     @NotImplemented
     fun testSyncSeedStartHeightGreaterThanRestoreHeight() {
@@ -315,15 +316,7 @@ class MoneroWalletFullSyncIntegrationTest {
 
                 // the wallet after it syncs
                 assertTrue(wallet.isSynced())
-                // monero-python expects the blocks from the start to the chain. monero-c counts them so when the sync starts at the genesis block,
-                // and counts more when it starts later
-                val fetched = assertNotNull(result.numBlocksFetched)
-                val expectedFetched = wallet.getDaemonHeight() - startExpected
-                if (startExpected == 1L) {
-                    assertEquals(expectedFetched, fetched)
-                } else {
-                    assertTrue(fetched >= expectedFetched, "$fetched blocks fetched, and the chain is $expectedFetched blocks past the start")
-                }
+                assertBlocksFetched(result, wallet.getDaemonHeight(), startExpected)
                 assertEquals(true, result.receivedMoney)
                 assertEquals(daemon.getHeight(), wallet.getDaemonHeight())
 
