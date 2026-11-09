@@ -74,10 +74,10 @@ class MoneroWalletFullListenersIntegrationTest : BaseMoneroWalletListenersTest()
             tester.onDone(wallet.getDaemonHeight())
             assertEquals(emptyList(), tester.errors)
 
-            // the next sync is notified too
+            // the next sync is notified too, and the listener has been notified of all of it when the sync returns
             RegtestSupport.mineBlocks(3)
             wallet.sync()
-            eventually(what = "the notification of the next sync") { tester.notifiedAfterDone.takeIf { it } }
+            assertTrue(tester.notifiedAfterDone, "the registered listener was notified before the sync returned")
             assertEquals(emptyList(), tester.errors)
 
             wallet.removeListener(tester)

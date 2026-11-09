@@ -116,6 +116,13 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         }
     }
 
+    // The listeners that are registered are notified on threads of their own, so a call that makes the wallet notify them, such as a sync, waits
+    // for them to be notified of all of it before it returns: without that, the last notifications of the sync can come after it
+    private fun flushListeners() {
+        val events = synchronized(listeners) { listeners.values.toList() }
+        events.forEach { it.flush() }
+    }
+
     /**
      * Get the listeners that are registered with the wallet, in the order that they were added.
      *
@@ -1085,11 +1092,12 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
      * already scanned
      * @param listener is notified of the progress of the sync, one notification after the other, or null for none. It has been notified of
      * all of it when this returns, unless it finishes no notification for a minute, which fails the call. It is not registered with the
-     * wallet, so it is not notified after the sync
+     * wallet, so it is not notified after the sync. The listeners that are registered with the wallet have been notified of all of it too,
+     * on the same terms
      * @return the result of the sync
-     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon, or the listener finishes no notification for a
-     * minute after the sync, or the thread is interrupted while it waits for the listener. In the last two the wallet has synced all the
-     * same, and an interrupt stays in the flag of the thread
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon, or a listener, the one of the call or one that is
+     * registered with the wallet, finishes no notification for a minute after the sync, or the thread is interrupted while it waits for
+     * them. In the last two the wallet has synced all the same, and an interrupt stays in the flag of the thread
      */
     override fun sync(startHeight: Long?, listener: MoneroWalletListener?): MoneroSyncResult {
         checkNotClosed()
@@ -1097,6 +1105,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         try {
             val result: MoneroSyncResult = json { lib, h, out -> lib.monero_wallet_sync(h, startHeight?.let { LongByReference(it) }, events?.handle, out) }
             events?.flush()
+            flushListeners()
             return result
         } finally {
             events?.close()
@@ -1178,6 +1187,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         txHashes.firstOrNull { !TX_HASH.matches(it) }?.let { throw MoneroError("Invalid transaction hash: $it") }
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_scan_txs(h, txHashes.toTypedArray(), SizeT(txHashes.size.toLong()))) }
+        flushListeners()
     }
 
     /**
@@ -1199,6 +1209,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
     override fun rescanBlockchain() {
         checkNotClosed()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_rescan_blockchain(h)) }
+        flushListeners()
     }
 
     // ------------------------------- MINING ----------------------------------
