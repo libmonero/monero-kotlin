@@ -1,5 +1,6 @@
 package monero.wallet
 
+import java.math.BigInteger
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -201,6 +202,61 @@ class MoneroWalletFullSyncIntegrationTest {
                     // compare it with the wallet of the seed
                     groundTruth.sync()
                     WalletEquality.assertFullOnChain(groundTruth, keys)
+                }
+            }
+        }
+    }
+
+    // Can start and stop syncing: it succeeds while the wallet is not connected, it can be stopped as many times as it is asked, and it syncs the
+    // wallet by itself
+    @Test
+    fun testStartStopSyncing() {
+        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
+            // a wallet that is not connected starts syncing, and syncs when a daemon becomes reachable
+            FullTestWallets.createUnconnected().use { wallet ->
+                assertTrue(wallet.getSeed().isNotEmpty())
+                assertEquals(1L, wallet.getHeight())
+                assertEquals(BigInteger.ZERO, wallet.getBalance())
+                wallet.startSyncing()
+            }
+
+            // a wallet that is connected after it was made
+            FullTestWallets.createUnconnected().use { wallet ->
+                assertTrue(wallet.getSeed().isNotEmpty())
+                wallet.setDaemonConnection(RegtestSupport.daemonConnection())
+                assertEquals(1L, wallet.getHeight())
+                assertFalse(wallet.isSynced())
+                assertEquals(BigInteger.ZERO, wallet.getBalance())
+                val chainHeight = wallet.getDaemonHeight()
+                wallet.setRestoreHeight(chainHeight - 3)
+                wallet.startSyncing()
+                assertEquals(chainHeight - 3, wallet.getRestoreHeight())
+                val connection = assertNotNull(wallet.getDaemonConnection())
+                assertEquals(RegtestSupport.daemonUri, connection.uri)
+                assertEquals(RegtestSupport.daemonUsername, connection.username)
+                assertEquals(RegtestSupport.daemonPassword, connection.password)
+                wallet.stopSyncing()
+                wallet.sync()
+                wallet.stopSyncing()
+                wallet.stopSyncing()
+            }
+
+            // a wallet that syncs by itself once it started
+            val restoreHeight = maxOf(daemon.getHeight() - 100, 1L)
+            FullTestWallets.create(seed, restoreHeight).use { wallet ->
+                assertEquals(1L, wallet.getHeight())
+                assertEquals(restoreHeight, wallet.getRestoreHeight())
+                assertFalse(wallet.isSynced())
+                assertEquals(BigInteger.ZERO, wallet.getBalance())
+                wallet.startSyncing(500)
+                try {
+                    val deadline = System.nanoTime() + 60_000_000_000L
+                    while (wallet.getHeight() <= 1) {
+                        if (System.nanoTime() > deadline) throw AssertionError("The wallet did not start syncing")
+                        Thread.sleep(250)
+                    }
+                } finally {
+                    wallet.stopSyncing()
                 }
             }
         }
