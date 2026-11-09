@@ -1083,10 +1083,13 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
      *
      * @param startHeight is the height to sync from, ignored when it is less than the height that the wallet has
      * already scanned
-     * @param listener is notified of the progress of the sync, one notification after the other, and has been notified of all of it when
-     * this returns, or null for none. It is not registered with the wallet, so it is not notified after the sync
+     * @param listener is notified of the progress of the sync, one notification after the other, or null for none. It has been notified of
+     * all of it when this returns, unless it finishes no notification for a minute, which fails the call. It is not registered with the
+     * wallet, so it is not notified after the sync
      * @return the result of the sync
-     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon
+     * @throws MoneroError if the wallet is closed, or it is not connected to the daemon, or the listener finishes no notification for a
+     * minute after the sync, or the thread is interrupted while it waits for the listener. In the last two the wallet has synced all the
+     * same, and an interrupt stays in the flag of the thread
      */
     override fun sync(startHeight: Long?, listener: MoneroWalletListener?): MoneroSyncResult {
         checkNotClosed()
