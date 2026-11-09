@@ -80,6 +80,8 @@ abstract class BaseMoneroWalletScanTest {
             val balance = wallet.getBalance()
             assertEquals(hashes.size, wallet.getTxs().size)
             assertNotNull(wallet.getTxs(listOf(sent)).single().outgoingTransfer!!.destinations)
+            val key = wallet.getTxKey(sent)
+            wallet.setTxNote(sent, "a note")
 
             // the rescan syncs the wallet again, so the wallet has its transactions when it returns
             wallet.rescanBlockchain()
@@ -88,6 +90,9 @@ abstract class BaseMoneroWalletScanTest {
             assertEquals(balance, wallet.getBalance())
             // the destinations of the transaction are not in the chain
             assertNull(wallet.getTxs(listOf(sent)).single().outgoingTransfer!!.destinations)
+            // and its key and its note are, since they are not cleared
+            assertEquals(key, wallet.getTxKey(sent))
+            assertEquals("a note", wallet.getTxNote(sent))
         }
     }
 }

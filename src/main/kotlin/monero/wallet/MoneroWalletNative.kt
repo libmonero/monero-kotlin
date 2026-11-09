@@ -1178,10 +1178,13 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
 
     /**
      * Scan transactions of the chain by their hashes, which adds to the wallet the ones that it is a party of, without syncing the blocks
-     * between them. The wallet has to be connected to a daemon.
+     * between them. The wallet has to be connected to a daemon. The listeners that are registered with the wallet have been notified of
+     * what the scan found when this returns.
      *
      * @param txHashes are the hashes of the transactions to scan
-     * @throws MoneroError if the wallet is closed, a hash is not a transaction hash, or the wallet is not connected to a daemon
+     * @throws MoneroError if the wallet is closed, a hash is not a transaction hash, the wallet is not connected to a daemon, or a listener
+     * that is registered with the wallet finishes no notification for a minute after the scan, or the thread is interrupted while it waits
+     * for it. In the last two the wallet has scanned all the same, and an interrupt stays in the flag of the thread
      */
     override fun scanTxs(txHashes: List<String>) {
         checkNotClosed()
@@ -1202,9 +1205,13 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
 
     /**
      * Rescan the chain from the start, which loses what the chain does not have: the destinations of the transactions that the wallet
-     * sent, their keys and their notes. The wallet has to sync again to have its transactions.
+     * sent. Their keys and their notes are kept. The wallet syncs again, so it has its transactions when this returns, and the listeners
+     * that are registered with the wallet have been notified of the outputs that it found again, and not of the blocks or of the progress,
+     * which a rescan does not notify.
      *
-     * @throws MoneroError if the wallet is closed, or it is not connected to a daemon
+     * @throws MoneroError if the wallet is closed, it is not connected to a daemon, or a listener that is registered with the wallet
+     * finishes no notification for a minute after the rescan, or the thread is interrupted while it waits for it. In the last two the
+     * wallet has rescanned all the same, and an interrupt stays in the flag of the thread
      */
     override fun rescanBlockchain() {
         checkNotClosed()
