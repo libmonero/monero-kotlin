@@ -12,6 +12,7 @@ import monero.NotImplemented
 import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.daemon.MoneroDaemonRpc
+import monero.wallet.model.MoneroSyncResult
 import monero.wallet.model.MoneroTxQuery
 import org.junit.jupiter.api.Tag
 
@@ -154,7 +155,70 @@ class MoneroWalletFullSyncIntegrationTest {
         testSyncSeed(firstReceiveHeight + 3, firstReceiveHeight)
     }
 
+    // Can sync a wallet created from keys: it is the wallet of the seed, and it finds what a wallet of the seed that restores from the same
+    // height finds
+    @Test
+    fun testSyncWalletFromKeys() {
+        // the wallet of the history leaves a transaction in the pool when it is made. The transactions of the pool are not on the chain: a block
+        // takes them, as monero-python waits for them to clear the pool
+        val shared = TxHistoryWallet.get(FullTestWallets)
+        RegtestSupport.mineBlocks(1)
+
+        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
+            val keys = FullTestWallets.createFromKeys(
+                shared.getPrimaryAddress(), shared.getPrivateViewKey(), shared.getPrivateSpendKey(), firstReceiveHeight
+            )
+            keys.use {
+                FullTestWallets.create(seed, firstReceiveHeight).use { groundTruth ->
+                    // it is the wallet of the seed
+                    assertEquals(groundTruth.getSeed(), keys.getSeed())
+                    assertEquals(groundTruth.getPrimaryAddress(), keys.getPrimaryAddress())
+                    assertEquals(groundTruth.getPrivateViewKey(), keys.getPrivateViewKey())
+                    assertEquals(groundTruth.getPublicViewKey(), keys.getPublicViewKey())
+                    assertEquals(groundTruth.getPrivateSpendKey(), keys.getPrivateSpendKey())
+                    assertEquals(groundTruth.getPublicSpendKey(), keys.getPublicSpendKey())
+                    assertEquals(firstReceiveHeight, groundTruth.getRestoreHeight())
+                    assertTrue(keys.isConnectedToDaemon())
+                    assertFalse(keys.isSynced())
+
+                    // sync it
+                    val progress = SyncProgressTester(keys, firstReceiveHeight, keys.getDaemonMaxPeerHeight())
+                    val result = keys.sync(progress)
+                    progress.onDone(keys.getDaemonHeight())
+                    assertEquals(emptyList(), progress.errors)
+
+                    assertTrue(keys.isSynced())
+                    assertBlocksFetched(result, keys.getDaemonHeight(), firstReceiveHeight)
+                    assertEquals(true, result.receivedMoney)
+                    assertEquals(daemon.getHeight(), keys.getHeight())
+                    assertEquals(daemon.getHeight(), keys.getDaemonHeight())
+
+                    // it syncs from its restore height, so its first transaction is the first payment. monero-python reads the transactions of
+                    // the wallet that it restored from, and not of this one
+                    val txHeight = keys.getTxs(MoneroTxQuery().also { it.isConfirmed = true }).minOf { assertNotNull(it.height) }
+                    assertEquals(firstReceiveHeight, txHeight)
+
+                    // compare it with the wallet of the seed
+                    groundTruth.sync()
+                    WalletEquality.assertFullOnChain(groundTruth, keys)
+                }
+            }
+        }
+    }
+
     // ------------------------------- PRIVATE ------------------------------------
+
+    // monero-python expects the blocks from the start to the chain. wallet2 starts a sync that is from 1000 on at a checkpoint of mainnet, which
+    // a regtest chain does not have, and it counts the blocks from block 1001 (the TODO.md of monero-c has it), so there it counts more
+    private fun assertBlocksFetched(result: MoneroSyncResult, daemonHeight: Long, startHeight: Long) {
+        val fetched = assertNotNull(result.numBlocksFetched)
+        val expected = daemonHeight - startHeight
+        if (startHeight < 1000) {
+            assertEquals(expected, fetched)
+        } else {
+            assertTrue(fetched >= expected, "$fetched blocks fetched, and the chain is $expected blocks past the start")
+        }
+    }
 
     /**
      * Restore a wallet from the seed, sync it, and test what it notified, what it found and, unless it is skipped, that it is equal to a ground

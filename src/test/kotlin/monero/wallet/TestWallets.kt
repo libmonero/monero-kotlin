@@ -101,7 +101,25 @@ object FullTestWallets : TestWallets {
     override fun createOffline(address: String, privateViewKey: String, privateSpendKey: String): MoneroWalletNative =
         fromKeys(address, privateViewKey, privateSpendKey, null)
 
-    private fun fromKeys(address: String, privateViewKey: String, privateSpendKey: String?, server: MoneroRpcConnection?): MoneroWalletNative {
+    /**
+     * Make a wallet of the keys of an address, which can sign transactions, is connected to the node and has not synced, and scans the chain
+     * from a height. The test closes it.
+     *
+     * @param address is the primary address of the wallet
+     * @param privateViewKey is the private view key of the wallet
+     * @param privateSpendKey is the private spend key of the wallet
+     * @param restoreHeight is the height of the first block that the wallet scans
+     */
+    fun createFromKeys(address: String, privateViewKey: String, privateSpendKey: String, restoreHeight: Long): MoneroWalletNative =
+        fromKeys(address, privateViewKey, privateSpendKey, RegtestSupport.daemonConnection(), restoreHeight)
+
+    private fun fromKeys(
+        address: String,
+        privateViewKey: String,
+        privateSpendKey: String?,
+        server: MoneroRpcConnection?,
+        restoreHeight: Long = 0
+    ): MoneroWalletNative {
         val config = MoneroWalletConfig()
         config.path = directory.resolve("wallet-${System.nanoTime()}").toString()
         config.password = PASSWORD
@@ -111,7 +129,7 @@ object FullTestWallets : TestWallets {
         config.primaryAddress = address
         config.privateViewKey = privateViewKey
         config.privateSpendKey = privateSpendKey
-        config.restoreHeight = 0
+        config.restoreHeight = restoreHeight
         return MoneroWalletFull.createWallet(config)
     }
 
