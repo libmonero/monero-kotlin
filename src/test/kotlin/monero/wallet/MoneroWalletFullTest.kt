@@ -895,6 +895,17 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         }
     }
 
+    // the setups of the multisig sample code of monero-python
+    @Test
+    fun theSetup_Of1Of2_MakesAFinalMultisigWallet() {
+        assertFinalMultisig(1, 2)
+    }
+
+    @Test
+    fun theSetup_Of1Of4_MakesAFinalMultisigWallet() {
+        assertFinalMultisig(1, 4)
+    }
+
     @Test
     fun theSetup_Of2Of2_MakesAFinalMultisigWallet() {
         assertFinalMultisig(2, 2)
@@ -903,6 +914,11 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     @Test
     fun theSetup_Of2Of3_MakesAFinalMultisigWallet() {
         assertFinalMultisig(2, 3)
+    }
+
+    @Test
+    fun theSetup_Of2Of4_MakesAFinalMultisigWallet() {
+        assertFinalMultisig(2, 4)
     }
 
     @Test
