@@ -373,6 +373,10 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_get_daemon_height(wallet: Pointer, height: LongByReference): Int
 
+    fun monero_wallet_get_daemon_max_peer_height(wallet: Pointer, height: LongByReference): Int
+
+    fun monero_wallet_get_height_by_date(wallet: Pointer, year: Short, month: Byte, day: Byte, height: LongByReference): Int
+
     fun monero_wallet_get_txs(wallet: Pointer, queryJson: String?, json: PointerByReference): Int
 
     fun monero_wallet_get_transfers(wallet: Pointer, queryJson: String?, json: PointerByReference): Int

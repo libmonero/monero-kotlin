@@ -604,6 +604,18 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             // wallet2 masks the errors of a daemon that it does not trust
             assertEquals("daemon error", assertFailsWith<MoneroError> { wallet.getDaemonHeight() }.message)
             assertEquals("daemon error", assertFailsWith<MoneroError> { wallet.isDaemonSynced() }.message)
+            assertEquals("daemon error", assertFailsWith<MoneroError> { wallet.getDaemonMaxPeerHeight() }.message)
+            assertEquals("failed to connect to daemon: $offlineServerUri", assertFailsWith<MoneroError> { wallet.getHeightByDate(2026, 1, 1) }.message)
+        }
+    }
+
+    // A date that does not fit the function of monero-c is refused, where it would be cut to fit and mean another date
+    @Test
+    fun getHeightByDate_OfADateThatIsNotValid_IsAnError() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            for ((year, month, day) in listOf(Triple(2026, 0, 1), Triple(2026, 13, 1), Triple(2026, 1, 0), Triple(2026, 1, 32), Triple(-1, 1, 1), Triple(65536, 1, 1))) {
+                assertEquals("Invalid date: $year-$month-$day", assertFailsWith<MoneroError> { wallet.getHeightByDate(year, month, day) }.message)
+            }
         }
     }
 

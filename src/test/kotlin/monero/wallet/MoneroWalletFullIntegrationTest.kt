@@ -2,6 +2,8 @@ package monero.wallet
 
 import java.math.BigInteger
 import java.nio.file.Path
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -109,6 +111,36 @@ class MoneroWalletFullIntegrationTest {
             val accounts = wallet.getAccounts(true)
             assertEquals(wallet.getBalance(), accounts.fold(BigInteger.ZERO) { sum, it -> sum.add(it.balance) })
             assertEquals(true, wallet.getSubaddress(account.index!!, subaddress.index!!).isUsed)
+        }
+    }
+
+    // The height of the peers of the daemon is not under the height of the daemon, which tells its own when it has no peer ahead
+    @Test
+    fun testGetDaemonMaxPeerHeight() {
+        createWallet().use { wallet ->
+            assertTrue(wallet.getDaemonMaxPeerHeight() >= wallet.getDaemonHeight())
+        }
+    }
+
+    // Gets the height of the chain at the start of each of the last days, which only goes up, and fails for a day after the last block.
+    // A regtest chain is mined now, so the days before it have the height of the genesis block
+    @Test
+    fun testGetHeightByDate() {
+        RegtestSupport.mineBlocks(1)
+        createWallet().use { wallet ->
+            val today = LocalDate.now(ZoneOffset.UTC)
+            var previous = 0L
+            for (daysAgo in 99L downTo 0L) {
+                val date = today.minusDays(daysAgo)
+                val height = wallet.getHeightByDate(date.year, date.monthValue, date.dayOfMonth)
+                assertTrue(height >= previous, "the height of $date is under the one of the day before")
+                assertTrue(height <= wallet.getDaemonHeight(), "the height of $date is past the chain")
+                previous = height
+            }
+
+            val tomorrow = today.plusDays(1)
+            val error = assertFailsWith<MoneroError> { wallet.getHeightByDate(tomorrow.year, tomorrow.monthValue, tomorrow.dayOfMonth) }
+            assertEquals("specified date is in the future", error.message)
         }
     }
 

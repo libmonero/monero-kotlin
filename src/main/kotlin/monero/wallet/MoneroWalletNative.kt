@@ -1294,6 +1294,33 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
     }
 
     /**
+     * Get the greatest height of the peers that the daemon of the wallet is connected to. It is the height of the daemon when the
+     * daemon does not tell one, which it does not when it is synced. The wallet of a server does not have it.
+     *
+     * @return the height
+     * @throws MoneroError if the wallet is closed, it is not connected to the daemon, or it is the wallet of a server
+     */
+    override fun getDaemonMaxPeerHeight(): Long {
+        return height { lib, h, out -> lib.monero_wallet_get_daemon_max_peer_height(h, out) }
+    }
+
+    /**
+     * Get the height of the chain at the start of a date, which the wallet finds by the timestamps of the blocks that its daemon has. The
+     * wallet of a server does not have it.
+     *
+     * @param year is the year
+     * @param month is the month, from 1 to 12
+     * @param day is the day, from 1 to 31
+     * @return the height
+     * @throws MoneroError if the wallet is closed, the date is not valid, it is after the last block of the chain, the wallet is not
+     * connected to the daemon, or it is the wallet of a server
+     */
+    override fun getHeightByDate(year: Int, month: Int, day: Int): Long {
+        if (year !in 0..0xFFFF || month !in 1..12 || day !in 1..31) throw MoneroError("Invalid date: $year-$month-$day")
+        return height { lib, h, out -> lib.monero_wallet_get_height_by_date(h, year.toShort(), month.toByte(), day.toByte(), out) }
+    }
+
+    /**
      * Get the balance of the wallet, including the funds that are still locked. While a sync runs, the call waits for
      * it.
      *
