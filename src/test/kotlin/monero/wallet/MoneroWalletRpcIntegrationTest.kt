@@ -95,6 +95,26 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
     @NotImplemented
     override fun getPublicSpendKey_ReadsTheTestWallet() = super.getPublicSpendKey_ReadsTheTestWallet()
 
+    // Supports the multisig sample code: wallets of two servers make a multisig wallet of 1 of 2 and of 2 of 2, each of which has the address
+    // of the setup and says that it is multisig and ready, with its threshold and its participants
+    @Test
+    fun testMultisigSample() {
+        RpcTestWallets.assumeAvailable()
+        for (m in 1..2) {
+            MultisigSupport.setup(m, 2, { RpcTestWallets.create() }, FullTestWallets.PASSWORD).use { setup ->
+                MoneroUtils.validateAddress(setup.address, MoneroNetworkType.MAINNET)
+                for (wallet in setup.participants) {
+                    assertEquals(setup.address, wallet.getPrimaryAddress())
+                    val info = wallet.getMultisigInfo()
+                    assertEquals(true, info.isMultisig)
+                    assertEquals(true, info.isReady)
+                    assertEquals(m, info.threshold)
+                    assertEquals(2, info.numParticipants)
+                }
+            }
+        }
+    }
+
     // Does not report the progress of a sync, which the server does not tell
     @Test
     fun testSyncProgress() {

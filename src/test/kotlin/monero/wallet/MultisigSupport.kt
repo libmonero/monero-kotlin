@@ -11,7 +11,7 @@ import monero.wallet.model.MoneroWalletConfig
  */
 object MultisigSupport {
 
-    class Setup(val participants: List<MoneroWalletFull>, val address: String) : AutoCloseable {
+    class Setup<W : MoneroWalletNative>(val participants: List<W>, val address: String) : AutoCloseable {
         override fun close() {
             for (participant in participants) participant.close()
         }
@@ -35,8 +35,22 @@ object MultisigSupport {
         newConfig: () -> MoneroWalletConfig,
         password: String = "",
         prepare: (MoneroWalletFull) -> Unit = {}
-    ): Setup {
-        val participants = (0 until n).map { MoneroWalletFull.createWallet(newConfig()).also(prepare) }
+    ): Setup<MoneroWalletFull> {
+        return setup(m, n, { MoneroWalletFull.createWallet(newConfig()).also(prepare) }, password)
+    }
+
+    /**
+     * Make n wallets that a function creates the participants of an m of n multisig wallet, in the way of [create]. They can be wallets of a
+     * server, which the password that they were made with has to be given for.
+     *
+     * @param m is the number of signatures that a transfer needs
+     * @param n is the number of participants
+     * @param newWallet creates a participant
+     * @param password is the password of the participants, which the key setup asks for again
+     * @return the participants, final and with the same address
+     */
+    fun <W : MoneroWalletNative> setup(m: Int, n: Int, newWallet: () -> W, password: String = ""): Setup<W> {
+        val participants = (0 until n).map { newWallet() }
         try {
             val prepared = participants.map { it.prepareMultisig() }
             var hexes = participants.mapIndexed { i, wallet ->
