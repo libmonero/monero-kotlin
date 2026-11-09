@@ -11,8 +11,9 @@ import monero.wallet.model.MoneroTxQuery
  * Tests what a wallet notifies as it syncs, like WalletSyncTester of monero-python: besides the progress, the blocks come one after the other
  * from the height that was asked for, the balances only change, every output that the wallet received or spent is a whole output of a
  * transaction, and the balance is what the outputs say. The listener is registered with the wallet, so it is also notified of the syncs
- * that come after the first one. The transaction of an output that monero-c notifies has its hash, its unlock time and the output, and its
- * version only when the output is found in a block: the one of an output that unlocks has none, and none has the extra that monero-python checks.
+ * that come after the first one. The transaction of an output that monero-c notifies has its hash, its unlock time and the output, and, when
+ * the output is found in a block, its version, its extra and its miner flag, as monero-python checks: the transaction of an output that unlocks
+ * comes from the transactions of the wallet and has none of them (the TODO.md of monero-c has it).
  *
  * @param wallet is the wallet to test
  * @param startHeight is the height that the sync starts at
@@ -87,8 +88,11 @@ class WalletSyncTester(wallet: MoneroWalletNative, startHeight: Long, endHeight:
         check(tx.hash?.length == 64) { "the hash of the transaction is not a hash: ${tx.hash}" }
         check(tx.unlockTime != null && tx.unlockTime!!.signum() >= 0) { "the transaction has no unlock time" }
 
-        // the outputs are notified when their block is found, so they are locked then
+        // the outputs are notified when their block is found, so they are locked then, and their transaction is the one of the block
         if (tx.isLocked == true) {
+            check((tx.version ?: -1) >= 0) { "the transaction of ${tx.hash} has no version" }
+            check(tx.extra?.isNotEmpty() == true) { "the transaction of ${tx.hash} has no extra" }
+            check(tx.isMinerTx != null) { "the transaction of ${tx.hash} does not say if it is a miner transaction" }
             if (received) incomingTotal += amount else outgoingTotal += amount
         }
     }
