@@ -1224,7 +1224,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
     /**
      * Start mining on the daemon of the wallet, to the primary address of the wallet. The daemon has to be one that the wallet trusts.
      *
-     * @param numThreads is the number of threads that mine, or null for one
+     * @param numThreads is the number of threads that mine, or null or 0 for one, for the wallet of a server too
      * @param backgroundMining is whether to mine in the background, or null for not
      * @param ignoreBattery is whether to mine on battery power, or null for not
      * @throws MoneroError if the wallet is closed, or it is not connected to a daemon that it trusts, or the daemon is mining already
