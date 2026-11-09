@@ -64,10 +64,11 @@ internal object NativeBundle {
         }
     }
 
-    // a jar can name an entry with the parent in it or with a backslash, which the copy above would
-    // write outside the folder of the platform on windows: only a plain file name is taken
+    // a jar can name an entry with the parent in it, with a backslash, which windows takes as a separator, or with a colon, which it takes for
+    // the drive of a path (D:name is in the current folder of that drive) or for the stream of a file: the copy above would write them outside
+    // the folder of the platform or somewhere else in it. Only a plain file name is taken, and none of the files of a bundle has a colon
     private fun isFileName(name: String): Boolean {
-        return name.isNotEmpty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
+        return name.isNotEmpty() && name != "." && name != ".." && name.none { it == '/' || it == '\\' || it == ':' }
     }
 
     private fun newDirectory(): Path {

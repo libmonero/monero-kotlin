@@ -77,6 +77,21 @@ class NativeBundleTest {
         assertEquals(listOf("libmonero_c.so"), names(directory))
     }
 
+    // A colon in the name of an entry is the drive of a path or the stream of a file on windows, which is not a file of the bundle either
+    @Test
+    fun extract_FromAJarWithEntriesThatNameADriveOrAStream_TakesOnlyThePlainFileNames() {
+        val jar = jar(
+            "linux-x86-64/libmonero_c.so" to "library",
+            "linux-x86-64/D:libusb-1.0.so.0" to "in the folder of another drive",
+            "linux-x86-64/libmonero_c.so:stream" to "in a stream of the library"
+        )
+        val directory = target()
+
+        loaderOf(jar).use { NativeBundle.extract(it, "linux-x86-64", "libmonero_c.so", directory) }
+
+        assertEquals(listOf("libmonero_c.so"), names(directory))
+    }
+
     // A folder of the classpath is the same, e.g. the resources of a build
     @Test
     fun extract_FromADirectory_CopiesTheFilesOfThePlatform() {
