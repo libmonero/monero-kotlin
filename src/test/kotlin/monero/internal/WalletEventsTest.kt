@@ -84,40 +84,64 @@ class WalletEventsTest {
         }
     }
 
-    // The dispatcher of a closed events takes nothing off the queue anymore, which is what a listener that never
-    // returns holds the flush of an open one in: the flush has to give up instead of holding the sync that called it
+    // A listener that never returns from a notification holds the flush for the timeout, and no longer: the flush has to give up instead of
+    // holding the sync that called it
     @Test
-    fun flush_OfAListenerThatTakesNothing_FailsAfterTheTimeout() {
-        val events = WalletEvents(TakingListener())
-        events.close()
+    fun flush_OfAListenerThatNeverReturns_FailsAfterTheTimeout() {
+        val listener = SlowListener(taking = 0, delayMs = 0)
+        WalletEvents(listener).use { events ->
+            try {
+                events.notifyNewBlock(1)
 
-        val start = System.nanoTime()
-        val error = assertThrows(MoneroError::class.java) { events.flush(200) }
-        assertEquals(timeoutMessage(200), error.message)
-        assertTrue(millisSince(start) >= 200, "the flush returned before the timeout")
+                val start = System.nanoTime()
+                val error = assertThrows(MoneroError::class.java) { events.flush(200) }
+                assertEquals(timeoutMessage(200), error.message)
+                assertTrue(millisSince(start) >= 200, "the flush returned before the timeout")
+            } finally {
+                listener.release.countDown()
+            }
+        }
     }
 
     // The wait of the flush is the wait of a sync: an interrupt of the thread that waits says so and keeps the flag
     @Test
-    fun flush_OfAListenerThatTakesNothing_FailsWhenInterrupted() {
+    fun flush_OfAListenerThatNeverReturns_FailsWhenInterrupted() {
+        val listener = SlowListener(taking = 0, delayMs = 0)
+        WalletEvents(listener).use { events ->
+            try {
+                events.notifyNewBlock(1)
+
+                val finished = CountDownLatch(1)
+                val error = arrayOfNulls<MoneroError>(1)
+                val waiting = Thread {
+                    try {
+                        events.flush(5000)
+                    } catch (e: MoneroError) {
+                        error[0] = e
+                    } finally {
+                        finished.countDown()
+                    }
+                }
+                waiting.start()
+                waiting.interrupt()
+                assertTrue(finished.await(5, TimeUnit.SECONDS), "the flush never returned")
+                assertEquals("Interrupted while waiting for the listener of the wallet", error[0]!!.message)
+                assertTrue(waiting.isInterrupted, "the interrupt was taken and not kept")
+            } finally {
+                listener.release.countDown()
+            }
+        }
+    }
+
+    // The thread of a listener that was removed took all it had before it stopped, and takes nothing after, so a flush that comes then, from a
+    // sync that goes on while another thread removes the listener, has nothing to wait for
+    @Test
+    fun flush_OfAClosedEvents_ReturnsAtOnce() {
         val events = WalletEvents(TakingListener())
         events.close()
 
-        val finished = CountDownLatch(1)
-        val error = arrayOfNulls<MoneroError>(1)
-        val waiting = Thread {
-            try {
-                events.flush(5000)
-            } catch (e: MoneroError) {
-                error[0] = e
-            } finally {
-                finished.countDown()
-            }
-        }
-        waiting.start()
-        waiting.interrupt()
-        assertTrue(finished.await(5, TimeUnit.SECONDS), "the flush never returned")
-        assertEquals("Interrupted while waiting for the listener of the wallet", error[0]!!.message)
-        assertTrue(waiting.isInterrupted, "the interrupt was taken and not kept")
+        val start = System.nanoTime()
+        events.flush(5000)
+        assertTrue(millisSince(start) < 1000, "the flush waited for events that were closed")
     }
 }

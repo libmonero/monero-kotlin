@@ -113,7 +113,9 @@ internal class WalletEvents(private val listener: MoneroWalletListener) : AutoCl
 
     /**
      * Wait until the listener has been called for everything that monero-c has notified so far, like a sync of monero-c waits for the
-     * callbacks that it caused. It returns at once when it is called by the listener.
+     * callbacks that it caused. It returns at once when it is called by the listener, and when the events are closed, since a listener that
+     * was removed took all it had before its thread stopped, and takes nothing after: a flush that comes while another thread removes the
+     * listener has nothing to wait for, and it would wait for the timeout otherwise.
      *
      * The wait lasts as long as the listener takes to get through the notifications that are queued, however many they are, while it keeps
      * finishing them. A listener that finishes none for [idleTimeoutMs] is stuck, since it never returns from the one it has or it waits on a
@@ -132,6 +134,7 @@ internal class WalletEvents(private val listener: MoneroWalletListener) : AutoCl
         queue.offer(flush)
         try {
             while (true) {
+                if (!dispatcher.isAlive) return
                 val lastProgress = lastProgressNanos
                 val idleSince = if (lastProgress - start > 0) lastProgress else start
                 val remaining = idleTimeoutNanos - (System.nanoTime() - idleSince)
@@ -140,7 +143,8 @@ internal class WalletEvents(private val listener: MoneroWalletListener) : AutoCl
                         "The wallet is done, but the listener finished no notification in $idleTimeoutMs ms: it never returns or takes too long"
                     )
                 }
-                if (flush.done.await(remaining, TimeUnit.NANOSECONDS)) return
+                // the wait is in slices, to see the thread of the listener stop meanwhile
+                if (flush.done.await(minOf(remaining, TimeUnit.MILLISECONDS.toNanos(FLUSH_CHECK_MS)), TimeUnit.NANOSECONDS)) return
             }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -173,6 +177,9 @@ internal class WalletEvents(private val listener: MoneroWalletListener) : AutoCl
     companion object {
         private val STOP = Any()
         private const val JOIN_TIMEOUT_MS = 5000L
+
+        // how often a flush looks at whether the thread of the listener is still there
+        private const val FLUSH_CHECK_MS = 50L
 
         // A listener that finishes no notification in a minute is not a slow one, it is stuck: it never returns from the one it has, or it waits
         // on a lock of the thread that flushed. A slow one that finishes them one after the other is waited for
