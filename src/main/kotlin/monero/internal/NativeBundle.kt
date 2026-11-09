@@ -54,7 +54,7 @@ internal object NativeBundle {
                 connection.useCaches = false
                 connection.jarFile.use { jar ->
                     jar.entries().asSequence()
-                        .filter { !it.isDirectory && it.name.startsWith("$prefix/") && !it.name.removePrefix("$prefix/").contains('/') }
+                        .filter { !it.isDirectory && it.name.startsWith("$prefix/") && isFileName(it.name.removePrefix("$prefix/")) }
                         .map { it.name.removePrefix("$prefix/") }
                         .toList()
                 }
@@ -62,6 +62,12 @@ internal object NativeBundle {
             "file" -> File(resource.toURI()).parentFile.listFiles { file -> file.isFile }?.map { it.name }
             else -> null
         }
+    }
+
+    // a jar can name an entry with the parent in it or with a backslash, which the copy above would
+    // write outside the folder of the platform on windows: only a plain file name is taken
+    private fun isFileName(name: String): Boolean {
+        return name.isNotEmpty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
     }
 
     private fun newDirectory(): Path {

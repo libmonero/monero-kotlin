@@ -59,6 +59,24 @@ class NativeBundleTest {
         assertEquals("usb", directory.resolve("libusb-1.0.so.0").toFile().readText())
     }
 
+    // A jar can name an entry with the parent in it or with a backslash, which the copy would write
+    // outside the folder of the platform on windows: only a plain file name is taken
+    @Test
+    fun extract_FromAJarWithEntriesThatEscapeTheFolder_TakesOnlyThePlainFileNames() {
+        val jar = jar(
+            "linux-x86-64/libmonero_c.so" to "library",
+            "linux-x86-64/.." to "the parent",
+            "linux-x86-64/." to "the folder",
+            "linux-x86-64/..\\libusb-1.0.so.0" to "outside the folder",
+            "linux-x86-64/sub/other" to "in a folder of the folder"
+        )
+        val directory = target()
+
+        loaderOf(jar).use { NativeBundle.extract(it, "linux-x86-64", "libmonero_c.so", directory) }
+
+        assertEquals(listOf("libmonero_c.so"), names(directory))
+    }
+
     // A folder of the classpath is the same, e.g. the resources of a build
     @Test
     fun extract_FromADirectory_CopiesTheFilesOfThePlatform() {
