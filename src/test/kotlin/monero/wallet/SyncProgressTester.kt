@@ -8,7 +8,11 @@ import monero.wallet.model.MoneroWalletListener
  * only goes down, the chain only grows, and the percentage is the one that the heights say. A notification runs on a thread of the
  * wallet, where an assertion that fails would be lost, so the checks are kept in [errors] for the test to look at.
  */
-class SyncProgressTester(private val wallet: MoneroWalletNative, private var startHeight: Long, private var prevEndHeight: Long) : MoneroWalletListener() {
+open class SyncProgressTester(
+    protected val wallet: MoneroWalletNative,
+    private var startHeight: Long,
+    private var prevEndHeight: Long
+) : MoneroWalletListener() {
 
     val errors: MutableList<Throwable> = Collections.synchronizedList(ArrayList())
 
@@ -23,7 +27,8 @@ class SyncProgressTester(private val wallet: MoneroWalletNative, private var sta
     private var sessionStart = true
 
     @Volatile
-    private var isDone = false
+    protected var isDone = false
+        private set
 
     /** whether the listener was notified after [onDone] */
     @Volatile
@@ -74,9 +79,20 @@ class SyncProgressTester(private val wallet: MoneroWalletNative, private var sta
     }
 
     /**
+     * Run a check of a notification, and keep what it finds in [errors]: it runs on a thread of the wallet, where it would be lost.
+     */
+    protected fun record(check: () -> Unit) {
+        try {
+            check()
+        } catch (e: Throwable) {
+            errors.add(e)
+        }
+    }
+
+    /**
      * Test that the sync is done at the height of the chain: the last notification reports the last block.
      */
-    fun onDone(chainHeight: Long) {
+    open fun onDone(chainHeight: Long) {
         check(!isDone)
         isDone = true
         val last = prevHeight
