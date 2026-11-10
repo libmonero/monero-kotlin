@@ -7,12 +7,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import com.sun.net.httpserver.HttpServer
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import monero.NativeTestSupport
 import org.junit.jupiter.api.Tag
 
 /**
- * The error of a daemon or a wallet RPC server that answers with an error, like MoneroRpcError of monero-python. What makes monero-c
- * report one is in the integration tests of the connection and the daemon, which have a server.
+ * The error of a daemon or a wallet RPC server that answers with an error, like MoneroRpcError of monero-python. What monero-c reports
+ * for a real daemon is in the integration tests of the connection and the daemon, which have a server. The code is checked here with
+ * a server of the JDK that answers as monerod does.
  */
 @Tag("unit")
 class MoneroRpcErrorTest {
@@ -42,6 +46,38 @@ class MoneroRpcErrorTest {
     @Test
     fun rpcError_IsCaughtAsAMoneroError() {
         assertFailsWith<MoneroError> { throw MoneroRpcError("Method not found") }
+    }
+
+    // the JSON-RPC code of the answer, and the HTTP status of an answer that is not OK, reach the error
+    @Test
+    fun errorOfAServer_HasTheCodeThatTheServerAnsweredWith() {
+        NativeTestSupport.assumeAvailable()
+        val server = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
+        server.createContext("/json_rpc") { exchange ->
+            exchange.requestBody.readBytes()
+            val body = """{"id":"0","jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}""".toByteArray()
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.createContext("/") { exchange ->
+            exchange.requestBody.readBytes()
+            exchange.sendResponseHeaders(404, -1)
+            exchange.close()
+        }
+        server.start()
+        try {
+            MoneroRpcConnection("http://127.0.0.1:${server.address.port}").use { connection ->
+                val json = assertFailsWith<MoneroRpcError> { connection.sendJsonRequest("invalid_method") }
+                assertEquals("Method not found", json.message)
+                assertEquals(-32601, json.code)
+
+                val path = assertFailsWith<MoneroRpcError> { connection.sendPathRequest("invalid_method") }
+                assertEquals(404, path.code, path.toString())
+            }
+        } finally {
+            server.stop(0)
+        }
     }
 
     // an argument that monero-c refuses is not an answer of a server

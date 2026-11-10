@@ -41,6 +41,9 @@ internal object MoneroNative {
     // MONERO_ERROR_RPC of monero_error_code
     private const val ERROR_RPC = 4
 
+    // what monero_last_error_rpc_code() gives for an rpc error that has no code
+    private const val NO_RPC_CODE = -1
+
     private const val ENCODING = "UTF-8"
 
     private val lock = Any()
@@ -100,16 +103,19 @@ internal object MoneroNative {
     }
 
     /**
-     * Throws if the result of a call is an error, with the message that monero-c recorded for this thread: a [MoneroRpcError] if
-     * it says that a daemon or a wallet RPC server answered with an error, and a [MoneroError] for any other kind.
+     * Throws if the result of a call is an error, with the message that monero-c recorded for this thread: a [MoneroRpcError] with its
+     * code if it says that a daemon or a wallet RPC server answered with an error, and a [MoneroError] for any other kind.
      */
     fun ok(result: Int) = ok(lib, result)
 
     private fun ok(library: MoneroC, result: Int) {
         if (result == 0) return
-        // both are about the last failure of this thread, so they are read before anything else is called
+        // all of them are about the last failure of this thread, so they are read before anything else is called
         val message = library.monero_last_error()?.getString(0, ENCODING).let { if (it.isNullOrEmpty()) "monero-c error" else it }
-        if (library.monero_last_error_code() == ERROR_RPC) throw MoneroRpcError(message)
+        if (library.monero_last_error_code() == ERROR_RPC) {
+            val code = library.monero_last_error_rpc_code()
+            throw MoneroRpcError(message, if (code == NO_RPC_CODE) null else code)
+        }
         throw MoneroError(message)
     }
 

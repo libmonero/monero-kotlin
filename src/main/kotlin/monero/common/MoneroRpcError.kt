@@ -7,8 +7,8 @@ package monero.common
 open class MoneroRpcError : MoneroError {
 
     /**
-     * The code of the error: the JSON-RPC error code, or the HTTP status. It is null when it is not known, which it is for every error
-     * that comes from monero-c, as it reports that the server answered with an error and what it said, but not the code.
+     * The code of the error: the JSON-RPC error code, or the HTTP status of an answer that is not OK. It is null when the error has no
+     * code, such as an answer that is not JSON-RPC and has no HTTP status to report.
      */
     val code: Int?
 

@@ -26,6 +26,9 @@ internal interface MoneroC : Library {
     // monero_error_code: 0 none, 1 generic, 2 invalid argument, 3 out of memory, 4 rpc, 5 io
     fun monero_last_error_code(): Int
 
+    // the JSON-RPC code of the last failure when it is an rpc error, or the HTTP status of an answer that is not OK, and -1 when it has no code
+    fun monero_last_error_rpc_code(): Int
+
     fun monero_utils_free(ptr: Pointer?)
 
     fun monero_utils_free_secret(secret: Pointer)

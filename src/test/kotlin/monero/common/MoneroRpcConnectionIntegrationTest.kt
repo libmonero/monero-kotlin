@@ -133,6 +133,7 @@ class MoneroRpcConnectionIntegrationTest {
             // test invalid json rpc method
             val error = assertFailsWith<MoneroRpcError> { connection.sendJsonRequest("invalid_method") }
             assertEquals("Method not found", error.message)
+            assertEquals(-32601, error.code)
         }
     }
 
@@ -148,6 +149,7 @@ class MoneroRpcConnectionIntegrationTest {
             // test invalid binary method
             val error = assertFailsWith<MoneroRpcError> { connection.sendBinaryRequest("invalid_method") }
             assertTrue("404" in error.message!!, error.message)
+            assertEquals(404, error.code)
         }
     }
 
@@ -161,6 +163,7 @@ class MoneroRpcConnectionIntegrationTest {
             // test invalid path method
             val error = assertFailsWith<MoneroRpcError> { connection.sendPathRequest("invalid_method") }
             assertTrue("404" in error.message!!, error.message)
+            assertEquals(404, error.code)
         }
     }
 }
