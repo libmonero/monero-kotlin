@@ -1,4 +1,4 @@
-# Runs the unit tests that Build made, on every platform, with the library of monero-c that Native built from the submodule. It does not build
+# Runs the unit tests that Build made, on every platform, with the library of the release of monero-c that Native took for the submodule. It does not build
 # anything. The unit tests need no node: the integration tests, which do, are in integration-tests.yml
 name: Unit tests
 
@@ -30,8 +30,8 @@ jobs:
   wait-build:
     name: Pending
     runs-on: ubuntu-24.04
-    # Native takes hours when it has to build monero-c, which it does when the submodule changes
-    timeout-minutes: 180
+    # what it waits for is the Build run, and the Native run, which downloads the library
+    timeout-minutes: 60
 
     outputs:
       build-run-id: ${{ steps.build.outputs.run-id }}

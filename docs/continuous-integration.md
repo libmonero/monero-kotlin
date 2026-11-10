@@ -5,8 +5,8 @@ The workflows are in [.github/workflows](../.github/workflows), and run on every
 | Workflow | What it does |
 | --- | --- |
 | [Build](../.github/workflows/build.yml) | Builds the library and the unit tests, and uploads the unit tests, with the files they need to run, and the agent and the command line of JaCoCo for the coverage (`./gradlew unitTests`). |
-| [Native](../.github/workflows/native.yml) | Builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. |
-| [Unit tests](../.github/workflows/unit-tests.yml) | Waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything. |
+| [Native](../.github/workflows/native.yml) | Downloads the library of the release of monero-c that the submodule `external/monero-c` is pinned at, for Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), and checks its sha256. It builds nothing. |
+| [Unit tests](../.github/workflows/unit-tests.yml) | Waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native downloaded, without building anything. |
 | [Android](../.github/workflows/android.yml) | Builds the android module and the example application, with the `monero-native-android` archive of the release of monero-c that the submodule is pinned at, and uploads the AAR. |
 | [Integration tests](../.github/workflows/integration-tests.yml) | Waits for the same runs, starts the nodes and the wallet RPC servers, and runs the tests tagged `integration` on Linux x86_64. |
 | [Docs](../.github/workflows/docs.yml) | Checks the links between the documents with [bin/check_docs.py](../bin/check_docs.py): the files and the headings that they name have to be there. Links to other sites are not checked. It runs only when a document changes. |
@@ -22,9 +22,9 @@ If the branch gets required checks, do not require the ones that are skipped for
 
 ## Native
 
-The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes. Its compilation, dependencies included, is cached with ccache, which only the runs on main save.
+The library is the one in the archive of the release, so a run takes a minute, where building monero-c took hours when the submodule changed. The workflow fails if the release that it downloads is not the one of the submodule, so the submodule has to be at a release of monero-c: to test a commit that is not released, build monero-c and set `MONERO_C_LIBRARY` (see [Native library](native-library.md)).
 
-When the submodule moves to another release of monero-c, the Android workflow has to move with it: it fails if the release that it downloads is not the one of the submodule. Set `MONERO_C_VERSION` and `MONERO_C_ANDROID_SHA256` in `android.yml` to the release, and the sha256 of its `monero-native-android` archive from the `SHA256SUMS.txt` of the release.
+When the submodule moves to another release of monero-c, the Native and Android workflows have to move with it. Set `MONERO_C_VERSION` in `native.yml` and `android.yml` to the release, the sha256 of each archive in `native.yml`, and `MONERO_C_ANDROID_SHA256` in `android.yml`, from the `SHA256SUMS.txt` of the release.
 
 ## Unit tests
 

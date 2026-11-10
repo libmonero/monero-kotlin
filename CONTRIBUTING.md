@@ -28,4 +28,4 @@ Pull requests are welcome. If it's a big change, open an issue first so two peop
 - What every wallet has to pass is in `BaseMoneroWalletTest`, as in `test_monero_wallet_common.py` of monero-python: the test class of a wallet extends it and says how to make a wallet. A test that only one kind of wallet can pass is in the class of that wallet.
 - A test that mirrors one of monero-python can carry its marks: `@NotSupported` passes while the test throws a "not supported" error, and `@NotImplemented` skips it while it fails, and says in the log when it passes, so the mark can go.
 - How to run them is in [Running tests](README.md#running-tests) of the README. The Android module builds with `-Pandroid`, see [android/README.md](android/README.md).
-- The Native workflow builds monero-c from the submodule, which takes a while the first time the submodule changes.
+- The submodule `external/monero-c` is pinned at a release of monero-c: the Native workflow downloads its library, and fails if the pin is not a release. When the pin moves, set the version and the sha256 in `native.yml` and `android.yml` (see docs/continuous-integration.md).

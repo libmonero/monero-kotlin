@@ -1,4 +1,4 @@
-# Runs the integration tests that Build made against regtest nodes, with the library of monero-c that Native built from the submodule. The nodes
+# Runs the integration tests that Build made against regtest nodes, with the library of the release of monero-c that Native took for the submodule. The nodes
 # and the wallet RPC servers are the ones of src/test/docker/docker-compose.yml, which are the ones of monero-python. The tests that need no
 # node are in unit-tests.yml
 name: Integration tests
@@ -31,8 +31,8 @@ jobs:
   wait-build:
     name: Pending
     runs-on: ubuntu-24.04
-    # Native takes hours when it has to build monero-c, which it does when the submodule changes
-    timeout-minutes: 180
+    # what it waits for is the Build run, and the Native run, which downloads the library
+    timeout-minutes: 60
 
     outputs:
       build-run-id: ${{ steps.build.outputs.run-id }}
