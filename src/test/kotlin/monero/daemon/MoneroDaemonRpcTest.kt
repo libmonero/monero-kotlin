@@ -1,46 +1,413 @@
 package monero.daemon
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
+import monero.TestLog
 import monero.common.MoneroError
+import monero.common.MoneroJson
+import monero.common.MoneroRpcConnection
 import monero.common.MoneroRpcError
 import monero.daemon.model.MoneroBlockHeader
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 
 /**
- * Daemon RPC integration tests. They need monero-c and a regtest node, which integration-tests.yml starts with the
- * docker-compose.yml of src/test/docker. RegtestSupport says how to point them at another node.
+ * Daemon RPC integration tests, like the tests of monero-python (tests/test_monero_daemon_rpc.py). They need monero-c and a regtest node,
+ * which integration-tests.yml starts with the docker-compose.yml of src/test/docker. RegtestSupport says how to point them at another
+ * node. The chain and the wallet that they need are made by [DaemonTestChain], which the setup of monero-python does for its tests.
  */
 @Tag("integration")
 class MoneroDaemonRpcTest {
+
+    companion object {
+
+        private val logger = TestLog.logger("MoneroDaemonRpcTest")
+
+        // the context of the blocks that come in a binary request
+        private val BINARY_BLOCK_CTX = BinaryBlockContext()
+
+        // the server that python gives a daemon which must not reach a node
+        private const val OFFLINE_SERVER_URI = "offline_server_uri"
+
+        // the daemon of the tests, which the class shares as the fixture of monero-python does
+        private var shared: MoneroDaemonRpc? = null
+
+        @JvmStatic
+        @BeforeAll
+        fun prepareTheChain() {
+            RegtestSupport.assumeAvailable()
+            DaemonTestChain.prepare()
+            shared = MoneroDaemonRpc(RegtestSupport.daemonConnection())
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun closeTheDaemon() {
+            shared?.close()
+            shared = null
+        }
+    }
+
+    private val daemon: MoneroDaemonRpc get() = checkNotNull(shared) { "The daemon of the tests is not there" }
 
     @BeforeTest
     fun requireLibraryAndDaemon() {
         RegtestSupport.assumeAvailable()
     }
 
+    // the models are compared by what they say, as AssertUtils.assert_equals of monero-python does
+    private fun assertSerializedEquals(expected: Any?, actual: Any?) {
+        assertEquals(MoneroJson.serialize(expected), MoneroJson.serialize(actual))
+    }
+
+    // two connections are the same when they have what monero-python compares: the address, the login, the proxy, the priority and the timeout. They
+    // are compared as monero-c writes them, since it gives the connection its defaults, such as the priority 0, which a connection that was made
+    // with an address has not read yet, and not what the last check of each found out
+    private fun assertSameConnection(expected: MoneroRpcConnection, actual: MoneroRpcConnection) {
+        fun fields(connection: MoneroRpcConnection) = (MoneroJson.mapper.readTree(connection.serialize()) as ObjectNode).also {
+            it.remove(listOf("isOnline", "isAuthenticated", "responseTime"))
+        }
+        assertEquals(fields(expected), fields(actual))
+    }
+
+    //#region Non Relays Tests
+
+    // Test offline daemon connection
+    @Test
+    fun testOfflineDaemon() {
+        // create connection to offline uri
+        MoneroRpcConnection(OFFLINE_SERVER_URI).use { offlineConnection ->
+            assertTrue(offlineConnection.checkConnection())
+            assertEquals(false, offlineConnection.isConnected())
+            assertEquals(false, offlineConnection.isOnline)
+
+            // create daemon
+            MoneroDaemonRpc(offlineConnection).use { offline ->
+                // test daemon connection
+                assertSameConnection(offlineConnection, offline.getRpcConnection())
+                assertFalse(offline.isConnected())
+
+                // call to any daemon method should throw network error
+                val error = assertFailsWith<Exception> { offline.getHeight() }
+                assertTrue(error.message!!.startsWith("Network error: no response from $OFFLINE_SERVER_URI"), error.message)
+            }
+        }
+    }
+
+    // Can get the daemon's version
+    @Test
+    fun testGetVersion() {
+        val version = daemon.getVersion()
+        logger.fine("Testing monero version: ${MoneroJson.serialize(version)}")
+        assertTrue(assertNotNull(version.number) > 0)
+        assertNotNull(version.isRelease)
+    }
+
+    // Can indicate if it's trusted
+    @Test
+    fun testIsTrusted() {
+        logger.fine("Trusted daemon: ${daemon.isTrusted()}")
+    }
+
     // Can get the blockchain height
     @Test
     fun testGetHeight() {
-        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
-            val height = daemon.getHeight()
-            assertTrue(height > 0, "Height must be greater than 0")
+        val height = daemon.getHeight()
+        assertTrue(height > 0, "Height must be greater than 0")
+    }
+
+    // Can get a block hash by height
+    @Test
+    fun testGetBlockIdByHeight() {
+        val lastHeader = daemon.getLastBlockHeader()
+        val hash = daemon.getBlockHash(assertNotNull(lastHeader.height))
+        assertEquals(64, hash.length, "Invalid block hash '$hash'")
+    }
+
+    // Can get a block template
+    @Test
+    fun testGetBlockTemplate() {
+        val template = daemon.getBlockTemplate(RegtestSupport.MINING_ADDRESS, 2)
+        BlockAssertions.testBlockTemplate(template)
+    }
+
+    // Can get the last block's header
+    @Test
+    fun testGetLastBlockHeader() {
+        BlockAssertions.testBlockHeader(daemon.getLastBlockHeader(), true)
+    }
+
+    // Can get a block header by hash
+    @Test
+    fun testGetBlockHeaderByHash() {
+        // retrieve last block by hash
+        val lastHeader = daemon.getLastBlockHeader()
+        val lastHeight = assertNotNull(lastHeader.height)
+        var hash = daemon.getBlockHash(lastHeight)
+        var header = daemon.getBlockHeaderByHash(hash)
+        BlockAssertions.testBlockHeader(header, true)
+        assertSerializedEquals(lastHeader, header)
+
+        // retrieve by hash of previous to last block
+        hash = daemon.getBlockHash(lastHeight - 1)
+        header = daemon.getBlockHeaderByHash(hash)
+        BlockAssertions.testBlockHeader(header, true)
+        assertEquals(lastHeight - 1, header.height)
+    }
+
+    // Can get a block header by height
+    @Test
+    fun testGetBlockHeaderByHeight() {
+        // retrieve by height of last block
+        val lastHeader = daemon.getLastBlockHeader()
+        val lastHeight = assertNotNull(lastHeader.height)
+        var header = daemon.getBlockHeaderByHeight(lastHeight)
+        BlockAssertions.testBlockHeader(header, true)
+        assertSerializedEquals(lastHeader, header)
+
+        // retrieve by height of previous to last block
+        header = daemon.getBlockHeaderByHeight(lastHeight - 1)
+        BlockAssertions.testBlockHeader(header, true)
+        assertEquals(lastHeight - 1, header.height)
+    }
+
+    // Can get block headers by range
+    // TODO: test start with no end, vice versa, inclusivity
+    @Test
+    fun testGetBlockHeadersByRange() {
+        // determine start and end height based on number of blocks and how many blocks ago
+        val numBlocks = 100
+        val numBlocksAgo = 100
+        val currentHeight = daemon.getHeight()
+        val startHeight = currentHeight - numBlocksAgo
+        val endHeight = currentHeight - (numBlocksAgo - numBlocks) - 1
+
+        // fetch headers
+        val headers = daemon.getBlockHeadersByRange(startHeight, endHeight)
+
+        // test headers
+        assertEquals(numBlocks, headers.size)
+        for (i in 0 until numBlocks) {
+            val header = headers[i]
+            assertEquals(startHeight + i, header.height)
+            BlockAssertions.testBlockHeader(header, true)
         }
     }
+
+    // Can get a block by hash
+    @Test
+    fun testGetBlockByHash() {
+        // the last blocks have no txs, which a block that is mined takes from the pool
+        RegtestSupport.mineBlocks(3)
+
+        // test config
+        val ctx = TestContext()
+        ctx.hasHex = true
+        ctx.hasTxs = false
+        ctx.headerIsFull = true
+
+        // retrieve by hash of last block
+        val lastHeader = daemon.getLastBlockHeader()
+        val lastHeight = assertNotNull(lastHeader.height)
+        var hash = daemon.getBlockHash(lastHeight)
+        var block = daemon.getBlockByHash(hash)
+        BlockAssertions.testBlock(block, ctx)
+        assertSerializedEquals(daemon.getBlockByHeight(assertNotNull(block.height)), block)
+        assertEquals(0, block.txs.orEmpty().size, "No block tx expected, found: ${block.txs.orEmpty().size}")
+
+        // retrieve by hash of previous to last block
+        hash = daemon.getBlockHash(lastHeight - 1)
+        block = daemon.getBlockByHash(hash)
+        BlockAssertions.testBlock(block, ctx)
+        assertSerializedEquals(daemon.getBlockByHeight(lastHeight - 1), block)
+        assertEquals(0, block.txs.orEmpty().size, "No block tx expected, found: ${block.txs.orEmpty().size}")
+    }
+
+    // Can get blocks by hash which includes transactions (binary)
+    @Test
+    fun testGetBlocksByHashBinary() {
+        val chainHeight = daemon.getHeight()
+        val genesisHash = daemon.getBlockHash(0)
+
+        // a non-zero start height resumes from there and ignores the hash list
+        val resumeHeight = chainHeight - 5
+        var result = daemon.getBlocksByHash(listOf(genesisHash), resumeHeight, false, 0)
+        assertTrue(assertNotNull(result.currentHeight) >= chainHeight)
+        val blocks = result.blocks.orEmpty()
+        assertTrue(blocks.isNotEmpty())
+        for ((i, block) in blocks.withIndex()) {
+            assertEquals(resumeHeight + i, block.height)
+            BlockAssertions.testBlock(block, BINARY_BLOCK_CTX)
+        }
+
+        // a genesis-terminated history resumes from height 0, capped by max_block_count
+        result = daemon.getBlocksByHash(listOf(genesisHash), 0, false, 10)
+        assertTrue(result.blocks.orEmpty().size in 1..10)
+        assertEquals(0L, result.blocks!![0].height)
+
+        // noop when the first hash is already the tip
+        val tip = daemon.getLastBlockHeader()
+        result = daemon.getBlocksByHash(listOf(assertNotNull(tip.hash), genesisHash), 0, false, 0)
+        assertEquals(0, result.blocks.orEmpty().size)
+    }
+
+    // Can get a block by height
+    @Test
+    fun testGetBlockByHeight() {
+        // the last blocks have no txs, which a block that is mined takes from the pool
+        RegtestSupport.mineBlocks(3)
+
+        // config for testing blocks
+        val ctx = TestContext()
+        ctx.hasHex = true
+        ctx.headerIsFull = true
+        ctx.hasTxs = false
+
+        // retrieve by height of last block
+        val lastHeader = daemon.getLastBlockHeader()
+        val lastHeight = assertNotNull(lastHeader.height)
+        var block = daemon.getBlockByHeight(lastHeight)
+        BlockAssertions.testBlock(block, ctx)
+        assertSerializedEquals(daemon.getBlockByHeight(assertNotNull(block.height)), block)
+
+        // retrieve by height of previous to last block
+        block = daemon.getBlockByHeight(lastHeight - 1)
+        BlockAssertions.testBlock(block, ctx)
+        assertEquals(lastHeight - 1, block.height)
+    }
+
+    // Can get blocks by height which includes transactions (binary)
+    @Test
+    fun testGetBlocksByHeightBinary() {
+        // set number of blocks to test
+        val numBlocks = 100
+
+        // select the last heights
+        val currentHeight = daemon.getHeight()
+        val numHeights = currentHeight - 1
+        val startHeight = numHeights - numBlocks
+        val heights = (startHeight until numHeights).toList()
+
+        // fetch blocks
+        val blocks = daemon.getBlocksByHeight(heights)
+
+        // test blocks
+        var txFound = false
+        assertEquals(numBlocks, blocks.size)
+
+        for ((i, height) in heights.withIndex()) {
+            val block = blocks[i]
+            if (block.txs.orEmpty().isNotEmpty()) txFound = true
+            BlockAssertions.testBlock(block, BINARY_BLOCK_CTX)
+            assertEquals(height, block.height)
+        }
+
+        assertTrue(txFound, "No transactions found to test")
+    }
+
+    // Can get blocks by range in a single request
+    @Test
+    fun testGetBlocksByRange() {
+        // get height range
+        val numBlocks = 100L
+        val numBlocksAgo = 102L
+        assertTrue(numBlocks > 0)
+        assertTrue(numBlocksAgo >= numBlocks)
+        val height = daemon.getHeight()
+        assertTrue(height - numBlocksAgo + numBlocks - 1 < height)
+        val startHeight = height - numBlocksAgo
+        val endHeight = height - numBlocksAgo + numBlocks - 1
+
+        // test known start and end heights
+        BlockAssertions.testGetBlocksRange(daemon, startHeight, endHeight, height, false, BINARY_BLOCK_CTX)
+
+        // test unspecified start
+        BlockAssertions.testGetBlocksRange(daemon, null, numBlocks - 1, height, false, BINARY_BLOCK_CTX)
+
+        // test unspecified end
+        BlockAssertions.testGetBlocksRange(daemon, height - numBlocks - 1, null, height, false, BINARY_BLOCK_CTX)
+    }
+
+    // Test invalid blocks range
+    @Test
+    fun testGetBlocksByRangeInvalid() {
+        val height = daemon.getHeight()
+        val blocks = daemon.getBlocksByRangeChunked(height, height - 10)
+        assertEquals(0, blocks.size, "Expected empty blocks for invalid range request, got ${blocks.size}")
+    }
+
+    // Can get blocks by range using chunked requests
+    @Test
+    fun testGetBlocksByRangeChunked() {
+        // get long height range
+        val numBlocks = minOf(daemon.getHeight() - 2, 1440L) // test up to ~2 days of blocks
+        assertTrue(numBlocks > 0)
+        val height = daemon.getHeight()
+        assertTrue(height - numBlocks - 1 < height)
+        val startHeight = height - numBlocks
+        val endHeight = height - 1
+
+        // test known start and end heights
+        BlockAssertions.testGetBlocksRange(daemon, startHeight, endHeight, height, true, BINARY_BLOCK_CTX)
+
+        // test unspecified start
+        BlockAssertions.testGetBlocksRange(daemon, null, numBlocks - 1, height, true, BINARY_BLOCK_CTX)
+
+        // test unspecified end
+        BlockAssertions.testGetBlocksRange(daemon, endHeight - numBlocks - 1, null, height, true, BINARY_BLOCK_CTX)
+    }
+
+    // Can get genesis block by range using chunked requests
+    @Test
+    fun testGetGenesisBlockByRangeChunked() {
+        // get current chain height
+        val chainHeight = daemon.getHeight()
+
+        // test genesis
+        BlockAssertions.testGetBlocksRange(daemon, 0, 0, chainHeight, true, BINARY_BLOCK_CTX)
+    }
+
+    // Can get block hashes (binary)
+    @Test
+    fun testGetBlockHashesBinary() {
+        val chainHeight = daemon.getHeight()
+        val genesisHash = daemon.getBlockHash(0)
+
+        // a genesis-terminated history returns the whole chain from height 0
+        var result = daemon.getBlockHashes(listOf(genesisHash))
+        assertEquals(0L, result.startHeight)
+        assertTrue(assertNotNull(result.currentHeight) >= chainHeight)
+        val hashes = result.hashes.orEmpty()
+        assertTrue(hashes.isNotEmpty())
+        assertEquals(genesisHash, hashes[0])
+        for (hash in hashes) assertEquals(64, hash.length)
+
+        // only the tip comes back when it is already the first hash
+        val tip = daemon.getLastBlockHeader()
+        val tipHash = assertNotNull(tip.hash)
+        result = daemon.getBlockHashes(listOf(tipHash, genesisHash))
+        assertEquals(listOf(tipHash), result.hashes)
+    }
+
+    //#endregion
+
+    //#region Kotlin
 
     // A block that the daemon does not have is an answer of the daemon with an error
     @Test
     fun testGetBlockByUnknownHash() {
-        MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
-            assertFailsWith<MoneroRpcError> { daemon.getBlockByHash("0".repeat(64)) }
-        }
+        assertFailsWith<MoneroRpcError> { daemon.getBlockByHash("0".repeat(64)) }
     }
 
     // The timeout wait returns null when no block arrives in the time
@@ -116,4 +483,6 @@ class MoneroDaemonRpcTest {
             assertFailsWith<MoneroError> { daemon.waitForNextBlockHeader(0) }
         }
     }
+
+    //#endregion
 }
