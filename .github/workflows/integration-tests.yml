@@ -6,8 +6,18 @@ name: Integration tests
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - 'donate.png'
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - 'donate.png'
 
 permissions:
   contents: read

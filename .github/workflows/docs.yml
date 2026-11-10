@@ -1,0 +1,40 @@
+# Checks the links between the documents (bin/check_docs.py): the files and the headings that they name have to be there. It runs only when a
+# document changes, which is when the other workflows do not run (they ignore the same files), so a pull request of documents has a check too
+name: Docs
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'bin/check_docs.py'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'bin/check_docs.py'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  links:
+    name: Links
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Check the links
+        run: python3 bin/check_docs.py

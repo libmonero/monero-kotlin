@@ -9,7 +9,16 @@ The workflows are in [.github/workflows](../.github/workflows), and run on every
 | [Unit tests](../.github/workflows/unit-tests.yml) | Waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything. |
 | [Android](../.github/workflows/android.yml) | Builds the android module and the example application, with the `monero-native-android` archive of the release of monero-c that the submodule is pinned at, and uploads the AAR. |
 | [Integration tests](../.github/workflows/integration-tests.yml) | Waits for the same runs, starts the nodes and the wallet RPC servers, and runs the tests tagged `integration` on Linux x86_64. |
+| [Docs](../.github/workflows/docs.yml) | Checks the links between the documents with [bin/check_docs.py](../bin/check_docs.py): the files and the headings that they name have to be there. Links to other sites are not checked. It runs only when a document changes. |
 | [Codacy Coverage Reporter](../.github/workflows/codacy.yml) | Sends the reports of the coverage of Unit tests and Integration tests to Codacy, which merges them, when both have ended, for pull requests and for main. |
+
+## Documents
+
+Build, Native, Unit tests, Integration tests and Android ignore a push or a pull request that changes only documents: `**.md`, `docs/**`, `LICENSE` and `donate.png`. The paths are the same in the five, on purpose: Unit tests and Integration tests wait for the Build and Native runs of the commit, and would fail if only one of them was skipped. Change them in all five. Docs runs on exactly those files, so a pull request of documents has a check, and the link checker can be run by hand: `python3 bin/check_docs.py`.
+
+A pull request that changes documents and code runs everything.
+
+If the branch gets required checks, do not require the ones that are skipped for documents: a check that does not run stays pending, and blocks the pull request.
 
 ## Native
 
