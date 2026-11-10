@@ -1293,6 +1293,146 @@ class MoneroDaemonRpcTest {
         assertErrorMessage("Must provide an address to check the ban status of") { daemon.getPeerBan("") }
     }
 
+    // Can remove all listeners at once
+    @Test
+    fun testRemoveDaemonListeners() {
+        val listeners = listOf(DaemonNotificationCollector(daemon), DaemonNotificationCollector(daemon))
+        for (listener in listeners) daemon.addListener(listener)
+        assertEquals(2, daemon.getListeners().size)
+
+        daemon.removeListeners()
+        assertEquals(0, daemon.getListeners().size)
+    }
+
+    // Can flush the blockchain to disk
+    @Test
+    fun testSaveBlockchain() {
+        daemon.saveBlockchain()
+    }
+
+    // Can flush the daemon's invalid block and tx caches
+    @Test
+    fun testFlushCache() {
+        daemon.flushCache()
+        daemon.flushCache(true)
+    }
+
+    // Can disable the bootstrap daemon
+    @Test
+    fun testRemoveBootstrapDaemon() {
+        daemon.removeBootstrapDaemon()
+    }
+
+    // Can set the poll period for block notifications
+    @Test
+    fun testSetPollPeriodInMs() {
+        try {
+            daemon.setPollPeriodInMs(1000)
+        } finally {
+            // restore the configured period so later tests poll at the expected rate
+            daemon.setPollPeriodInMs(DAEMON_POLL_PERIOD_IN_MS)
+        }
+    }
+
+    // Can set the daemon's log level
+    @Test
+    fun testSetLogLevel() {
+        try {
+            for (i in 0..4) daemon.setLogLevel(i)
+
+            for (level in listOf(-1, 5)) {
+                assertErrorMessage("Log level must be an integer between 0 and 4") { daemon.setLogLevel(level) }
+            }
+        } finally {
+            // restore the level from docker-compose so later tests keep full logs
+            daemon.setLogLevel(DAEMON_LOG_LEVEL)
+        }
+    }
+
+    // Can set the daemon's log categories
+    @Test
+    fun testSetLogCategories() {
+        try {
+            val categories = daemon.setLogCategories("*:WARNING")
+            assertNotNull(categories)
+        } finally {
+            // re-applying the configured level also resets categories to its mapping
+            daemon.setLogLevel(DAEMON_LOG_LEVEL)
+        }
+    }
+
+    // Can toggle the mining hash rate in the daemon log
+    @Test
+    fun testSetLogHashRate() {
+        try {
+            daemon.setLogHashRate(true)
+            daemon.setLogHashRate(false)
+        } catch (e: Exception) {
+            // daemon rejects the call while not mining
+            logger.warning("set_log_hash_rate: $e")
+        }
+    }
+
+    // Can pop blocks from the top of the chain
+    @Test
+    fun testPopBlocks() {
+        // stop mining so it doesn't race the pop, then restore the shared chain afterwards
+        runCatching { daemon.stopMining() }
+        val height = daemon.getHeight()
+
+        assertEquals(height - 1, daemon.popBlocks(1))
+        RegtestSupport.mineBlocks(1)
+        assertEquals(height, daemon.getHeight())
+
+        assertErrorMessage("Must provide a number of blocks to pop greater than 0") { daemon.popBlocks(0) }
+    }
+
+    //#endregion
+
+    //#region Test Notifications
+
+    // Can start and stop listening
+    @Test
+    fun testStartStopListening() {
+        // the daemon looks for a new block every 10 seconds, and a test that mines blocks one after the other does not wait for that
+        daemon.setPollPeriodInMs(500)
+        try {
+            // add listener
+            val listener = DaemonNotificationCollector(daemon)
+            val autoRemoveListener = DaemonNotificationCollector(daemon, true)
+            daemon.addListener(listener)
+            daemon.addListener(autoRemoveListener)
+            assertEquals(2, daemon.getListeners().size)
+
+            // mine blocks and collect notifications, where monero-python starts the miner of the daemon and waits for 10 blocks
+            repeat(10) {
+                RegtestSupport.mineBlocks(1)
+                Thread.sleep(700)
+            }
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (autoRemoveListener.numBlockHeaders == 0 && System.nanoTime() < deadline) Thread.sleep(50)
+
+            // test notifications
+            assertEquals(emptyList(), listener.errors)
+            assertTrue(listener.numBlockHashes > 0, "Daemon listener didn't collect any block hash")
+            assertTrue(listener.numBlockHeaders > 0, "Daemon listener didn't collect any block header")
+            assertEquals(listener.numBlockHeaders, listener.numBlockHashes, "Count mismatch ${listener.numBlockHashes} != ${listener.numBlockHeaders}")
+
+            // test autoremove listener
+            assertEquals(emptyList(), autoRemoveListener.errors)
+            assertEquals(1, autoRemoveListener.numBlockHeaders)
+            assertEquals(1, autoRemoveListener.numBlockHashes)
+            assertEquals(1, daemon.getListeners().size)
+
+            // remove listener
+            daemon.removeListener(listener)
+            assertEquals(0, daemon.getListeners().size)
+        } finally {
+            daemon.removeListeners()
+            daemon.setPollPeriodInMs(DAEMON_POLL_PERIOD_IN_MS)
+        }
+    }
+
     //#endregion
 
     //#region Kotlin
@@ -1379,3 +1519,8 @@ class MoneroDaemonRpcTest {
 
     //#endregion
 }
+
+// the period of the poll of the daemon and the log level of the daemon that the compose of src/test/docker sets, which a test that changes
+// them restores
+private const val DAEMON_POLL_PERIOD_IN_MS = 10000L
+private const val DAEMON_LOG_LEVEL = 1
