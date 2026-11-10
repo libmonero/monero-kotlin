@@ -245,7 +245,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
      */
     override fun getAccount(accountIdx: Int, includeSubaddresses: Boolean): MoneroAccount {
         checkNotClosed()
-        return json { lib, h, out -> lib.monero_wallet_get_account(h, accountIdx, includeSubaddresses, out) }
+        return json { lib, h, out -> lib.monero_wallet_get_account(h, accountIdx, includeSubaddresses, false, out) }
     }
 
 
@@ -325,7 +325,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         return run { lib, h ->
             val out = PointerByReference()
             val indices = subaddressIndices?.toIntArray()
-            MoneroNative.json(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT((indices?.size ?: 0).toLong()), out), out, object : TypeReference<List<MoneroSubaddress>>() {})
+            MoneroNative.json(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT((indices?.size ?: 0).toLong()), false, out), out, object : TypeReference<List<MoneroSubaddress>>() {})
         }
     }
 

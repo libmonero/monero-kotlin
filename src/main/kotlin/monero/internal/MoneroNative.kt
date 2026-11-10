@@ -36,7 +36,7 @@ internal object MoneroNative {
      * can break the callers.
      */
     const val ABI_MAJOR = 0
-    const val ABI_MINOR = 2
+    const val ABI_MINOR = 3
 
     // MONERO_ERROR_RPC of monero_error_code
     private const val ERROR_RPC = 4

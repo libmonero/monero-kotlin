@@ -504,12 +504,6 @@ internal interface MoneroC : Library {
     // the account and the subaddress are optional
     fun monero_wallet_rpc_get_balances(wallet: Pointer, accountIdx: IntByReference?, subaddressIdx: IntByReference?, json: PointerByReference): Int
 
-    fun monero_wallet_rpc_get_account(wallet: Pointer, accountIdx: Int, includeSubaddresses: Boolean, skipBalances: Boolean, json: PointerByReference): Int
-
-    fun monero_wallet_rpc_get_accounts(wallet: Pointer, includeSubaddresses: Boolean, tag: String?, skipBalances: Boolean, json: PointerByReference): Int
-
-    fun monero_wallet_rpc_get_subaddresses(wallet: Pointer, accountIdx: Int, subaddressIndices: IntArray?, numSubaddressIndices: SizeT, skipBalances: Boolean, json: PointerByReference): Int
-
     fun monero_wallet_rpc_set_daemon_connection(wallet: Pointer, connectionJson: String, isTrusted: Boolean, sslOptionsJson: String?): Int
 
     // the one call that any thread can make on a wallet, which the others can not
@@ -547,11 +541,11 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_decode_integrated_address(wallet: Pointer, integratedAddress: String, json: PointerByReference): Int
 
-    fun monero_wallet_get_account(wallet: Pointer, accountIdx: Int, includeSubaddresses: Boolean, json: PointerByReference): Int
+    fun monero_wallet_get_account(wallet: Pointer, accountIdx: Int, includeSubaddresses: Boolean, skipBalances: Boolean, json: PointerByReference): Int
 
-    fun monero_wallet_get_subaddresses(wallet: Pointer, accountIdx: Int, subaddressIndices: IntArray?, numSubaddressIndices: SizeT, json: PointerByReference): Int
+    fun monero_wallet_get_subaddresses(wallet: Pointer, accountIdx: Int, subaddressIndices: IntArray?, numSubaddressIndices: SizeT, skipBalances: Boolean, json: PointerByReference): Int
 
-    fun monero_wallet_get_accounts(wallet: Pointer, includeSubaddresses: Boolean, json: PointerByReference): Int
+    fun monero_wallet_get_accounts(wallet: Pointer, includeSubaddresses: Boolean, tag: String?, skipBalances: Boolean, json: PointerByReference): Int
 
     fun monero_wallet_create_account(wallet: Pointer, label: String?, json: PointerByReference): Int
 

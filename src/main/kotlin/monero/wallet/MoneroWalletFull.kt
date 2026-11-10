@@ -48,7 +48,7 @@ class MoneroWalletFull private constructor(handle: Pointer) : MoneroWalletNative
     override fun getAccounts(includeSubaddresses: Boolean, tag: String?): List<MoneroAccount> {
         checkNotClosed()
         if (tag != null) throw MoneroError("The accounts can not be asked by a tag: a full wallet has no tags of accounts")
-        return json { lib, h, out -> lib.monero_wallet_get_accounts(h, includeSubaddresses, out) }
+        return json { lib, h, out -> lib.monero_wallet_get_accounts(h, includeSubaddresses, null, false, out) }
     }
 
     companion object {
