@@ -327,6 +327,21 @@ object DaemonAssertions {
     }
 
     /**
+     * Check the result of the submission of a transaction that spends what another one of the pool spends.
+     */
+    fun testSubmitTxResultDoubleSpend(result: MoneroSubmitTxResult) {
+        testSubmitTxResultCommon(result)
+        assertEquals(false, result.isGood)
+        assertEquals(true, result.isDoubleSpend)
+        assertEquals(false, result.isFeeTooLow)
+        assertEquals(false, result.isMixinTooLow)
+        assertEquals(false, result.hasInvalidInput)
+        assertEquals(false, result.hasInvalidOutput)
+        assertEquals(false, result.isOverspend)
+        assertEquals(false, result.isTooBig)
+    }
+
+    /**
      * Check that the daemon gives the status that is expected for each key image, one by one and all together.
      */
     fun testSpentStatuses(daemon: MoneroDaemon, keyImages: List<String>, expectedStatus: MoneroKeyImageSpentStatus) {

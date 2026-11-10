@@ -1389,6 +1389,83 @@ class MoneroDaemonRpcTest {
 
     //#endregion
 
+    //#region Relays Tests
+
+    // Can submit a tx in hex format to the pool and relay in one call
+    @Test
+    fun testSubmitAndRelayTxHex() {
+        // wait one time for wallet txs in the pool to clear
+        // TODO monero-project: update from pool does not prevent creating double spend tx
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // create 2 txs, the second will double spend outputs of first
+        //  TODO: this test requires tx to be from/to different accounts else
+        // the occlusion issue (#4500) causes the tx to not be recognized by the wallet at all
+        val tx1 = DaemonTestChain.getUnrelayedTx(2)
+        val tx2 = DaemonTestChain.getUnrelayedTx(2)
+
+        // submit and relay tx1
+        val tx1Hash = assertNotNull(tx1.hash)
+        var result = daemon.submitTxHex(assertNotNull(tx1.fullHex))
+        assertEquals(true, result.isRelayed)
+        DaemonAssertions.testSubmitTxResultGood(result)
+
+        // tx1 is in the pool
+        var txs = daemon.getTxPool()
+        var found = false
+        for (aTx in txs) {
+            if (aTx.hash == tx1Hash) {
+                assertEquals(true, aTx.isRelayed)
+                found = true
+                break
+            }
+        }
+
+        assertTrue(found, "Tx1 was not found after being submitted to the daemon's tx pool")
+
+        // tx1 is recognized by the wallet
+        DaemonTestChain.wallet().sync()
+        DaemonTestChain.wallet().getTx(tx1Hash)
+
+        // submit and relay tx2 hex which double spends tx1
+        result = daemon.submitTxHex(assertNotNull(tx2.fullHex))
+        assertEquals(true, result.isRelayed)
+        DaemonAssertions.testSubmitTxResultDoubleSpend(result)
+
+        // tx2 is not in the pool
+        txs = daemon.getTxPool()
+        found = false
+        for (aTx in txs) {
+            if (aTx.hash == tx2.hash) {
+                found = true
+                break
+            }
+        }
+
+        assertFalse(found, "Tx2 should not be in the pool because it double spends tx1 which is in the pool")
+    }
+
+    // Can submit a tx in hex format to the pool then relay
+    @Test
+    fun testSubmitThenRelayTxHex() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+        val tx = DaemonTestChain.getUnrelayedTx(1)
+        SubmitThenRelayTxTester(daemon, listOf(tx)).test()
+    }
+
+    // Can submit txs in hex format to the pool then relay
+    @Test
+    fun testSubmitThenRelayTxHexes() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+        val txs = ArrayList<MoneroTx>()
+        txs.add(DaemonTestChain.getUnrelayedTx(1))
+        // TODO: accounts cannot be re-used across send tests else isRelayed is true; wallet needs to update?
+        txs.add(DaemonTestChain.getUnrelayedTx(2))
+        SubmitThenRelayTxTester(daemon, txs).test()
+    }
+
+    //#endregion
+
     //#region Test Notifications
 
     // Can start and stop listening
