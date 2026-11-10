@@ -1,6 +1,7 @@
 package monero.daemon
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import java.math.BigInteger
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.test.BeforeTest
@@ -17,6 +18,7 @@ import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.common.MoneroRpcError
+import monero.daemon.model.MoneroBan
 import monero.daemon.model.MoneroBlockHeader
 import monero.daemon.model.MoneroKeyImageSpentStatus
 import monero.daemon.model.MoneroTx
@@ -789,6 +791,217 @@ class MoneroDaemonRpcTest {
 
         // flush this test's txs from pool
         daemon.flushTxPool(txHashes)
+    }
+
+    // Can get an output histogram (binary)
+    @Test
+    fun testGetOutputHistogramBinary() {
+        val entries = daemon.getOutputHistogram(emptyList(), null, null, null, null)
+        assertTrue(entries.isNotEmpty())
+        for (entry in entries) OutputAssertions.testOutputHistogramEntry(entry)
+    }
+
+    // Can get an output distribution
+    @Test
+    fun testGetOutputDistribution() {
+        val amounts = listOf(BigInteger.ZERO)
+        val entries = daemon.getOutputDistribution(amounts)
+        for (entry in entries) OutputAssertions.testOutputDistributionEntry(entry)
+    }
+
+    // Can get general information
+    @Test
+    fun testGetGeneralInformation() {
+        val info = daemon.getInfo()
+        DaemonAssertions.testInfo(info)
+        assertEquals(true, info.isRegtest)
+    }
+
+    // Can get sync information
+    @Test
+    fun testGetSyncInformation() {
+        DaemonAssertions.testSyncInfo(daemon.getSyncInfo())
+    }
+
+    // Can get hard fork information
+    @Test
+    fun testGetHardForkInformation() {
+        DaemonAssertions.testHardForkInfo(daemon.getHardForkInfo())
+    }
+
+    // Can get alternative chains
+    @Test
+    fun testGetAlternativeChains() {
+        val altChains = daemon.getAltChains()
+        if (altChains.isEmpty()) logger.warning("No alternative chain found!")
+        for (altChain in altChains) BlockAssertions.testAltChain(altChain)
+    }
+
+    // Can get alternative block hashes
+    @Test
+    fun testGetAlternativeBlockIds() {
+        val altBlockIds = daemon.getAltBlockHashes()
+        if (altBlockIds.isEmpty()) logger.warning("No alternative block ids found!")
+        for (altBlockId in altBlockIds) {
+            // TODO: common validation
+            assertEquals(64, altBlockId.length)
+        }
+    }
+
+    // Can get, set, and reset a download bandwidth limit
+    @Test
+    fun testSetDownloadBandwidth() {
+        val initVal = daemon.getDownloadLimit()
+        assertTrue(initVal > 0)
+        val setVal = initVal * 2
+        daemon.setDownloadLimit(setVal)
+        assertEquals(setVal, daemon.getDownloadLimit())
+        val resetVal = daemon.resetDownloadLimit()
+        assertEquals(initVal, resetVal)
+
+        // test invalid limits
+        assertErrorMessage("Download limit must be an integer greater than 0") { daemon.setDownloadLimit(0) }
+
+        assertEquals(initVal, daemon.getDownloadLimit())
+    }
+
+    // Can get, set, and reset an upload bandwidth limit
+    @Test
+    fun testSetUploadBandwidth() {
+        val initVal = daemon.getUploadLimit()
+        assertTrue(initVal > 0)
+        val setVal = initVal * 2
+        daemon.setUploadLimit(setVal)
+        assertEquals(setVal, daemon.getUploadLimit())
+        val resetVal = daemon.resetUploadLimit()
+        assertEquals(initVal, resetVal)
+
+        // test invalid limits
+        assertErrorMessage("Upload limit must be an integer greater than 0") { daemon.setUploadLimit(0) }
+
+        assertEquals(initVal, daemon.getUploadLimit())
+    }
+
+    // Can get peers with active incoming or outgoing connections
+    @Test
+    fun testGetPeers() {
+        val peers = daemon.getPeers()
+        val seen = HashSet<Pair<String, Int>>()
+        for (peer in peers) {
+            val peerKey = assertNotNull(peer.host) to assertNotNull(peer.port)
+            assertTrue(seen.add(peerKey), "Duplicate peer found: $peerKey")
+            assertEquals(true, peer.isOnline, "Expected active peer connection to be online")
+            DaemonAssertions.testPeer(peer)
+        }
+    }
+
+    // Can get all known peers which may be online or offline
+    @Test
+    fun testGetKnownPeers() {
+        val peers = daemon.getKnownPeers()
+        assertEquals(0, peers.size, "Regtest daemon should not have known peers to test")
+        logger.warning("Regtest daemon doesn't have known peers to test")
+        for (peer in peers) DaemonAssertions.testKnownPeer(peer, false)
+    }
+
+    // Can limit the number of outgoing peers
+    @Test
+    fun testSetOutgoingPeerLimit() {
+        daemon.setOutgoingPeerLimit(0)
+        daemon.setOutgoingPeerLimit(8)
+        daemon.setOutgoingPeerLimit(10)
+    }
+
+    // Can limit the number of incoming peers
+    @Test
+    fun testSetIncomingPeerLimit() {
+        daemon.setIncomingPeerLimit(0)
+        daemon.setIncomingPeerLimit(8)
+        daemon.setIncomingPeerLimit(10)
+    }
+
+    // Can ban a peer
+    @Test
+    fun testBanPeer() {
+        // set ban
+        val host = "192.168.1.51"
+        val ban = MoneroBan()
+        ban.host = host
+        ban.isBanned = true
+        ban.seconds = 60
+        daemon.setPeerBan(ban)
+
+        // test ban
+        val bans = daemon.getPeerBans()
+        var found = false
+        for (peerBan in bans) {
+            DaemonAssertions.testBan(peerBan)
+            if (host == peerBan.host) found = true
+        }
+
+        assertTrue(found, "Could not find peer ban $host")
+    }
+
+    // Can ban peers
+    @Test
+    fun testBanPeers() {
+        // set bans
+        val addr1 = "192.168.1.52"
+        val addr2 = "192.168.1.53"
+        val ban1 = MoneroBan()
+        ban1.host = addr1
+        ban1.isBanned = true
+        ban1.seconds = 60
+        val ban2 = MoneroBan()
+        ban2.host = addr2
+        ban2.isBanned = true
+        ban2.seconds = 60
+        daemon.setPeerBans(listOf(ban1, ban2))
+
+        // test bans
+        var found1 = false
+        var found2 = false
+        for (aBan in daemon.getPeerBans()) {
+            DaemonAssertions.testBan(aBan)
+            if (addr1 == aBan.host) found1 = true
+            if (addr2 == aBan.host) found2 = true
+        }
+
+        assertTrue(found1, "Could not find peer ban1 $addr1")
+        assertTrue(found2, "Could not find peer ban2 $addr2")
+    }
+
+    // Can get network (bandwidth) statistics
+    @Test
+    fun testGetNetworkStats() {
+        DaemonAssertions.testNetworkStats(daemon.getNetworkStats())
+    }
+
+    // Can get public nodes known to the daemon
+    @Test
+    fun testGetPublicPeers() {
+        val peers = daemon.getPublicPeers()
+        assertEquals(0, peers.size)
+        for (peer in peers) DaemonAssertions.testKnownPeer(peer, false)
+    }
+
+    // Can query the ban status of a single peer
+    @Test
+    fun testGetPeerBan() {
+        val host = "192.168.1.60"
+        val ban = MoneroBan()
+        ban.host = host
+        ban.isBanned = true
+        ban.seconds = 60
+        daemon.setPeerBan(ban)
+
+        val banned = daemon.getPeerBan(host)
+        assertEquals(true, banned.isBanned)
+        assertTrue(assertNotNull(banned.seconds) > 0)
+
+        assertEquals(false, daemon.getPeerBan("192.168.1.61").isBanned)
+
+        assertErrorMessage("Must provide an address to check the ban status of") { daemon.getPeerBan("") }
     }
 
     //#endregion

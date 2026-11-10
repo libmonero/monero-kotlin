@@ -5,6 +5,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.daemon.model.MoneroKeyImage
 import monero.daemon.model.MoneroOutput
+import monero.daemon.model.MoneroOutputDistributionEntry
+import monero.daemon.model.MoneroOutputHistogramEntry
 
 /**
  * What the tests of the daemon check in the outputs and the inputs of the transactions that it gives, and in the entries of its output
@@ -16,6 +18,20 @@ object OutputAssertions {
         assertNotNull(image)
         assertTrue(assertNotNull(image.hex).isNotEmpty())
         image.signature?.let { assertTrue(it.isNotEmpty()) }
+    }
+
+    fun testOutputDistributionEntry(entry: MoneroOutputDistributionEntry) {
+        GenAssertions.testUnsignedBigInteger(entry.amount)
+        assertTrue(assertNotNull(entry.base) >= 0)
+        assertTrue(assertNotNull(entry.distribution).isNotEmpty())
+        assertTrue(assertNotNull(entry.startHeight) >= 0)
+    }
+
+    fun testOutputHistogramEntry(entry: MoneroOutputHistogramEntry) {
+        GenAssertions.testUnsignedBigInteger(entry.amount)
+        assertTrue(assertNotNull(entry.numInstances) >= 0)
+        assertTrue(assertNotNull(entry.unlockedInstances) >= 0)
+        assertTrue(assertNotNull(entry.recentInstances) >= 0)
     }
 
     /**

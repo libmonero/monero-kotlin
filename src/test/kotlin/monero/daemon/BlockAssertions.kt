@@ -6,6 +6,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import monero.TestLog
+import monero.daemon.model.MoneroAltChain
 import monero.daemon.model.MoneroBlock
 import monero.daemon.model.MoneroBlockHeader
 import monero.daemon.model.MoneroBlockTemplate
@@ -150,5 +151,17 @@ object BlockAssertions {
         assertTrue(assertNotNull(template.seedHeight) >= 0)
         assertTrue(assertNotNull(template.seedHash).isNotEmpty())
         // the next seed hash is null or there
+    }
+
+    /**
+     * Check an alternative chain of the daemon.
+     */
+    fun testAltChain(altChain: MoneroAltChain) {
+        assertTrue(altChain.blockHashes.orEmpty().isNotEmpty())
+        GenAssertions.testUnsignedBigInteger(altChain.difficultyLow, true)
+        GenAssertions.testUnsignedBigInteger(altChain.difficultyHigh)
+        assertTrue(assertNotNull(altChain.height) > 0)
+        assertTrue(assertNotNull(altChain.length) > 0)
+        assertEquals(64, assertNotNull(altChain.mainChainParentBlockHash).length)
     }
 }

@@ -4,8 +4,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import monero.daemon.model.MoneroBan
+import monero.daemon.model.MoneroConnectionSpan
+import monero.daemon.model.MoneroDaemonInfo
+import monero.daemon.model.MoneroDaemonNetworkStats
+import monero.daemon.model.MoneroDaemonSyncInfo
+import monero.daemon.model.MoneroHardForkInfo
 import monero.daemon.model.MoneroKeyImageSpentStatus
 import monero.daemon.model.MoneroMinerTxSum
+import monero.daemon.model.MoneroPeer
 import monero.daemon.model.MoneroSubmitTxResult
 import monero.daemon.model.MoneroTx
 import monero.daemon.model.MoneroTxPoolStats
@@ -14,6 +21,167 @@ import monero.daemon.model.MoneroTxPoolStats
  * What the tests of the daemon check in what it answers, like DaemonUtils of monero-python.
  */
 object DaemonAssertions {
+
+    /**
+     * Check a peer that the daemon knows, which is one of its connections when [fromConnection] is true and one of its known peers when it
+     * is not: only a known peer has the time that it was last seen.
+     */
+    fun testKnownPeer(peer: MoneroPeer, fromConnection: Boolean) {
+        // what every peer has
+        assertTrue(assertNotNull(peer.id).isNotEmpty())
+        assertTrue(assertNotNull(peer.host).isNotEmpty())
+        assertTrue(assertNotNull(peer.port) > 0)
+        peer.rpcPort?.let { assertTrue(it >= 0) }
+        assertNotNull(peer.isOnline)
+        peer.pruningSeed?.let { assertTrue(it >= 0) }
+        peer.rpcCreditsPerHash?.let { GenAssertions.testUnsignedBigInteger(it) }
+
+        if (fromConnection) {
+            assertNull(peer.lastSeenTimestamp)
+        } else {
+            assertTrue(assertNotNull(peer.lastSeenTimestamp) >= 0, "Last seen timestamp is invalid: ${peer.lastSeenTimestamp}")
+        }
+    }
+
+    /**
+     * Check a connection of the daemon with a peer.
+     */
+    fun testPeer(peer: MoneroPeer) {
+        testKnownPeer(peer, true)
+        assertTrue(assertNotNull(peer.hash).isNotEmpty())
+        assertTrue(assertNotNull(peer.avgDownload) >= 0)
+        assertTrue(assertNotNull(peer.avgUpload) >= 0)
+        assertTrue(assertNotNull(peer.currentDownload) >= 0)
+        assertTrue(assertNotNull(peer.currentUpload) >= 0)
+        assertTrue(assertNotNull(peer.height) >= 0)
+        assertTrue(assertNotNull(peer.liveTime) >= 0)
+        assertNotNull(peer.isLocalIp)
+        assertNotNull(peer.isLocalHost)
+        assertTrue(assertNotNull(peer.numReceives) >= 0)
+        assertTrue(assertNotNull(peer.receiveIdleTime) >= 0)
+        assertTrue(assertNotNull(peer.numSends) >= 0)
+        assertTrue(assertNotNull(peer.sendIdleTime) >= 0)
+        assertNotNull(peer.state)
+        assertTrue(assertNotNull(peer.numSupportFlags) >= 0)
+        assertNotNull(peer.connectionType)
+    }
+
+    /**
+     * Check the general information of the daemon.
+     */
+    fun testInfo(info: MoneroDaemonInfo) {
+        assertNotNull(info.version)
+        assertTrue(assertNotNull(info.numAltBlocks) >= 0)
+        assertTrue(assertNotNull(info.blockSizeLimit) > 0)
+        assertTrue(assertNotNull(info.blockSizeMedian) > 0)
+        info.bootstrapDaemonAddress?.let { assertTrue(it.isNotEmpty()) }
+        GenAssertions.testUnsignedBigInteger(info.difficultyLow)
+        GenAssertions.testUnsignedBigInteger(info.difficultyHigh)
+        GenAssertions.testUnsignedBigInteger(info.cumulativeDifficultyLow)
+        GenAssertions.testUnsignedBigInteger(info.cumulativeDifficultyHigh)
+        GenAssertions.testUnsignedBigInteger(info.freeSpace)
+        assertTrue(assertNotNull(info.numOfflinePeers) >= 0)
+        assertTrue(assertNotNull(info.numOnlinePeers) >= 0)
+        assertTrue(assertNotNull(info.height) >= 0)
+        assertTrue(assertNotNull(info.heightWithoutBootstrap) > 0)
+        assertTrue(assertNotNull(info.numIncomingConnections) >= 0)
+        assertTrue(assertNotNull(info.numOutgoingConnections) >= 0)
+        assertNotNull(info.networkType)
+        assertNotNull(info.isOffline)
+        assertTrue(assertNotNull(info.numRpcConnections) >= 0)
+        assertTrue(assertNotNull(info.startTimestamp) > 0)
+        assertTrue(assertNotNull(info.adjustedTimestamp) > 0)
+        assertTrue(assertNotNull(info.target) > 0)
+        assertTrue(assertNotNull(info.targetHeight) >= 0)
+        assertTrue(assertNotNull(info.numTxs) >= 0)
+        assertTrue(assertNotNull(info.numTxsPool) >= 0)
+        assertNotNull(info.wasBootstrapEverUsed)
+        assertTrue(assertNotNull(info.blockWeightLimit) > 0)
+        assertTrue(assertNotNull(info.blockWeightMedian) > 0)
+        assertTrue(assertNotNull(info.databaseSize) > 0)
+        assertNotNull(info.updateAvailable)
+
+        // 0 credits
+        GenAssertions.testUnsignedBigInteger(info.credits, false)
+        assertTrue(assertNotNull(info.topBlockHash).isNotEmpty())
+        assertNotNull(info.isBusySyncing)
+        assertNotNull(info.isSynchronized)
+        assertNotNull(info.isRegtest)
+    }
+
+    /**
+     * Check a span of blocks that the daemon is downloading from a peer.
+     */
+    fun testConnectionSpan(span: MoneroConnectionSpan) {
+        assertTrue(assertNotNull(span.connectionId).isNotEmpty())
+        assertTrue(assertNotNull(span.numBlocks) >= 0)
+        assertTrue(assertNotNull(span.remoteAddress).isNotEmpty())
+        assertTrue(assertNotNull(span.rate) >= 0)
+        assertTrue(assertNotNull(span.speed) >= 0)
+        assertTrue(assertNotNull(span.size) >= 0)
+        assertTrue(assertNotNull(span.startHeight) >= 0)
+    }
+
+    /**
+     * Check the information of the daemon about its synchronization: its peers, the spans that it downloads and the next pruning seed that
+     * it needs.
+     */
+    fun testSyncInfo(syncInfo: MoneroDaemonSyncInfo) {
+        assertTrue(assertNotNull(syncInfo.height) >= 0)
+
+        // the peers
+        val peers = syncInfo.peers.orEmpty()
+        assertTrue(peers.isNotEmpty(), "No peers found in daemon sync info to test.")
+        for (connection in peers) testPeer(connection)
+
+        // the spans
+        for (span in syncInfo.spans.orEmpty()) testConnectionSpan(span)
+
+        assertTrue(assertNotNull(syncInfo.nextNeededPruningSeed) >= 0)
+        assertNull(syncInfo.overview)
+
+        // 0 credits
+        GenAssertions.testUnsignedBigInteger(syncInfo.credits, false)
+        assertNull(syncInfo.topBlockHash)
+    }
+
+    /**
+     * Check the information of the daemon about its hard forks.
+     */
+    fun testHardForkInfo(hardForkInfo: MoneroHardForkInfo) {
+        assertNotNull(hardForkInfo.earliestHeight)
+        assertNotNull(hardForkInfo.isEnabled)
+        assertNotNull(hardForkInfo.state)
+        assertNotNull(hardForkInfo.threshold)
+        assertNotNull(hardForkInfo.version)
+        assertNotNull(hardForkInfo.numVotes)
+        assertNotNull(hardForkInfo.voting)
+        assertNotNull(hardForkInfo.window)
+
+        // 0 credits
+        GenAssertions.testUnsignedBigInteger(hardForkInfo.credits, false)
+        assertNull(hardForkInfo.topBlockHash)
+    }
+
+    /**
+     * Check a ban of a peer.
+     */
+    fun testBan(ban: MoneroBan) {
+        assertNotNull(ban.host)
+        assertNotNull(ban.ip)
+        assertNotNull(ban.seconds)
+    }
+
+    /**
+     * Check the statistics of the network of the daemon.
+     */
+    fun testNetworkStats(stats: MoneroDaemonNetworkStats) {
+        assertTrue(assertNotNull(stats.startTime) > 0)
+        assertTrue(assertNotNull(stats.totalPacketsIn) >= 0)
+        assertTrue(assertNotNull(stats.totalBytesIn) >= 0)
+        assertTrue(assertNotNull(stats.totalPacketsOut) >= 0)
+        assertTrue(assertNotNull(stats.totalBytesOut) >= 0)
+    }
 
     /**
      * Check the sum of the emission and of the fees of the miner transactions of a range of blocks.
