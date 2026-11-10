@@ -12,27 +12,35 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import monero.NotImplemented
 import monero.RegtestSupport
 import monero.TestLog
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.common.MoneroRpcError
+import monero.daemon.model.MoneroAuxiliaryPow
 import monero.daemon.model.MoneroBan
 import monero.daemon.model.MoneroBlockHeader
+import monero.daemon.model.MoneroDaemonListener
 import monero.daemon.model.MoneroKeyImageSpentStatus
+import monero.daemon.model.MoneroOutput
 import monero.daemon.model.MoneroTx
 import monero.wallet.TxAssertions
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assumptions.abort
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Tag
 
 /**
  * Daemon RPC integration tests, like the tests of monero-python (tests/test_monero_daemon_rpc.py). They need monero-c and a regtest node,
  * which integration-tests.yml starts with the docker-compose.yml of src/test/docker. RegtestSupport says how to point them at another
- * node. The chain and the wallet that they need are made by [DaemonTestChain], which the setup of monero-python does for its tests.
+ * node. The chain and the wallet that they need are made by [DaemonTestChain], which the setup of monero-python does for its tests. The two
+ * tests that start the miner of the daemon are tagged mining, since the node then holds 2 GB for the RandomX dataset: a machine that has not
+ * that memory leaves them out with --exclude-tag mining.
  */
 @Tag("integration")
 class MoneroDaemonRpcTest {
@@ -76,6 +84,16 @@ class MoneroDaemonRpcTest {
     // the models are compared by what they say, as AssertUtils.assert_equals of monero-python does
     private fun assertSerializedEquals(expected: Any?, actual: Any?) {
         assertEquals(MoneroJson.serialize(expected), MoneroJson.serialize(actual))
+    }
+
+    // a test of monero-python that is marked xfail for an error of the daemon: it is skipped when the daemon answers with the error, and a pass
+    // when it does not
+    private fun xfailRpcError(reason: String, test: () -> Unit) {
+        try {
+            test()
+        } catch (e: MoneroRpcError) {
+            abort("$reason: $e")
+        }
     }
 
     // two connections are the same when they have what monero-python compares: the address, the login, the proxy, the priority and the timeout. They
@@ -920,6 +938,44 @@ class MoneroDaemonRpcTest {
         daemon.setIncomingPeerLimit(10)
     }
 
+    // Can notify listeners when a new block is added to the chain
+    @Test
+    fun testBlockListener() {
+        // register a listener
+        var lastHeader: MoneroBlockHeader? = null
+        val listener = object : MoneroDaemonListener() {
+            override fun onBlockHeader(header: MoneroBlockHeader) {
+                lastHeader = header
+            }
+        }
+        daemon.addListener(listener)
+        try {
+            // push the chain along: regtest mines a block when asked, where monero-python starts the miner of the daemon
+            val header = CompletableFuture<MoneroBlockHeader?>()
+            Thread {
+                try {
+                    header.complete(daemon.waitForNextBlockHeader(30000))
+                } catch (e: Throwable) {
+                    header.completeExceptionally(e)
+                }
+            }.apply { isDaemon = true; start() }
+            Thread.sleep(500)
+            RegtestSupport.mineBlocks(1)
+
+            // wait for next block notification
+            val arrived = assertNotNull(header.get(35, TimeUnit.SECONDS), "no block arrived")
+            daemon.removeListener(listener) // unregister listener so daemon does not keep polling
+            BlockAssertions.testBlockHeader(arrived, true)
+
+            // test that listener was called with equivalent header
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (lastHeader == null && System.nanoTime() < deadline) Thread.sleep(50)
+            assertSerializedEquals(arrived, lastHeader)
+        } finally {
+            daemon.removeListener(listener)
+        }
+    }
+
     // Can ban a peer
     @Test
     fun testBanPeer() {
@@ -969,6 +1025,239 @@ class MoneroDaemonRpcTest {
 
         assertTrue(found1, "Could not find peer ban1 $addr1")
         assertTrue(found2, "Could not find peer ban2 $addr2")
+    }
+
+    // Can start and stop mining
+    @Test
+    @Tag("mining")
+    fun testMining() {
+        // stop mining at beginning of test
+        runCatching { daemon.stopMining() }
+
+        // generate address to mine to
+        val address = DaemonTestChain.wallet().getPrimaryAddress()
+
+        // start mining
+        daemon.startMining(address, 1, false, true)
+
+        // stop mining
+        daemon.stopMining()
+    }
+
+    // Can get mining status
+    @Test
+    @Tag("mining")
+    fun testGetMiningStatus() {
+        try {
+            // stop mining at beginning of test
+            runCatching { daemon.stopMining() }
+
+            // test status without mining
+            var status = daemon.getMiningStatus()
+            logger.fine("Testing mining status: ${MoneroJson.serialize(status)}")
+            assertEquals(false, status.isActive)
+            assertNull(status.address, "Mining address is not None: ${status.address}")
+            assertEquals(0L, status.speed)
+            assertEquals(0, status.numThreads)
+            assertNull(status.isBackground)
+
+            // test status with mining
+            val address = DaemonTestChain.wallet().getPrimaryAddress()
+            val threadCount = 1
+            val isBackground = false
+            daemon.startMining(address, threadCount.toLong(), isBackground, true)
+            status = daemon.getMiningStatus()
+            logger.fine("Testing mining status: ${MoneroJson.serialize(status)}")
+            assertTrue(assertNotNull(status.speed) >= 0)
+            assertEquals(true, status.isActive)
+            assertEquals(address, status.address)
+            assertEquals(threadCount, status.numThreads)
+            assertEquals(isBackground, status.isBackground)
+        } finally {
+            // stop mining at end of test
+            runCatching { daemon.stopMining() }
+        }
+    }
+
+    // Can submit a mined block to the network
+    @Test
+    fun testSubmitMinedBlock() {
+        // get template to mine on
+        val template = daemon.getBlockTemplate(RegtestSupport.MINING_ADDRESS)
+        val blob = assertNotNull(template.blockTemplateBlob)
+
+        // TODO monero rpc: way to get mining nonce when found in order to submit?
+
+        // try to submit a block that is not valid. monero-python submits the template without a nonce, which its node, with a difficulty of 500,
+        // does not take, but the difficulty of this node is 1 and any nonce does, so the block has the timestamp 0, which no node takes
+        assertErrorMessage("Block not accepted") { daemon.submitBlock(withTimestampZero(blob)) }
+    }
+
+    // the blob of a block with its timestamp set to 0: the blob starts with the major version, the minor version and the timestamp, which are varints
+    private fun withTimestampZero(blob: String): String {
+        val bytes = blob.chunked(2).map { it.toInt(16) }
+        fun endOfVarint(start: Int): Int {
+            var i = start
+            while ((bytes[i++] and 0x80) != 0) { /* the bytes of the number */ }
+            return i
+        }
+        val timestampStart = endOfVarint(endOfVarint(0))
+        val timestampEnd = endOfVarint(timestampStart)
+        return blob.substring(0, timestampStart * 2) + "00" + blob.substring(timestampEnd * 2)
+    }
+
+    // Can prune the blockchain
+    @Test
+    fun testPruneBlockchain() {
+        val result = daemon.pruneBlockchain(true)
+        logger.fine("Testing prune result: ${MoneroJson.serialize(result)}")
+
+        if (result.isPruned == true) {
+            assertTrue(assertNotNull(result.pruningSeed) > 0)
+        } else {
+            assertEquals(0, result.pruningSeed)
+        }
+    }
+
+    // Can check for an update
+    @Test
+    fun testCheckForUpdate() {
+        xfailRpcError("the update check needs DNSSEC validated TXT records, which the daemon in docker does not get") {
+            DaemonAssertions.testUpdateCheckResult(daemon.checkForUpdate())
+        }
+    }
+
+    // Can download an update
+    @Test
+    fun testDownloadUpdate() {
+        xfailRpcError("the update check needs DNSSEC validated TXT records, which the daemon in docker does not get") {
+            // download to default path
+            var result = daemon.downloadUpdate()
+            DaemonAssertions.testUpdateDownloadResult(result)
+
+            // download to defined path
+            val path = "test_download_" + System.currentTimeMillis() + ".tar.bz2"
+            result = daemon.downloadUpdate(path)
+            DaemonAssertions.testUpdateDownloadResult(result)
+
+            // test invalid path
+            // TODO monerod: an invalid path causes a 500 in daemon rpc rather than a clean error
+            if (result.isUpdateAvailable == true) {
+                try {
+                    daemon.downloadUpdate("./ohhai/there")
+                } catch (e: Exception) {
+                    logger.warning(e.toString())
+                }
+            }
+        }
+    }
+
+    // Can be stopped
+    @Test
+    @Disabled("test is disabled to not interfere with other tests")
+    fun testStop() {
+        // stop the daemon
+        daemon.stop()
+
+        // give the daemon time to shut down
+        Thread.sleep(5000)
+
+        // try to interact with the stopped daemon
+        assertFailsWith<Exception> { daemon.getHeight() }
+    }
+
+    // Can get the data needed to mine a block
+    @Test
+    fun testGetMinerData() {
+        DaemonAssertions.testMinerData(daemon.getMinerData())
+    }
+
+    // Can calculate a block's proof-of-work hash
+    @Test
+    fun testCalculatePow() {
+        val data = daemon.getMinerData()
+        val template = daemon.getBlockTemplate(RegtestSupport.MINING_ADDRESS)
+        val majorVersion = assertNotNull(data.majorVersion)
+        val height = assertNotNull(data.height)
+        val seedHash = assertNotNull(data.seedHash)
+        val blob = assertNotNull(template.blockTemplateBlob)
+
+        val powHash = daemon.calculatePow(majorVersion, height, blob, seedHash)
+        assertEquals(64, powHash.length)
+
+        assertErrorMessage("Must provide a block blob to hash") { daemon.calculatePow(majorVersion, height, "", seedHash) }
+    }
+
+    // Can add auxiliary proof-of-work to a block template
+    @Test
+    fun testAddAuxiliaryPow() {
+        val template = daemon.getBlockTemplate(RegtestSupport.MINING_ADDRESS)
+        val blob = assertNotNull(template.blockTemplateBlob)
+
+        val auxPow = MoneroAuxiliaryPow("11".repeat(32), "22".repeat(32))
+        val result = daemon.addAuxiliaryPow(blob, listOf(auxPow))
+        assertTrue(assertNotNull(result.blockTemplateBlob).isNotEmpty())
+        assertTrue(assertNotNull(result.blockHashingBlob).isNotEmpty())
+        assertEquals(64, assertNotNull(result.merkleRoot).length)
+        assertTrue(assertNotNull(result.merkleTreeDepth) >= 0)
+        assertEquals(1, result.auxPow.orEmpty().size)
+        assertEquals(64, assertNotNull(result.auxPow!![0].id).length)
+        assertEquals(64, assertNotNull(result.auxPow!![0].hash).length)
+
+        assertErrorMessage("Must provide auxiliary proof of work to add") { daemon.addAuxiliaryPow(blob, emptyList()) }
+    }
+
+    // Can get the global output indices of a transaction
+    @Test
+    fun testGetOutputIndices() {
+        val txHashes = DaemonAssertions.getConfirmedTxHashes(daemon)
+        assertTrue(txHashes.isNotEmpty(), "No confirmed txs found")
+
+        for (txHash in txHashes) {
+            val indices = daemon.getOutputIndices(txHash)
+            assertTrue(indices.isNotEmpty())
+            for (index in indices) assertTrue(index >= 0)
+        }
+
+        assertErrorMessage("Must provide a transaction hash") { daemon.getOutputIndices("") }
+    }
+
+    // Can get outputs given a list of output amounts and indices (binary). monero-cpp gives each output its transaction, with its hash and the
+    // height of its block, but monero-c writes the outputs as a list of outputs, and an output is not written with its transaction: it has no
+    // height. Remove the mark when monero-c writes them in their transactions and blocks, as it does the transactions of a wallet
+    @Test
+    @NotImplemented
+    fun testGetOutputs() {
+        val txHashes = DaemonAssertions.getConfirmedTxHashes(daemon)
+        assertTrue(txHashes.isNotEmpty(), "No confirmed txs found")
+
+        // identify each output by amount 0 (RingCT) and its global index
+        val requested = ArrayList<MoneroOutput>()
+        for (txHash in txHashes) {
+            for (index in daemon.getOutputIndices(txHash)) {
+                val output = MoneroOutput()
+                output.amount = BigInteger.ZERO
+                output.index = index
+                requested.add(output)
+            }
+        }
+
+        val numRequested = requested.size
+        assertTrue(numRequested > 0)
+
+        val fetched = daemon.getOutputs(requested)
+        assertEquals(numRequested, fetched.size)
+
+        for ((i, output) in fetched.withIndex()) {
+            logger.fine("Testing fetched output: ${MoneroJson.serialize(output)}")
+            assertEquals(requested[i].index, output.index)
+            assertEquals(64, assertNotNull(output.stealthPublicKey).length)
+            assertEquals(64, assertNotNull(output.mask).length)
+            val tx = assertNotNull(output.tx)
+            assertNotNull(assertNotNull(tx.block).height)
+        }
+
+        assertErrorMessage("Must provide outputs to fetch") { daemon.getOutputs(emptyList()) }
     }
 
     // Can get network (bandwidth) statistics

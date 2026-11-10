@@ -1,16 +1,21 @@
 package monero.daemon
 
+import java.math.BigInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import monero.TestLog
 import monero.daemon.model.MoneroBan
 import monero.daemon.model.MoneroConnectionSpan
 import monero.daemon.model.MoneroDaemonInfo
 import monero.daemon.model.MoneroDaemonNetworkStats
 import monero.daemon.model.MoneroDaemonSyncInfo
+import monero.daemon.model.MoneroDaemonUpdateCheckResult
+import monero.daemon.model.MoneroDaemonUpdateDownloadResult
 import monero.daemon.model.MoneroHardForkInfo
 import monero.daemon.model.MoneroKeyImageSpentStatus
+import monero.daemon.model.MoneroMinerData
 import monero.daemon.model.MoneroMinerTxSum
 import monero.daemon.model.MoneroPeer
 import monero.daemon.model.MoneroSubmitTxResult
@@ -21,6 +26,8 @@ import monero.daemon.model.MoneroTxPoolStats
  * What the tests of the daemon check in what it answers, like DaemonUtils of monero-python.
  */
 object DaemonAssertions {
+
+    private val logger = TestLog.logger("DaemonAssertions")
 
     /**
      * Check a peer that the daemon knows, which is one of its connections when [fromConnection] is true and one of its known peers when it
@@ -173,6 +180,23 @@ object DaemonAssertions {
     }
 
     /**
+     * Check the data that the daemon gives to mine a block.
+     */
+    fun testMinerData(data: MoneroMinerData) {
+        assertTrue(assertNotNull(data.majorVersion) > 0)
+        assertTrue(assertNotNull(data.height) > 0)
+        assertEquals(64, assertNotNull(data.prevHash).length)
+        assertEquals(64, assertNotNull(data.seedHash).length)
+
+        // the difficulty is a hex string, such as "0x1f4"
+        val difficulty = assertNotNull(data.difficulty)
+        assertTrue(BigInteger(difficulty.removePrefix("0x"), 16).signum() > 0)
+        assertTrue(assertNotNull(data.medianWeight) >= 0)
+        assertTrue(assertNotNull(data.alreadyGeneratedCoins).signum() > 0)
+        for (tx in data.txPoolBacklog.orEmpty()) assertEquals(64, assertNotNull(tx.hash).length)
+    }
+
+    /**
      * Check the statistics of the network of the daemon.
      */
     fun testNetworkStats(stats: MoneroDaemonNetworkStats) {
@@ -223,6 +247,42 @@ object DaemonAssertions {
             assertEquals(0, stats.numFailing)
             assertEquals(0, stats.numNotRelayed)
             assertTrue(stats.histo.orEmpty().isEmpty())
+        }
+    }
+
+    /**
+     * Check the result of the check for an update: an update that is available has its URIs, its version and its hash, and one that is not
+     * has none of them.
+     */
+    fun testUpdateCheckResult(result: MoneroDaemonUpdateCheckResult) {
+        assertNotNull(result.isUpdateAvailable)
+        if (result.isUpdateAvailable == true) {
+            val message = "No auto uri is daemon online?"
+            assertTrue(assertNotNull(result.autoUri, message).isNotEmpty(), message)
+            assertTrue(assertNotNull(result.userUri).isNotEmpty())
+            assertTrue(assertNotNull(result.version).isNotEmpty())
+            assertEquals(64, assertNotNull(result.hash).length)
+        } else {
+            assertNull(result.autoUri)
+            assertNull(result.userUri)
+            assertNull(result.version)
+            assertNull(result.hash)
+        }
+    }
+
+    /**
+     * Check the result of the download of an update.
+     */
+    fun testUpdateDownloadResult(result: MoneroDaemonUpdateDownloadResult) {
+        testUpdateCheckResult(result)
+        if (result.isUpdateAvailable == true) {
+            if (result.downloadPath == null) {
+                // monero-project: the daemon gives an empty status when the download fails
+                logger.warning("TODO Result path is null")
+                return
+            }
+        } else {
+            assertNull(result.downloadPath)
         }
     }
 
