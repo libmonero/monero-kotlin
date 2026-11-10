@@ -24,7 +24,7 @@ A Kotlin library for creating Monero applications using RPC and a C ABI to [mone
 * Supports a keys-only wallet, and a full wallet with its files, sync, transactions and multisig.
 * Supports a wallet RPC client for the wallets of a monero-wallet-rpc server.
 * Daemon implementations are interchangeable by conforming to a [common interface](src/main/kotlin/monero/daemon/MoneroDaemon.kt).
-* Uses a clearly defined [data model and API specification](https://github.com/libmonero/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
+* Uses a clearly defined [data model and API specification](https://github.com/libmonero/monero-kotlin/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
 * Fetch and process binary data from the daemon (e.g. raw blocks).
 * Receive notifications when blocks are added to the chain.
 * Has an [Android module](android/README.md) that packages it with monero-c as an AAR.
@@ -151,7 +151,7 @@ MoneroWalletRpc("http://localhost:28084", "rpc_user", "abc123").use { wallet ->
 
 ## Documentation
 
-* [Data model and API specification](https://github.com/libmonero/monero-python/blob/main/docs/monero-spec.pdf)
+* [Data model and API specification](docs/monero-spec.pdf)
 * [Data model](docs/data-model.md): types, errors, JSON, queries, merging and the differences from monero-java
 * [Threads, handles and listeners](docs/threads.md)
 * [Native library](docs/native-library.md): how monero-c is loaded
