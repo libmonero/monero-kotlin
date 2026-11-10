@@ -9,7 +9,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import monero.NotImplemented
 import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.daemon.MoneroDaemonRpc
@@ -147,12 +146,9 @@ class MoneroWalletFullSyncIntegrationTest {
         testSyncSeed(firstReceiveHeight, firstReceiveHeight + 3)
     }
 
-    // Can sync a wallet created from seed from a start height greater than the restore height. From 1000 on, wallet2 starts a sync at the
-    // checkpoint of mainnet below the start height, which a regtest chain does not have, and goes on from block 1001: the wallet has the
-    // payments between there and the start height, where monero-python expects its first transaction after the first payment (the TODO.md of
-    // monero-c has it). It passes on a chain that is shorter
+    // Can sync a wallet created from seed from a start height greater than the restore height. On a chain of 1000 blocks or more it needs
+    // wallet2 to check the checkpoint of mainnet with the daemon before it skips the hashes below it, which monero-c does since 0.3.0
     @Test
-    @NotImplemented
     fun testSyncSeedStartHeightGreaterThanRestoreHeight() {
         testSyncSeed(firstReceiveHeight + 3, firstReceiveHeight)
     }
@@ -265,16 +261,9 @@ class MoneroWalletFullSyncIntegrationTest {
 
     // ------------------------------- PRIVATE ------------------------------------
 
-    // monero-python expects the blocks from the start to the chain. wallet2 starts a sync that is from 1000 on at a checkpoint of mainnet, which
-    // a regtest chain does not have, and it counts the blocks from block 1001 (the TODO.md of monero-c has it), so there it counts more
+    // monero-python expects the blocks from the start to the chain, on a chain of any length
     private fun assertBlocksFetched(result: MoneroSyncResult, daemonHeight: Long, startHeight: Long) {
-        val fetched = assertNotNull(result.numBlocksFetched)
-        val expected = daemonHeight - startHeight
-        if (startHeight < 1000) {
-            assertEquals(expected, fetched)
-        } else {
-            assertTrue(fetched >= expected, "$fetched blocks fetched, and the chain is $expected blocks past the start")
-        }
+        assertEquals(daemonHeight - startHeight, assertNotNull(result.numBlocksFetched))
     }
 
     /**
