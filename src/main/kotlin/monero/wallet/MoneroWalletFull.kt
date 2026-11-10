@@ -7,6 +7,7 @@ import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.internal.MoneroC
 import monero.internal.MoneroNative
+import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroAccount
 import monero.wallet.model.MoneroWalletConfig
 
@@ -157,6 +158,23 @@ class MoneroWalletFull private constructor(handle: Pointer) : MoneroWalletNative
             val exists = ByteByReference()
             MoneroNative.ok(MoneroNative.lib.monero_wallet_exists(path, exists))
             return exists.value.toInt() != 0
+        }
+
+        /**
+         * Get the default directory of the ring database of a network, where a wallet keeps the rings of the outputs it spent. It is
+         * the .shared-ringdb directory of the home of the user (~/.shared-ringdb on Linux and macOS), with testnet or stagenet below
+         * it for those networks, as monero-wallet-cli and monero-wallet-rpc choose it. The directory is not made, and a regtest
+         * wallet is a mainnet one, so regtest gives the path of mainnet. The call needs no wallet, so it runs on the thread of the
+         * caller.
+         *
+         * @param networkType is the network of the wallet
+         * @return the path of the directory
+         * @throws MoneroError if the native library fails
+         */
+        fun getDefaultRingdbPath(networkType: MoneroNetworkType): String {
+            val out = PointerByReference()
+            return MoneroNative.text(MoneroNative.lib.monero_utils_get_default_ringdb_path(networkType.ordinal, out), out)
+                ?: throw MoneroError("monero-c returned no path for the ring database")
         }
 
         private fun wallet(create: (MoneroC, PointerByReference) -> Int): MoneroWalletFull {

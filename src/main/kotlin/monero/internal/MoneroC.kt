@@ -340,6 +340,8 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_exists(path: String, exists: ByteByReference): Int
 
+    fun monero_utils_get_default_ringdb_path(networkType: Int, path: PointerByReference): Int
+
     fun monero_wallet_save(wallet: Pointer): Int
 
     fun monero_wallet_get_path(wallet: Pointer, out: PointerByReference): Int

@@ -62,6 +62,20 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     override val defaultLanguage: String = MoneroWalletFull.DEFAULT_LANGUAGE
 
+    // ------------------------------- RING DATABASE ----------------------------------
+
+    // the default directory of the ring database of each network, as test_get_default_ringdb_path_* of monero-python
+    @Test
+    fun getDefaultRingdbPath_OfEachNetwork() {
+        val mainnet = MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.MAINNET)
+        assertTrue(mainnet.endsWith(".shared-ringdb"), mainnet)
+        assertTrue(MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.TESTNET).endsWith(".shared-ringdb${java.io.File.separator}testnet"))
+        assertTrue(MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.STAGENET).endsWith(".shared-ringdb${java.io.File.separator}stagenet"))
+
+        // a regtest wallet is a mainnet wallet
+        assertEquals(mainnet, MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.REGTEST))
+    }
+
     // ------------------------------- CREATE A WALLET ----------------------------------
 
     @Test
