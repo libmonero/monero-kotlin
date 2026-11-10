@@ -111,14 +111,18 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
     }
 
     /**
-     * Indicates if the client is connected to the daemon via RPC: the server answered the last request, and it accepted
-     * the credentials.
+     * Indicates if the client is connected to the daemon via RPC: it asks the daemon now, and the daemon answered. A daemon that
+     * does not answer is not an error, it is false, but it is found out after the timeout of the connection. [getRpcConnection] has
+     * the state that the last check of the connection left, which does not ask the daemon.
      *
-     * @return true if the client is connected to the daemon, false otherwise
+     * @return true if the daemon answered, false otherwise
      */
     fun isConnected(): Boolean {
-        val connection = getRpcConnection()
-        return connection.isOnline == true && connection.isAuthenticated != false
+        return run { lib, h ->
+            val out = ByteByReference()
+            MoneroNative.ok(lib.monero_daemon_is_connected(h, out))
+            out.value.toInt() != 0
+        }
     }
 
     /**

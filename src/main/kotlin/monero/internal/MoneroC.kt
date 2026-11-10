@@ -136,6 +136,8 @@ internal interface MoneroC : Library {
 
     fun monero_daemon_get_rpc_connection(daemon: Pointer, json: PointerByReference): Int
 
+    fun monero_daemon_is_connected(daemon: Pointer, connected: ByteByReference): Int
+
     fun monero_daemon_set_poll_period(daemon: Pointer, periodMs: Long): Int
 
     fun monero_daemon_listener_create(callbacks: DaemonListenerCallbacks, out: PointerByReference): Int
