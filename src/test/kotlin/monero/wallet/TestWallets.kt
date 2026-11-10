@@ -163,16 +163,19 @@ object RpcTestWallets : TestWallets {
         return create(config, nextServer())
     }
 
-    // the server refreshes its open wallet by itself every 20 seconds, so this one can import outputs until then: a test has to use it at once
+    // The server refreshes its open wallet by itself every 20 seconds, and a wallet that has refreshed is a hot wallet, which does not import
+    // outputs ("Hot wallets cannot import outputs"): a test that syncs or waits before it imports, or that is not quick enough, would fail
+    // when the refresh comes in between. The wallet that imports stops the refresh at once, as the shared wallet does
     override fun createViewOnly(address: String, privateViewKey: String): MoneroWalletNative {
         val config = MoneroWalletConfig()
         config.primaryAddress = address
         config.privateViewKey = privateViewKey
         config.restoreHeight = 0
-        return create(config, nextServer())
+        return create(config, nextServer(), refreshes = false)
     }
 
-    // the server is always connected to a node, so the wallet is given one that is not there, as monero-python does
+    // the server is always connected to a node, so the wallet is given one that is not there, as monero-python does. It imports outputs too,
+    // so the server does not refresh it, as it does not refresh the view-only wallet
     override fun createOffline(address: String, privateViewKey: String, privateSpendKey: String): MoneroWalletNative {
         val config = MoneroWalletConfig()
         config.primaryAddress = address
@@ -180,7 +183,7 @@ object RpcTestWallets : TestWallets {
         config.privateSpendKey = privateSpendKey
         config.restoreHeight = 0
         config.server = MoneroRpcConnection(OFFLINE_SERVER_URI)
-        return create(config, nextServer())
+        return create(config, nextServer(), refreshes = false)
     }
 
     // The server refreshes its open wallet by itself every 20 seconds, and the transaction that TxHistoryWallet leaves in the pool would be
@@ -198,12 +201,15 @@ object RpcTestWallets : TestWallets {
 
     private fun nextServer(): Int = SERVERS[Math.floorMod(turn.getAndIncrement(), SERVERS.size)]
 
-    private fun create(config: MoneroWalletConfig, server: Int): MoneroWalletNative {
+    // the refresh of the server, which stopSyncing() of a wallet of a server stops, is of the server and not of one wallet, so it stays stopped for
+    // the next wallets of that server, which sync when they are asked to
+    private fun create(config: MoneroWalletConfig, server: Int, refreshes: Boolean = true): MoneroWalletNative {
         val wallet = MoneroWalletRpc(RegtestSupport.walletRpcConnection(server))
         try {
             config.path = "kt-" + UUID.randomUUID().toString().replace("-", "")
             config.password = FullTestWallets.PASSWORD
             wallet.createWallet(config)
+            if (!refreshes) wallet.stopSyncing()
             return wallet
         } catch (e: Throwable) {
             runCatching { wallet.close() }
