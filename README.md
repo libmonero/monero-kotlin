@@ -1,29 +1,36 @@
 # Monero Kotlin Library
 
 [![Build](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/build.yml)
+[![Native](https://github.com/libmonero/monero-kotlin/actions/workflows/native.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/native.yml)
+[![Android](https://github.com/libmonero/monero-kotlin/actions/workflows/android.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/android.yml)
+
 [![Unit tests](https://github.com/libmonero/monero-kotlin/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/unit-tests.yml)
 [![Integration tests](https://github.com/libmonero/monero-kotlin/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/libmonero/monero-kotlin/actions/workflows/integration-tests.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/4a9a4d0340f54c77965d9b0f80550409)](https://app.codacy.com/gh/libmonero/monero-kotlin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
+
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![JDK](https://img.shields.io/badge/JDK-21-blue?logo=openjdk&logoColor=white)](https://adoptium.net/)
-[![License](https://img.shields.io/github/license/libmonero/monero-kotlin)](https://github.com/libmonero/monero-kotlin/blob/main/LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-lightgrey?logo=data:image/svg%2Bxml;base64,PHN2ZyBmaWxsPSIjZmZmIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cGF0aCBkPSJNMS43NSAyLjVoMTIuNWEuMjUuMjUgMCAwIDEgLjI1LjI1djcuNWEuMjUuMjUgMCAwIDEtLjI1LjI1SDEuNzVhLjI1LjI1IDAgMCAxLS4yNS0uMjV2LTcuNWEuMjUuMjUgMCAwIDEgLjI1LS4yNVpNMTQuMjUgMUgxLjc1QTEuNzUgMS43NSAwIDAgMCAwIDIuNzV2Ny41QzAgMTEuMjE2Ljc4NCAxMiAxLjc1IDEyaDMuNzI3Yy0uMSAxLjA0MS0uNTIgMS44NzItMS4yOTIgMi43NTdBLjc1Mi43NTIgMCAwIDAgNC43NSAxNmg2LjVhLjc1Ljc1IDAgMCAwIC41NjUtMS4yNDNjLS43NzItLjg4NS0xLjE5My0xLjcxNi0xLjI5Mi0yLjc1N2gzLjcyN0ExLjc1IDEuNzUgMCAwIDAgMTYgMTAuMjV2LTcuNUExLjc1IDEuNzUgMCAwIDAgMTQuMjUgMVpNOS4wMTggMTJINi45ODJhNS43MiA1LjcyIDAgMCAxLS43NjUgMi41aDMuNTY2YTUuNzIgNS43MiAwIDAgMS0uNzY1LTIuNVoiLz48L3N2Zz4%3D)
+[![License](https://img.shields.io/badge/license-MIT-green?logo=data:image/svg%2Bxml;base64,PHN2ZyBmaWxsPSIjZmZmIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cGF0aCBkPSJNOC43NS43NVYyaC45ODVjLjMwNCAwIC42MDMuMDguODY3LjIzMWwxLjI5LjczNmMuMDM4LjAyMi4wOC4wMzMuMTI0LjAzM2gyLjIzNGEuNzUuNzUgMCAwIDEgMCAxLjVoLS40MjdsMi4xMTEgNC42OTJhLjc1Ljc1IDAgMCAxLS4xNTQuODM4bC0uNTMtLjUzLjUyOS41MzEtLjAwMS4wMDItLjAwMi4wMDItLjAwNi4wMDYtLjAwNi4wMDUtLjAxLjAxLS4wNDUuMDRjLS4yMS4xNzYtLjQ0MS4zMjctLjY4Ni40NUMxNC41NTYgMTAuNzggMTMuODggMTEgMTMgMTFhNC40OTggNC40OTggMCAwIDEtMi4wMjMtLjQ1NCAzLjU0NCAzLjU0NCAwIDAgMS0uNjg2LS40NWwtLjA0NS0uMDQtLjAxNi0uMDE1LS4wMDYtLjAwNi0uMDA0LS4wMDR2LS4wMDFhLjc1Ljc1IDAgMCAxLS4xNTQtLjgzOEwxMi4xNzggNC41aC0uMTYyYy0uMzA1IDAtLjYwNC0uMDc5LS44NjgtLjIzMWwtMS4yOS0uNzM2YS4yNDUuMjQ1IDAgMCAwLS4xMjQtLjAzM0g4Ljc1VjEzaDIuNWEuNzUuNzUgMCAwIDEgMCAxLjVoLTYuNWEuNzUuNzUgMCAwIDEgMC0xLjVoMi41VjMuNWgtLjk4NGEuMjQ1LjI0NSAwIDAgMC0uMTI0LjAzM2wtMS4yODkuNzM3Yy0uMjY1LjE1LS41NjQuMjMtLjg2OS4yM2gtLjE2MmwyLjExMiA0LjY5MmEuNzUuNzUgMCAwIDEtLjE1NC44MzhsLS41My0uNTMuNTI5LjUzMS0uMDAxLjAwMi0uMDAyLjAwMi0uMDA2LjAwNi0uMDE2LjAxNS0uMDQ1LjA0Yy0uMjEuMTc2LS40NDEuMzI3LS42ODYuNDVDNC41NTYgMTAuNzggMy44OCAxMSAzIDExYTQuNDk4IDQuNDk4IDAgMCAxLTIuMDIzLS40NTQgMy41NDQgMy41NDQgMCAwIDEtLjY4Ni0uNDVsLS4wNDUtLjA0LS4wMTYtLjAxNS0uMDA2LS4wMDYtLjAwNC0uMDA0di0uMDAxYS43NS43NSAwIDAgMS0uMTU0LS44MzhMMi4xNzggNC41SDEuNzVhLjc1Ljc1IDAgMCAxIDAtMS41aDIuMjM0YS4yNDkuMjQ5IDAgMCAwIC4xMjUtLjAzM2wxLjI4OC0uNzM3Yy4yNjUtLjE1LjU2NC0uMjMuODY5LS4yM2guOTg0Vi43NWEuNzUuNzUgMCAwIDEgMS41IDBabTIuOTQ1IDguNDc3Yy4yODUuMTM1LjcxOC4yNzMgMS4zMDUuMjczczEuMDItLjEzOCAxLjMwNS0uMjczTDEzIDYuMzI3Wm0tMTAgMGMuMjg1LjEzNS43MTguMjczIDEuMzA1LjI3M3MxLjAyLS4xMzggMS4zMDUtLjI3M0wzIDYuMzI3WiIvPjwvc3ZnPg%3D%3D)](https://github.com/libmonero/monero-kotlin/blob/main/LICENSE)
 
 > [!WARNING]
 >
 > monero-kotlin is under development and unfunded, expect bugs and breaking changes.
 
-A Kotlin library for creating Monero applications using RPC and a C ABI to [monero v0.18.5.3 'Fluorine Fermi'](https://github.com/monero-project/monero/tree/v0.18.5.3).
+A Kotlin library for creating Monero applications using RPC and a C ABI to [monero v0.18.5.4 'Fluorine Fermi'](https://github.com/monero-project/monero/tree/v0.18.5.4).
 
 * Supports a daemon RPC client.
 * Supports a keys-only wallet, and a full wallet with its files, sync, transactions and multisig.
 * Supports a wallet RPC client for the wallets of a monero-wallet-rpc server.
 * Daemon implementations are interchangeable by conforming to a [common interface](src/main/kotlin/monero/daemon/MoneroDaemon.kt).
-* Uses a clearly defined [data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
+* Uses a clearly defined [data model and API specification](https://github.com/libmonero/monero-python/blob/main/docs/monero-spec.pdf) intended to be intuitive and robust.
 * Fetch and process binary data from the daemon (e.g. raw blocks).
 * Receive notifications when blocks are added to the chain.
 * Has an [Android module](android/README.md) that packages it with monero-c as an AAR.
-* Over 1,000 passing unit tests.
+* Receive notifications when wallets sync, send, or receive.
+* Query wallet transactions, transfers, and outputs by their properties.
+* Over 1,000 tests.
 
 ## Architecture
 
@@ -32,7 +39,7 @@ A Kotlin library for creating Monero applications using RPC and a C ABI to [mone
 	<i>Build Kotlin applications using RPC or the C ABI of <a href="https://github.com/libmonero/monero-c">monero-c</a> to <a href="https://github.com/monero-project/monero">monero-project/monero</a>.  Daemon implementations are interchangeable by conforming to a common interface, <a href="src/main/kotlin/monero/daemon/MoneroDaemon.kt">MoneroDaemon</a>.</i>
 </p>
 
-The calls are blocking. The call itself is made by monero-c, and the library runs the calls of a daemon or a wallet one after the other on a thread of its own, so a call does not depend on the thread that makes it. A daemon and a wallet hold a native handle: close them to release it.
+The calls are blocking. The call itself is made by monero-c, and the library runs the calls of a daemon or a wallet one after the other on a thread of its own, so a call does not depend on the thread that makes it. A daemon and a wallet hold a native handle: close them to release it. See [Threads, handles and listeners](docs/threads.md).
 
 ## Sample code
 
@@ -144,13 +151,20 @@ MoneroWalletRpc("http://localhost:28084", "rpc_user", "abc123").use { wallet ->
 
 ## Documentation
 
-* [Data model and API specification](https://github.com/everoddandeven/monero-python/blob/main/docs/monero-spec.pdf)
+* [Data model and API specification](https://github.com/libmonero/monero-python/blob/main/docs/monero-spec.pdf)
+* [Data model](docs/data-model.md): types, errors, JSON, queries, merging and the differences from monero-java
+* [Threads, handles and listeners](docs/threads.md)
+* [Native library](docs/native-library.md): how monero-c is loaded
+* [Building](docs/building.md)
+* [Testing](docs/testing.md)
+* [Continuous integration](docs/continuous-integration.md)
+* [Android](android/README.md)
 * [Unit tests](src/test/kotlin)
 * [monero-java Javadoc](https://woodser.github.io/monero-java/javadocs/index.html) and [monero-ts documentation](https://github.com/woodser/monero-ts#documentation) provide additional documentation which translates to monero-kotlin
 
 ## Using monero-kotlin in your project
 
-monero-kotlin is not published to a repository yet. Build it from source as described below and publish it to the local repository of Maven, which Gradle reads:
+monero-kotlin is not published to a repository yet. [Build it from source](docs/building.md) and publish it to the local repository of Maven, which Gradle reads:
 
 ```sh
 ./gradlew publishToMavenLocal
@@ -166,7 +180,7 @@ dependencies {
 }
 ```
 
-The POM has the dependencies of the library (Jackson and JNA). The shared library of monero-c has to be loadable too, see [Loading the native library](#loading-the-native-library).
+The POM has the dependencies of the library (Jackson and JNA). The shared library of monero-c has to be loadable too, see [Native library](docs/native-library.md).
 
 For Android there is an AAR with the native library in it, see [android/README.md](android/README.md).
 
@@ -185,121 +199,14 @@ You need a daemon to connect to:
 1. Download and install [Monero CLI](https://web.getmonero.org/downloads/).
 2. Start monerod, e.g.: `./monerod --stagenet` (or use a remote daemon).
 
-## Building monero-kotlin from source
-
-You need a JDK 21.
-
-```sh
-git clone https://github.com/libmonero/monero-kotlin.git
-cd monero-kotlin
-./gradlew build
-```
-
-The jar is in `build/libs`. The build does not need monero-c, so it does not need the submodule: `external/monero-c` is [monero-c](https://github.com/libmonero/monero-c), the C library that the daemon and the wallets call.
-
-## Downloading monero-c
-
-The [releases of monero-c](https://github.com/libmonero/monero-c/releases) have the library of every platform: Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64). Download the archive of your platform and unpack it: the library is `libmonero_c.so`, `libmonero_c.dylib` or `libmonero_c.dll` in the directory of the archive, which also has the libraries that it needs, e.g. libusb.
-
-The release also has `monero-native-jvm-<version>.jar`, with the library of every platform as resources, and `monero-native-android-<version>.aar` for Android (see [android/README.md](android/README.md)).
-
-## Building monero-c from source
-
-### Linux and macOS
-
-1. Clone the project repository with its submodules, which are big:
-   ```sh
-   git clone --recurse-submodules https://github.com/libmonero/monero-kotlin.git
-   ```
-2. Build monero-project, monero-cpp and monero-c, which takes a long time the first time:
-   ```sh
-   cd monero-kotlin/external/monero-c
-   ./bin/build_libmonero_c.sh
-   ```
-
-The library is left in `external/monero-c/build`: `libmonero_c.so` on Linux and `libmonero_c.dylib` on macOS.
-
-### Windows
-
-1. Download and install [MSYS2](https://www.msys2.org/).
-2. Press the Windows button and launch `MSYS2 MINGW64`.
-3. Update packages: `pacman -Syu` and confirm at prompts.
-4. Relaunch MSYS2 (if necessary) and install dependencies:
-   ```
-   pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-openssl mingw-w64-x86_64-zeromq mingw-w64-x86_64-libsodium mingw-w64-x86_64-hidapi mingw-w64-x86_64-unbound mingw-w64-x86_64-protobuf mingw-w64-x86_64-libusb mingw-w64-x86_64-expat mingw-w64-x86_64-ntldd git make gettext base-devel wget
-   wget https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-76.1-1-any.pkg.tar.zst
-   pacman -U mingw-w64-x86_64-icu-76.1-1-any.pkg.tar.zst
-   wget https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-boost-1.87.0-3-any.pkg.tar.zst
-   pacman -U mingw-w64-x86_64-boost-1.87.0-3-any.pkg.tar.zst
-   ```
-5. Clone the project repository with its submodules: `git clone --recurse-submodules https://github.com/libmonero/monero-kotlin.git`
-6. Build monero-project, monero-cpp and monero-c:
-   ```
-   cd monero-kotlin/external/monero-c
-   ./bin/build_libmonero_c.sh
-   ```
-
-### Loading the native library
-
-The library is loaded the first time that a daemon or a wallet is made. Set the system property `monero.c.library` or the environment variable `MONERO_C_LIBRARY` to the path of the library, e.g.:
-
-```sh
-MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./myapp
-```
-
-Otherwise, if the classpath has the `monero-native-jvm` jar of a release of monero-c, e.g. `runtimeOnly(files("libs/monero-native-jvm-<version>.jar"))`, the files of your platform in it, which are the library and the libusb that it needs, are copied to a new folder in the temporary one (the one of `jna.tmpdir`, if it is set) and the library is loaded from there. The folder is deleted when the program ends, except on Windows, which does not delete a library that is loaded.
-
-If there is no such jar, the library is looked for as `monero_c` by [JNA](https://github.com/java-native-access/jna): in `jna.library.path` and in the library path of the system.
-
-When it is loaded, the version of its ABI is compared with the one that monero-kotlin was written for: while the major version is 0, the minor version has to be the same (0.2 now), and a `MoneroError` is thrown if it is not.
-
 ## Running tests
-
-### Unit tests
-
-The unit tests read and write the JSON of the models, which is the JSON that monero-c writes, in [src/test/resources/fixtures](src/test/resources/fixtures). They need no node. The ones that call monero-c, e.g. the utils, are skipped when its library is not found. To run them, set the environment variable `MONERO_C_LIBRARY` to the library, built as described above:
 
 ```sh
 ./gradlew test
-MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew test --rerun
+MONERO_C_LIBRARY=/path/to/libmonero_c.so ./gradlew test --rerun
 ```
 
-Gradle does not run the tests again when only the environment changed, so add `--rerun` after setting or unsetting the variable.
-
-### Integration tests
-
-The integration tests are tagged `integration`, so `./gradlew test` does not run them. They need monero-c and the regtest nodes and wallet RPC servers of [src/test/docker/docker-compose.yml](src/test/docker/docker-compose.yml), which are the ones of monero-python: two nodes that are connected to each other and three wallet RPC servers, with the same login. It needs Docker and ports 18080 to 18086, 18089 and 48080:
-
-```sh
-docker compose -f src/test/docker/docker-compose.yml up -d node_1 node_2 xmr_wallet_1 xmr_wallet_2 xmr_wallet_3
-MONERO_C_LIBRARY=/path/to/monero-kotlin/external/monero-c/build/libmonero_c.so ./gradlew integrationTest --rerun
-docker compose -f src/test/docker/docker-compose.yml down -v
-```
-
-[bin/setup_test_environment.sh](bin/setup_test_environment.sh) starts the same containers and waits until the node and the servers answer, and [bin/cleanup_test_environment.sh](bin/cleanup_test_environment.sh) removes them with their volumes. `COMPOSE_FILE` and `COMPOSE_PROJECT_NAME` change the compose file and the project of both. [bin/update_submodules.sh](bin/update_submodules.sh) initializes the submodules.
-
-The tests use the second node, at `http://127.0.0.1:18081` with the user `rpc_daemon_user`, and the three wallet RPC servers, at `http://127.0.0.1:18082` and the two ports that follow, with the user `rpc_user`; the password of both is `abc123`. A server has one open wallet, so the first one holds the wallet that the tests share, and the wallets that a test makes are on the other two. They skip when nothing answers, and fail when the server does not accept the login. The environment variables `MONERO_C_TEST_DAEMON_URI`, `MONERO_C_TEST_DAEMON_USERNAME`, `MONERO_C_TEST_DAEMON_PASSWORD`, `MONERO_C_TEST_WALLET_RPC_URI` (of the first server), `MONERO_C_TEST_WALLET_RPC_USERNAME` and `MONERO_C_TEST_WALLET_RPC_PASSWORD` change each of them. The images are `ghcr.io/libmonero/monero-daemon-rpc` and `monero-wallet-rpc`, and `MONERO_TAG` pins their tag.
-
-### Logs
-
-The tests log what they run, the way the tests of monero-python do: to the console as they go, and to `build/test-logs/monero_tests_kotlin.log`. The log of monero-c goes to `build/test-logs/monero_tests_cpp_<date>.log`, at the level 0 of the library. Set the environment variable `MONERO_C_TEST_LOG_LEVEL` (0 to 4) or `MONERO_C_TEST_LOG_CATEGORIES` to get more of it, and `MONERO_KOTLIN_TEST_LOG_DIR` to write the files somewhere else. Gradle shows the console log of each test with its result, and the console launcher of the CI shows it too, with the files in the results that it uploads.
-
-To get the coverage of the library:
-
-```sh
-./gradlew test jacocoTestReport
-```
-
-The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTestReport.xml`, which is the one that Codacy reads.
-
-## Continuous integration
-
-* **Build** builds the library and the unit tests, and uploads the unit tests, with the files they need to run, and the agent and the command line of JaCoCo for the coverage (`./gradlew unitTests`).
-* **Native** builds monero-c from the submodule `external/monero-c` on Linux (x86_64 and arm64), Windows and macOS (arm64 and x86_64), with the recipes of the Build workflows of monero-c. The library is kept in the cache of Actions with the commit of the submodule in the key, so it is built again only when the submodule changes. Its compilation, dependencies included, is cached with ccache, which only the runs on main save.
-* **Unit tests** waits for the Build and Native runs of the same commit, and runs the unit tests that Build made on the same platforms, with the library that Native built, without building anything. On Linux x86_64 it runs them with the agent of JaCoCo that Build uploaded with them, and uploads the report of the coverage.
-* **Android** builds the android module and the example application, with the `monero-native-android` archive of the release of monero-c that the submodule is pinned at, and uploads the AAR. It fails if the release is not the one of the submodule.
-* **Integration tests** waits for the same runs, starts the nodes and the wallet RPC servers of `src/test/docker/docker-compose.yml`, and runs the tests tagged `integration` on Linux x86_64 with the library that Native built. It fails if it finds no integration test, and uploads the logs of the containers. It runs the tests with the agent of JaCoCo that Build uploaded with the unit tests, and uploads the report of the coverage.
-* **Codacy Coverage Reporter** sends the reports of the coverage of Unit tests and Integration tests to Codacy, which merges them, when both have ended, for pull requests and for main.
+The integration tests need monero-c and the regtest nodes and wallet RPC servers of [src/test/docker/docker-compose.yml](src/test/docker/docker-compose.yml). See [Testing](docs/testing.md) for them, for the logs and for the coverage.
 
 ## Related projects
 
@@ -309,10 +216,6 @@ The report is in `build/reports/jacoco/test`: `html/index.html`, and `jacocoTest
 * [monero-python](https://github.com/libmonero/monero-python)
 * [monero-java](https://github.com/woodser/monero-java)
 * [monero-ts](https://github.com/woodser/monero-ts)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
