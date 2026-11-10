@@ -10,6 +10,7 @@ import monero.wallet.MoneroWalletNative
 import monero.wallet.TxAssertions
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxWallet
 
 /**
  * What the tests of the daemon need of the chain and of a wallet, which the tests of monero-python get from their setup: a chain that has
@@ -125,5 +126,44 @@ object DaemonTestChain {
         Runtime.getRuntime().addShutdownHook(Thread { synchronized(this) { wallet?.let { runCatching { it.close() } } } })
         wallet = created
         return created
+    }
+
+    /**
+     * Make a transaction that pays the wallet from an account of its own and is not relayed, which a test submits to the daemon. The
+     * account is not the first one: a transaction that goes from an account to the same one is not seen by the wallet when the daemon takes
+     * it from the pool. The transaction does not spend what it uses, so another one that is made from the same account spends the same
+     * outputs.
+     *
+     * @param accountIdx is the account that pays, from 1 to 2
+     */
+    fun getUnrelayedTx(accountIdx: Int): MoneroTxWallet {
+        assertTrue(accountIdx > 0, "Txs sent from/to same account are not properly synced from the pool")
+        val wallet = wallet()
+        val config = MoneroTxConfig()
+        config.accountIndex = accountIdx
+        config.address = wallet.getPrimaryAddress()
+        config.amount = TxAssertions.MAX_FEE
+
+        val tx = wallet.createTx(config)
+        assertTrue(!tx.fullHex.isNullOrEmpty(), "The transaction has no hex")
+        assertEquals(false, tx.relay, "Expected tx.relay to be false, got ${tx.relay}")
+        return tx
+    }
+
+    /**
+     * Wait for the transactions that were relayed to clear the pool, as the tracker of the transactions of the wallets of monero-python
+     * does: a block takes them, which regtest mines when asked, and the wallet that made them is synced with it. The transactions that are
+     * not relayed are left, since a test put them there and takes them out. A transaction that failed is flushed.
+     *
+     * @param daemon is the daemon whose pool is cleared
+     */
+    fun waitForTxsToClearPool(daemon: MoneroDaemon) {
+        val wallet = wallet()
+        wallet.sync()
+        for (tx in daemon.getTxPool()) {
+            if (tx.isFailed == true) daemon.flushTxPool(tx.hash!!)
+        }
+        if (daemon.getTxPool().any { it.isRelayed == true }) RegtestSupport.mineBlocks(1)
+        wallet.sync()
     }
 }

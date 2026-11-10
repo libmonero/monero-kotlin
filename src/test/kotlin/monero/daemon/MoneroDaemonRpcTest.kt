@@ -18,6 +18,9 @@ import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.common.MoneroRpcError
 import monero.daemon.model.MoneroBlockHeader
+import monero.wallet.TxAssertions
+import monero.wallet.model.MoneroDestination
+import monero.wallet.model.MoneroTxConfig
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
@@ -79,6 +82,11 @@ class MoneroDaemonRpcTest {
             it.remove(listOf("isOnline", "isAuthenticated", "responseTime"))
         }
         assertEquals(fields(expected), fields(actual))
+    }
+
+    private fun assertErrorMessage(expected: String, block: () -> Unit) {
+        val error = assertFailsWith<Exception> { block() }
+        assertEquals(expected, error.message)
     }
 
     //#region Non Relays Tests
@@ -398,6 +406,185 @@ class MoneroDaemonRpcTest {
         val tipHash = assertNotNull(tip.hash)
         result = daemon.getBlockHashes(listOf(tipHash, genesisHash))
         assertEquals(listOf(tipHash), result.hashes)
+    }
+
+    // Can get a transaction by hash and without pruning
+    @Test
+    fun testGetTxByHash() {
+        // fetch tx hashses to test
+        val txHashes = DaemonAssertions.getConfirmedTxHashes(daemon)
+
+        // context for creating txs
+        val ctx = TestContext()
+        ctx.isPruned = false
+        ctx.isConfirmed = true
+        ctx.fromGetTxPool = false
+
+        // fetch each tx by hash without pruning
+        for (txHash in txHashes) DaemonTxAssertions.testTx(daemon.getTx(txHash), ctx)
+
+        // fetch each tx by hash with pruning
+        for (txHash in txHashes) {
+            ctx.isPruned = true
+            DaemonTxAssertions.testTx(daemon.getTx(txHash, true), ctx)
+        }
+
+        // fetch invalid hash
+        assertErrorMessage("Invalid transaction hash") { daemon.getTx("invalid tx hash") }
+    }
+
+    // Can get transactions by hashes with and without pruning
+    @Test
+    fun testGetTxsByHashes() {
+        // fetch tx hashses to test
+        val txHashes = DaemonAssertions.getConfirmedTxHashes(daemon)
+        assertTrue(txHashes.isNotEmpty(), "No tx hashes found")
+
+        // context for creating txs
+        val ctx = TestContext()
+        ctx.isPruned = false
+        ctx.isConfirmed = true
+        ctx.fromGetTxPool = false
+
+        // fetch each tx by hash without pruning
+        var txs = daemon.getTxs(txHashes)
+        assertEquals(txHashes.size, txs.size, "Expected len(txs) == len(tx_hashes), got ${txs.size} == ${txHashes.size}")
+        for (tx in txs) DaemonTxAssertions.testTx(tx, ctx)
+
+        // fetch each tx by hash with pruning
+        txs = daemon.getTxs(txHashes, true)
+        ctx.isPruned = true
+        assertEquals(txHashes.size, txs.size, "Expected len(txs) == len(tx_hashes), got ${txs.size} == ${txHashes.size}")
+        for (tx in txs) DaemonTxAssertions.testTx(tx, ctx)
+
+        // fetch missing hash
+        val dest = MoneroDestination()
+        dest.address = DaemonTestChain.wallet().getPrimaryAddress()
+        dest.amount = TxAssertions.MAX_FEE
+        val config = MoneroTxConfig()
+        config.accountIndex = 0
+        config.destinations = listOf(dest)
+        val tx = DaemonTestChain.wallet().createTx(config)
+        val txHash = assertNotNull(tx.hash)
+        assertNull(daemon.getTx(txHash))
+        txHashes.add(txHash)
+        val numTxs = txs.size
+        txs = daemon.getTxs(txHashes)
+        assertEquals(numTxs, txs.size)
+
+        // fetch invalid hash
+        assertErrorMessage("Invalid transaction hash") { daemon.getTxs(listOf("invalid tx hash")) }
+    }
+
+    // Can get transactions by hashes that are in the transaction pool
+    @Test
+    fun testGetTxsByHashesInPool() {
+        // wait for wallet's txs in the pool to clear to ensure reliable sync
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // submit txs to the pool but don't relay
+        val txHashes = ArrayList<String>()
+        for (i in 1..2) {
+            val tx = DaemonTestChain.getUnrelayedTx(i)
+            val fullHex = assertNotNull(tx.fullHex)
+            assertTrue(fullHex.isNotEmpty())
+            val result = daemon.submitTxHex(fullHex, true)
+            DaemonAssertions.testSubmitTxResultGood(result)
+            assertEquals(false, result.isRelayed)
+            txHashes.add(assertNotNull(tx.hash))
+        }
+
+        // fetch txs by hash
+        logger.fine("Fetching txs...")
+        val txs = daemon.getTxs(txHashes)
+        val numTxs = txs.size
+        logger.fine("Fetched $numTxs tx(s)")
+
+        // context for testing tx
+        val ctx = TestContext()
+        ctx.isPruned = false
+        ctx.isConfirmed = false
+        ctx.fromGetTxPool = false
+
+        // test fetched txs
+        assertEquals(txHashes.size, numTxs)
+        for (tx in txs) DaemonTxAssertions.testTx(tx, ctx)
+
+        // clear txs from pool
+        daemon.flushTxPool(txHashes)
+        DaemonTestChain.wallet().sync()
+    }
+
+    // Can get a transaction hex by hash with and without pruning
+    @Test
+    fun testGetTxHexByHash() {
+        // fetch transaction hashes to test
+        val txHashes = DaemonAssertions.getConfirmedTxHashes(daemon)
+
+        // fetch each tx hex by hash with and without pruning
+        val hexes = ArrayList<String>()
+        val hexesPruned = ArrayList<String>()
+        for (txHash in txHashes) {
+            hexes.add(daemon.getTxHex(txHash))
+            hexesPruned.add(daemon.getTxHex(txHash, true))
+        }
+
+        // test results
+        assertEquals(txHashes.size, hexes.size)
+        assertEquals(txHashes.size, hexesPruned.size)
+
+        for ((i, txHex) in hexes.withIndex()) {
+            val prunedTxHex = hexesPruned[i]
+            assertTrue(prunedTxHex.isNotEmpty())
+            // pruned hex is shorter
+            assertTrue(txHex.length >= prunedTxHex.length)
+        }
+
+        // fetch invalid hash
+        assertErrorMessage("Invalid transaction hash") { daemon.getTxHex("invalid tx hash") }
+    }
+
+    // Can get transaction hexes by hashes with and without pruning
+    @Test
+    fun testGetTxHexesByHashes() {
+        // fetch transaction hashes to test
+        val txHashes = DaemonAssertions.getConfirmedTxHashes(daemon)
+
+        // fetch tx hexes by hash with and without pruning
+        val hexes = daemon.getTxHexes(txHashes)
+        val hexesPruned = daemon.getTxHexes(txHashes, true)
+
+        // test results
+        assertEquals(txHashes.size, hexes.size)
+        assertEquals(txHashes.size, hexesPruned.size)
+        for ((i, txHex) in hexes.withIndex()) {
+            val prunedTxHex = hexesPruned[i]
+            assertTrue(prunedTxHex.isNotEmpty())
+            // pruned hex is shorter
+            assertTrue(txHex.length >= prunedTxHex.length)
+        }
+
+        // fetch invalid hash
+        txHashes.add("invalid tx hash")
+        assertErrorMessage("Invalid transaction hash") { daemon.getTxHexes(txHashes) }
+    }
+
+    // Can get the miner tx sum
+    @Test
+    fun testGetMinerTxSum() {
+        val txSum = daemon.getMinerTxSum(0, minOf(5000L, daemon.getHeight()))
+        DaemonAssertions.testMinerTxSum(txSum)
+    }
+
+    // Can get fee estimate
+    @Test
+    fun testGetFeeEstimate() {
+        val feeEstimate = daemon.getFeeEstimate()
+        logger.fine("Testing fee estimate: ${MoneroJson.serialize(feeEstimate)}")
+        GenAssertions.testUnsignedBigInteger(feeEstimate.fee, true)
+        assertEquals(4, feeEstimate.fees.orEmpty().size, "Exptected 4 fees")
+        for (fee in feeEstimate.fees.orEmpty()) GenAssertions.testUnsignedBigInteger(fee, true)
+        GenAssertions.testUnsignedBigInteger(feeEstimate.quantizationMask, true)
     }
 
     //#endregion
