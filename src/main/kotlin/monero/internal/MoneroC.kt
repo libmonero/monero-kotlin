@@ -342,6 +342,13 @@ internal interface MoneroC : Library {
 
     fun monero_utils_get_default_ringdb_path(networkType: Int, path: PointerByReference): Int
 
+    // the buffers of the wallet files of a full wallet, and the wallet that opens from them; the cache can be null
+    fun monero_wallet_get_keys_file_buffer(wallet: Pointer, password: String?, viewOnly: Boolean, data: PointerByReference, length: Pointer): Int
+
+    fun monero_wallet_get_cache_file_buffer(wallet: Pointer, data: PointerByReference, length: Pointer): Int
+
+    fun monero_wallet_open_data(password: String?, networkType: Int, keysData: ByteArray, keysLength: SizeT, cacheData: ByteArray?, cacheLength: SizeT, out: PointerByReference): Int
+
     fun monero_wallet_save(wallet: Pointer): Int
 
     fun monero_wallet_get_path(wallet: Pointer, out: PointerByReference): Int

@@ -7,7 +7,9 @@ import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.internal.MoneroC
 import monero.internal.MoneroNative
+import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
+import monero.internal.SizeT
 import monero.wallet.model.MoneroAccount
 import monero.wallet.model.MoneroWalletConfig
 
@@ -50,6 +52,43 @@ class MoneroWalletFull private constructor(handle: Pointer) : MoneroWalletNative
         checkNotClosed()
         if (tag != null) throw MoneroError("The accounts can not be asked by a tag: a full wallet has no tags of accounts")
         return json { lib, h, out -> lib.monero_wallet_get_accounts(h, includeSubaddresses, null, false, out) }
+    }
+
+    // ------------------------------- WALLET FILES IN MEMORY ----------------------------------
+
+    /**
+     * Get the contents of the keys file of the wallet, which [openWalletData] opens, without writing a file. The keys are encrypted
+     * with the password, so the buffer is as safe as the keys file.
+     *
+     * @param password is the password of the wallet, which also encrypts the keys of the buffer, or null or "" for a wallet that has
+     * none
+     * @param viewOnly leaves the private spend key out, so the buffer opens a view-only wallet
+     * @return the contents of the keys file
+     * @throws MoneroError if the wallet is closed, or the password is not the one of the wallet
+     */
+    fun getKeysFileBuffer(password: String?, viewOnly: Boolean = false): ByteArray {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val count = MoneroNative.newSize()
+            MoneroNative.bytes(lib.monero_wallet_get_keys_file_buffer(h, password, viewOnly, out, count), out, count)
+        }
+    }
+
+    /**
+     * Get the contents of the cache file of the wallet, which [openWalletData] opens, without writing a file: the transactions, the
+     * outputs and the notes that the wallet has, and the blocks that it has scanned.
+     *
+     * @return the contents of the cache file
+     * @throws MoneroError if the wallet is closed
+     */
+    fun getCacheFileBuffer(): ByteArray {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            val count = MoneroNative.newSize()
+            MoneroNative.bytes(lib.monero_wallet_get_cache_file_buffer(h, out, count), out, count)
+        }
     }
 
     companion object {
@@ -175,6 +214,35 @@ class MoneroWalletFull private constructor(handle: Pointer) : MoneroWalletNative
             val out = PointerByReference()
             return MoneroNative.text(MoneroNative.lib.monero_utils_get_default_ringdb_path(networkType.ordinal, out), out)
                 ?: throw MoneroError("monero-c returned no path for the ring database")
+        }
+
+        /**
+         * Open a wallet from the contents of its keys file and its cache file, which [getKeysFileBuffer] and [getCacheFileBuffer] give,
+         * for a program that keeps its wallets in a database or has no file system. The wallet has no files, so [save] does nothing
+         * and the program exports the wallet again to keep what it did.
+         *
+         * @param password is the password of the keys file, or null or "" for none
+         * @param networkType is the network of the wallet
+         * @param keysData is the contents of the keys file, which can not be empty
+         * @param cacheData is the contents of the cache file, or null or empty for none: the wallet then scans from its restore height
+         * again
+         * @param daemonConnection is the daemon to connect the wallet to, or null to leave it with none
+         * @return the opened wallet
+         * @throws MoneroError if the password is not the one of the keys, or the keys are not the contents of a keys file
+         */
+        fun openWalletData(password: String?, networkType: MoneroNetworkType, keysData: ByteArray, cacheData: ByteArray? = null, daemonConnection: MoneroRpcConnection? = null): MoneroWalletFull {
+            val cache = if (cacheData == null || cacheData.isEmpty()) null else cacheData
+            val wallet = wallet { lib, out ->
+                lib.monero_wallet_open_data(password, networkType.ordinal, keysData, SizeT(keysData.size.toLong()), cache, SizeT((cache?.size ?: 0).toLong()), out)
+            }
+            if (daemonConnection == null) return wallet
+            try {
+                wallet.setDaemonConnection(daemonConnection)
+            } catch (e: Throwable) {
+                wallet.close()
+                throw e
+            }
+            return wallet
         }
 
         private fun wallet(create: (MoneroC, PointerByReference) -> Int): MoneroWalletFull {

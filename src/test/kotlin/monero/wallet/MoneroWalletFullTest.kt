@@ -76,6 +76,70 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertEquals(mainnet, MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.REGTEST))
     }
 
+    // ------------------------------- WALLET FILES IN MEMORY ----------------------------------
+
+    // test_export_and_import_wallet_files of monero-python: the wallet opens from the keys buffer, alone and with the cache buffer
+    @Test
+    fun exportAndImportTheWalletFiles() {
+        MoneroWalletFull.createWallet(config()).use { wallet ->
+            val keysData = wallet.getKeysFileBuffer(password, false)
+            val cacheData = wallet.getCacheFileBuffer()
+            assertTrue(keysData.isNotEmpty())
+            assertTrue(cacheData.isNotEmpty())
+
+            // the cache can be left out, as null and as an empty buffer
+            val withKeysOnly = MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, keysData)
+            val withEmptyCache = MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, keysData, ByteArray(0))
+            val withBoth = MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, keysData, cacheData)
+            for (restored in listOf(withKeysOnly, withEmptyCache, withBoth)) {
+                restored.use {
+                    assertEquals(wallet.getSeed(), it.getSeed())
+                    assertEquals(wallet.getPrimaryAddress(), it.getPrimaryAddress())
+                    assertEquals(wallet.getPrivateViewKey(), it.getPrivateViewKey())
+                    assertEquals(wallet.getPrivateSpendKey(), it.getPrivateSpendKey())
+                    assertFalse(it.isViewOnly())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun exportTheKeysOfAViewOnlyWallet_LeavesTheSpendKeyOut() {
+        MoneroWalletFull.createWallet(config()).use { wallet ->
+            val keysData = wallet.getKeysFileBuffer(password, true)
+            MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, keysData).use { viewOnly ->
+                assertTrue(viewOnly.isViewOnly())
+                assertEquals(wallet.getPrimaryAddress(), viewOnly.getPrimaryAddress())
+                assertEquals(wallet.getPrivateViewKey(), viewOnly.getPrivateViewKey())
+            }
+        }
+    }
+
+    @Test
+    fun exportTheKeys_WithAnotherPassword_IsAnError() {
+        MoneroWalletFull.createWallet(config()).use { wallet ->
+            assertFailsWith<MoneroError> { wallet.getKeysFileBuffer("not the password", false) }
+        }
+    }
+
+    @Test
+    fun importTheKeys_WithAnotherPassword_OrAnEmptyBuffer_IsAnError() {
+        MoneroWalletFull.createWallet(config()).use { wallet ->
+            val keysData = wallet.getKeysFileBuffer(password, false)
+            assertFailsWith<MoneroError> { MoneroWalletFull.openWalletData("not the password", MoneroNetworkType.MAINNET, keysData) }
+            assertFailsWith<MoneroError> { MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, ByteArray(0)) }
+            assertFailsWith<MoneroError> { MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, "not a keys file".toByteArray()) }
+        }
+    }
+
+    @Test
+    fun exportTheWalletFiles_OfAClosedWallet_IsAnError() {
+        val wallet = MoneroWalletFull.createWallet(config())
+        wallet.close()
+        assertFailsWith<MoneroError> { wallet.getKeysFileBuffer(password, false) }
+        assertFailsWith<MoneroError> { wallet.getCacheFileBuffer() }
+    }
+
     // ------------------------------- CREATE A WALLET ----------------------------------
 
     @Test
