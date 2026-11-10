@@ -18,6 +18,8 @@ import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
 import monero.common.MoneroRpcError
 import monero.daemon.model.MoneroBlockHeader
+import monero.daemon.model.MoneroKeyImageSpentStatus
+import monero.daemon.model.MoneroTx
 import monero.wallet.TxAssertions
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
@@ -585,6 +587,208 @@ class MoneroDaemonRpcTest {
         assertEquals(4, feeEstimate.fees.orEmpty().size, "Exptected 4 fees")
         for (fee in feeEstimate.fees.orEmpty()) GenAssertions.testUnsignedBigInteger(fee, true)
         GenAssertions.testUnsignedBigInteger(feeEstimate.quantizationMask, true)
+    }
+
+    // Can get all transactions in the transaction pool
+    @Test
+    fun testGetTxsInPool() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // submit tx to pool but don't relay
+        val tx = DaemonTestChain.getUnrelayedTx(1)
+        val result = daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+        DaemonAssertions.testSubmitTxResultGood(result)
+        assertEquals(false, result.isRelayed)
+
+        // fetch txs in pool
+        val txs = daemon.getTxPool()
+        val numTxs = txs.size
+
+        // fetch tx hashes in pool
+        val txHashes = daemon.getTxPoolHashes()
+        val numTxHashes = txHashes.size
+
+        // context for testing tx
+        val ctx = TestContext()
+        ctx.isPruned = false
+        ctx.isConfirmed = false
+        ctx.fromGetTxPool = true
+
+        // test txs
+        assertTrue(numTxs > 0, "Test requires an unconfirmed tx in the tx pool")
+        assertEquals(numTxs, numTxHashes, "Txs in pool $numTxs != Txs hashes in pool $numTxHashes")
+        for (aTx in txs) {
+            DaemonTxAssertions.testTx(aTx, ctx)
+            assertTrue(aTx.hash in txHashes)
+        }
+
+        // flush the tx from the pool, gg
+        daemon.flushTxPool(assertNotNull(tx.hash))
+        DaemonTestChain.wallet().sync()
+    }
+
+    // Can get transaction pool statistics
+    @Test
+    fun testGetTxPoolStatistics() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+        val txIds = ArrayList<String>()
+        try {
+            // submit txs to the pool but don't relay
+            for (i in 1..2) {
+                // submit tx hex
+                val tx = DaemonTestChain.getUnrelayedTx(i)
+                val result = daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+                assertTrue(result.isGood == true, "Expected True, got ${result.isGood}")
+                txIds.add(assertNotNull(tx.hash))
+
+                // get tx pool stats
+                val stats = daemon.getTxPoolStats()
+                assertTrue(assertNotNull(stats.numTxs) > i - 1)
+                DaemonAssertions.testTxPoolStats(stats)
+            }
+        } finally {
+            // flush txs
+            daemon.flushTxPool(txIds)
+        }
+    }
+
+    // Can flush all transactions from the pool
+    @Test
+    fun testFlushTxsFromPool() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // preserve original transactions in the pool
+        val txPoolBefore = daemon.getTxPool()
+
+        // submit txs to the pool but don't relay
+        for (i in 1..2) {
+            val tx = DaemonTestChain.getUnrelayedTx(i)
+            val result = daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+            DaemonAssertions.testSubmitTxResultGood(result)
+        }
+
+        assertEquals(txPoolBefore.size + 2, daemon.getTxPool().size)
+
+        // flush tx pool
+        daemon.flushTxPool()
+        assertEquals(0, daemon.getTxPool().size)
+
+        // re-submit original transactions
+        for (tx in txPoolBefore) {
+            val isRelayed = assertNotNull(tx.isRelayed)
+            daemon.submitTxHex(assertNotNull(tx.fullHex), isRelayed)
+        }
+
+        // pool is back to original state
+        assertEquals(txPoolBefore.size, daemon.getTxPool().size)
+
+        // sync wallet for next test
+        DaemonTestChain.wallet().sync()
+    }
+
+    // Can flush a transaction from the pool by hash
+    @Test
+    fun testFlushTxFromPoolByHash() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // preserve original transactions in the pool
+        val txPoolBefore = daemon.getTxPool()
+
+        // submit txs to the pool but don't relay
+        val txs = ArrayList<MoneroTx>()
+        for (i in 1..2) {
+            val tx = DaemonTestChain.getUnrelayedTx(i)
+            val result = daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+            DaemonAssertions.testSubmitTxResultGood(result)
+            txs.add(tx)
+        }
+
+        // remove each tx from the pool by hash and test
+        val numTxs = txs.size
+        for ((i, tx) in txs.withIndex()) {
+            // flush tx from pool
+            daemon.flushTxPool(assertNotNull(tx.hash))
+
+            // test tx pool
+            val poolTxs = daemon.getTxPool()
+            assertEquals(numTxs - i - 1, poolTxs.size - txPoolBefore.size)
+        }
+
+        // pool is back to original state
+        assertEquals(txPoolBefore.size, daemon.getTxPool().size)
+
+        // sync wallet for next test
+        DaemonTestChain.wallet().sync()
+    }
+
+    // Can flush transactions from the pool by hashes
+    @Test
+    fun testFlushTxsFromPoolByHashes() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // preserve original transactions in the pool
+        val txPoolBefore = daemon.getTxPool()
+
+        // submit txs to the pool but don't relay
+        val txHashes = ArrayList<String>()
+        for (i in 1..2) {
+            val tx = DaemonTestChain.getUnrelayedTx(i)
+            val result = daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+            DaemonAssertions.testSubmitTxResultGood(result)
+            txHashes.add(assertNotNull(tx.hash))
+        }
+
+        assertEquals(txPoolBefore.size + txHashes.size, daemon.getTxPool().size)
+
+        // remove all txs by hashes
+        daemon.flushTxPool(txHashes)
+
+        // pool is back to original state
+        assertEquals(txPoolBefore.size, daemon.getTxPool().size)
+        DaemonTestChain.wallet().sync()
+    }
+
+    @Test
+    fun testGetSpentStatusOfKeyImages() {
+        DaemonTestChain.waitForTxsToClearPool(daemon)
+
+        // submit txs to the pool to collect key images then flush them
+        val txs = ArrayList<MoneroTx>()
+        for (i in 1..2) {
+            val tx = DaemonTestChain.getUnrelayedTx(i)
+            daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+            txs.add(tx)
+        }
+
+        var keyImages = ArrayList<String>()
+        val txHashes = txs.map { assertNotNull(it.hash) }
+
+        for (tx in daemon.getTxs(txHashes)) {
+            for (input in tx.inputs.orEmpty()) keyImages.add(assertNotNull(assertNotNull(input.keyImage).hex))
+        }
+
+        daemon.flushTxPool(txHashes)
+
+        // key images are not spent
+        DaemonAssertions.testSpentStatuses(daemon, keyImages, MoneroKeyImageSpentStatus.NOT_SPENT)
+
+        // submit txs to the pool but don't relay
+        for (tx in txs) daemon.submitTxHex(assertNotNull(tx.fullHex), true)
+
+        // key images are in the tx pool
+        DaemonAssertions.testSpentStatuses(daemon, keyImages, MoneroKeyImageSpentStatus.TX_POOL)
+
+        // collect key images of confirmed txs
+        keyImages = ArrayList()
+        for (tx in DaemonAssertions.getConfirmedTxs(daemon, 10)) {
+            for (input in tx.inputs.orEmpty()) keyImages.add(assertNotNull(assertNotNull(input.keyImage).hex))
+        }
+
+        // key images are all spent
+        DaemonAssertions.testSpentStatuses(daemon, keyImages, MoneroKeyImageSpentStatus.CONFIRMED)
+
+        // flush this test's txs from pool
+        daemon.flushTxPool(txHashes)
     }
 
     //#endregion
