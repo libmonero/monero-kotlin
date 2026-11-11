@@ -1,12 +1,15 @@
 package monero.wallet
 
+import java.lang.reflect.Method
 import java.math.BigInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import monero.Covers
 import monero.NotSupported
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroKeyImage
+import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxSet
 import monero.wallet.model.MoneroTxWallet
@@ -25,15 +28,19 @@ class MoneroWalletInterfaceTest {
 
     private val wallet: MoneroWallet = object : MoneroWalletDefault() {}
 
-    // a function of the interface without a test here is a function whose default nobody has tried
+    // a function of the interface without a test here is a function whose default nobody has tried, and a test that calls none is a test that was
+    // left behind. A test calls the function that its name says, or the one of its Covers when it has the name of the test of monero-python
     @Test
     fun everyFunctionOfTheInterface_HasATest() {
-        val tested = MoneroWalletInterfaceTest::class.java.declaredMethods.filter { it.isAnnotationPresent(NotSupported::class.java) }.map { it.name }.toSet()
-        for (function in MoneroWallet::class.java.methods) {
-            val prefix = "test" + function.name.replaceFirstChar { it.uppercase() }
-            assertTrue(tested.any { it == prefix || it.startsWith(prefix + "With") }, "MoneroWallet.${function.name} has no test")
-        }
-        assertEquals(MoneroWallet::class.java.methods.size, tested.size, "The tests and the functions of the interface are not the same")
+        val tests = MoneroWalletInterfaceTest::class.java.declaredMethods.filter { it.isAnnotationPresent(NotSupported::class.java) }
+        val functions = MoneroWallet::class.java.methods.map { it.name }.toSet()
+        fun covered(test: Method): Set<String> = test.getAnnotation(Covers::class.java)?.let { setOf(it.function) } ?: functions.filter { function ->
+            val prefix = "test" + function.replaceFirstChar { it.uppercase() }
+            test.name == prefix || test.name.startsWith(prefix + "With")
+        }.toSet()
+        for (test in tests) assertTrue(covered(test).let { it.isNotEmpty() && functions.containsAll(it) }, "${test.name} calls no function of MoneroWallet")
+        val tested = tests.flatMap { covered(it) }.toSet()
+        for (function in functions) assertTrue(function in tested, "MoneroWallet.$function has no test")
     }
 
     @NotSupported
@@ -58,6 +65,13 @@ class MoneroWalletInterfaceTest {
     @Test
     fun testRemoveListeners() {
         wallet.removeListeners()
+    }
+
+    // the language of a seed when none is given, which monero-python has in MoneroWallet and each kind of wallet has here
+    @Test
+    fun testDefaultLanguage() {
+        assertEquals("English", MoneroWalletFull.DEFAULT_LANGUAGE)
+        assertEquals("English", MoneroWalletKeys.DEFAULT_LANGUAGE)
     }
 
     @NotSupported
@@ -284,6 +298,18 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
+    fun testSyncWithStartHeight() {
+        wallet.sync(0L)
+    }
+
+    @NotSupported
+    @Test
+    fun testSyncWithListenerAndStartHeight() {
+        wallet.sync(0L, MoneroWalletListener())
+    }
+
+    @NotSupported
+    @Test
     fun testSyncWithListener() {
         wallet.sync(MoneroWalletListener())
     }
@@ -344,8 +370,36 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
+    @Covers("getBalance")
+    fun testGetAccountBalance() {
+        wallet.getBalance(0)
+    }
+
+    @NotSupported
+    @Test
+    @Covers("getBalance")
+    fun testGetSubaddressBalance() {
+        wallet.getBalance(0, 0)
+    }
+
+    @NotSupported
+    @Test
     fun testGetUnlockedBalance() {
         wallet.getUnlockedBalance()
+    }
+
+    @NotSupported
+    @Test
+    @Covers("getUnlockedBalance")
+    fun testGetAccountUnlockedBalance() {
+        wallet.getUnlockedBalance(0)
+    }
+
+    @NotSupported
+    @Test
+    @Covers("getUnlockedBalance")
+    fun testGetSubaddressUnlockedBalance() {
+        wallet.getUnlockedBalance(0, 0)
     }
 
     @NotSupported
@@ -356,8 +410,32 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
+    fun testGetAccountsWithTag() {
+        wallet.getAccounts(tag = "")
+    }
+
+    @NotSupported
+    @Test
+    fun testGetAccountsWithSubaddresses() {
+        wallet.getAccounts(true)
+    }
+
+    @NotSupported
+    @Test
+    fun testGetAccountsWithSubaddressesAndTag() {
+        wallet.getAccounts(true, "")
+    }
+
+    @NotSupported
+    @Test
     fun testGetAccount() {
         wallet.getAccount(0)
+    }
+
+    @NotSupported
+    @Test
+    fun testGetAccountWithSubaddresses() {
+        wallet.getAccount(0, true)
     }
 
     @NotSupported
@@ -392,7 +470,8 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
-    fun testGetSubaddresses() {
+    @Covers("getSubaddresses")
+    fun testGetAccountSubaddresses() {
         wallet.getSubaddresses(0)
     }
 
@@ -404,7 +483,8 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
-    fun testCreateSubaddress() {
+    @Covers("createSubaddress")
+    fun testCreateAccountSubaddress() {
         wallet.createSubaddress(0)
     }
 
@@ -448,6 +528,12 @@ class MoneroWalletInterfaceTest {
     @Test
     fun testGetTransfersWithAccountIdx() {
         wallet.getTransfers(0)
+    }
+
+    @NotSupported
+    @Test
+    fun testGetTransfers() {
+        wallet.getTransfers(MoneroTransferQuery())
     }
 
     @NotSupported
@@ -530,13 +616,14 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
-    fun testRelayTxWithTxMetadata() {
+    @Covers("relayTx")
+    fun testRelayTxMetadata() {
         wallet.relayTx("")
     }
 
     @NotSupported
     @Test
-    fun testRelayTxWithTx() {
+    fun testRelayTx() {
         wallet.relayTx(MoneroTxWallet())
     }
 
@@ -548,7 +635,7 @@ class MoneroWalletInterfaceTest {
 
     @NotSupported
     @Test
-    fun testRelayTxsWithTxs() {
+    fun testRelayTxs() {
         wallet.relayTxs(emptyList<MoneroTxWallet>())
     }
 

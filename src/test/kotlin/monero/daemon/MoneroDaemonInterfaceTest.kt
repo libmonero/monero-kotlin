@@ -1,9 +1,10 @@
 package monero.daemon
 
+import java.lang.reflect.Method
 import java.math.BigInteger
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import monero.Covers
 import monero.NotSupported
 import monero.daemon.model.MoneroAuxiliaryPow
 import monero.daemon.model.MoneroBan
@@ -23,15 +24,19 @@ class MoneroDaemonInterfaceTest {
 
     private val daemon: MoneroDaemon = object : MoneroDaemonDefault() {}
 
-    // a function of the interface without a test here is a function whose default nobody has tried
+    // a function of the interface without a test here is a function whose default nobody has tried, and a test that calls none is a test that was
+    // left behind. A test calls the function that its name says, or the one of its Covers when it has the name of the test of monero-python
     @Test
     fun everyFunctionOfTheInterface_HasATest() {
-        val tested = MoneroDaemonInterfaceTest::class.java.declaredMethods.filter { it.isAnnotationPresent(NotSupported::class.java) }.map { it.name }.toSet()
-        for (function in MoneroDaemon::class.java.methods) {
-            val prefix = "test" + function.name.replaceFirstChar { it.uppercase() }
-            assertTrue(tested.any { it == prefix || it.startsWith(prefix + "With") }, "MoneroDaemon.${function.name} has no test")
-        }
-        assertEquals(MoneroDaemon::class.java.methods.size, tested.size, "The tests and the functions of the interface are not the same")
+        val tests = MoneroDaemonInterfaceTest::class.java.declaredMethods.filter { it.isAnnotationPresent(NotSupported::class.java) }
+        val functions = MoneroDaemon::class.java.methods.map { it.name }.toSet()
+        fun covered(test: Method): Set<String> = test.getAnnotation(Covers::class.java)?.let { setOf(it.function) } ?: functions.filter { function ->
+            val prefix = "test" + function.replaceFirstChar { it.uppercase() }
+            test.name == prefix || test.name.startsWith(prefix + "With")
+        }.toSet()
+        for (test in tests) assertTrue(covered(test).let { it.isNotEmpty() && functions.containsAll(it) }, "${test.name} calls no function of MoneroDaemon")
+        val tested = tests.flatMap { covered(it) }.toSet()
+        for (function in functions) assertTrue(function in tested, "MoneroDaemon.$function has no test")
     }
 
     @NotSupported
@@ -530,6 +535,12 @@ class MoneroDaemonInterfaceTest {
     @Test
     fun testDownloadUpdate() {
         daemon.downloadUpdate()
+    }
+
+    @NotSupported
+    @Test
+    fun testDownloadUpdateWithPath() {
+        daemon.downloadUpdate("")
     }
 
     @NotSupported
