@@ -61,13 +61,13 @@ class MoneroWalletQueryTest {
     // ----------------------------------- tx query -----------------------------------
 
     @Test
-    fun txQuery_WithNothingSet_MeetsEveryTx() {
+    fun testTxQueryWithNothingSetMeetsEveryTx() {
         assertTrue(MoneroTxQuery().meetsCriteria(tx()))
     }
 
     // one field of the query at a time: the same value meets it, and another does not
     @TestFactory
-    fun txQuery_FieldsOfTheTx_AreMatched(): List<DynamicTest> {
+    fun testTxQueryFieldsOfTheTxAreMatched(): List<DynamicTest> {
         class Field(val name: String, val set: (MoneroTxWallet, Boolean) -> Unit, val setQuery: (MoneroTxQuery, Boolean) -> Unit)
         val fields = listOf(
             Field("isConfirmed", { t, v -> t.isConfirmed = v }, { q, v -> q.isConfirmed = v }),
@@ -101,7 +101,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_HashAndPaymentId_AreMatched() {
+    fun testTxQueryHashAndPaymentIdAreMatched() {
         val tx = tx()
         tx.paymentId = "c".repeat(16)
         val query = MoneroTxQuery()
@@ -116,7 +116,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_HasPaymentId() {
+    fun testTxQueryHasPaymentId() {
         val withPaymentId = tx()
         withPaymentId.paymentId = "b".repeat(16)
         val withoutPaymentId = tx(hashB)
@@ -133,7 +133,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_Hashes() {
+    fun testTxQueryHashes() {
         val query = MoneroTxQuery()
         query.hashes = listOf(hashA, hashB)
         assertTrue(query.meetsCriteria(tx()))
@@ -144,7 +144,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_PaymentIds() {
+    fun testTxQueryPaymentIds() {
         val withPaymentId = tx()
         withPaymentId.paymentId = "b".repeat(16)
         val query = MoneroTxQuery()
@@ -156,7 +156,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_Heights() {
+    fun testTxQueryHeights() {
         val tx = confirmedTx(100)
 
         val height = MoneroTxQuery()
@@ -183,7 +183,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_ByHeight_IsNeverMetByATxThatIsNotInABlock() {
+    fun testTxQueryByHeightIsNeverMetByATxThatIsNotInABlock() {
         val unconfirmed = tx(hashB)
         for (query in listOf(MoneroTxQuery().also { it.height = 1 }, MoneroTxQuery().also { it.minHeight = 0 }, MoneroTxQuery().also { it.maxHeight = 100 })) {
             assertFalse(query.meetsCriteria(unconfirmed))
@@ -191,7 +191,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_QueryChildren_IsOnByDefault() {
+    fun testTxQueryQueryChildrenIsOnByDefault() {
         val query = MoneroTxQuery()
         query.inputQuery = MoneroOutputQuery()
         // the tx has no inputs
@@ -201,7 +201,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_TransferQuery_NeedsATransferThatMeetsIt() {
+    fun testTxQueryTransferQueryNeedsATransferThatMeetsIt() {
         val query = MoneroTxQuery()
         val transferQuery = MoneroTransferQuery()
         transferQuery.amount = BigInteger.valueOf(500)
@@ -228,7 +228,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_InputQuery_NeedsAnInputThatMeetsIt() {
+    fun testTxQueryInputQueryNeedsAnInputThatMeetsIt() {
         val noInputs = tx()
         val withInput = tx(hashB)
         withInput.inputs = listOf(wallet(100))
@@ -246,7 +246,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun txQuery_OutputQuery_NeedsAnOutputThatMeetsIt() {
+    fun testTxQueryOutputQueryNeedsAnOutputThatMeetsIt() {
         val noOutputs = tx()
         val withOutput = tx(hashB)
         withOutput.outputs = listOf(wallet(100))
@@ -266,7 +266,7 @@ class MoneroWalletQueryTest {
     // ----------------------------------- decontextualize -----------------------------------
 
     @Test
-    fun txQuery_Decontextualize_RemovesWhatDependsOnTheTxsAround() {
+    fun testTxQueryDecontextualizeRemovesWhatDependsOnTheTxsAround() {
         val query = MoneroTxQuery()
         query.hash = hashA
         query.isIncoming = true
@@ -287,13 +287,13 @@ class MoneroWalletQueryTest {
     // ----------------------------------- transfer query -----------------------------------
 
     @Test
-    fun transferQuery_WithNothingSet_MeetsEveryTransfer() {
+    fun testTransferQueryWithNothingSetMeetsEveryTransfer() {
         assertTrue(MoneroTransferQuery().meetsCriteria(incoming(100), false))
         assertTrue(MoneroTransferQuery().meetsCriteria(outgoing(100), false))
     }
 
     @Test
-    fun transferQuery_AmountAndAccount_AreMatched() {
+    fun testTransferQueryAmountAndAccountAreMatched() {
         val transfer = incoming(1)
         transfer.amount = BigInteger.valueOf(100)
         transfer.accountIndex = 2
@@ -312,7 +312,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_IncomingOrOutgoing() {
+    fun testTransferQueryIncomingOrOutgoing() {
         val incoming = incoming()
         val outgoing = outgoing()
         val incomingQuery = MoneroTransferQuery().also { it.isIncoming = true }
@@ -325,14 +325,14 @@ class MoneroWalletQueryTest {
 
     // has destinations is an idea of the outgoing transfers: it rejects an incoming one, whether it asks for them or not
     @Test
-    fun transferQuery_HasDestinations_NeverMeetsAnIncomingTransfer() {
+    fun testTransferQueryHasDestinationsNeverMeetsAnIncomingTransfer() {
         for (value in listOf(true, false)) {
             assertFalse(MoneroTransferQuery().also { it.hasDestinations = value }.meetsCriteria(incoming(), false))
         }
     }
 
     @Test
-    fun transferQuery_AddressFields_OfAnIncomingTransfer() {
+    fun testTransferQueryAddressFieldsOfAnIncomingTransfer() {
         val transfer = incoming()
         transfer.address = address
         transfer.subaddressIndex = 3
@@ -359,7 +359,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_AddressFields_OfAnOutgoingTransfer() {
+    fun testTransferQueryAddressFieldsOfAnOutgoingTransfer() {
         val transfer = outgoing()
         transfer.addresses = listOf(address, miningAddress)
 
@@ -378,7 +378,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_SubaddressFields_OfAnOutgoingTransfer() {
+    fun testTransferQuerySubaddressFieldsOfAnOutgoingTransfer() {
         val transfer = outgoing()
         transfer.subaddressIndices = listOf(3, 4)
 
@@ -395,7 +395,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_HasDestinations_OfAnOutgoingTransfer() {
+    fun testTransferQueryHasDestinationsOfAnOutgoingTransfer() {
         val with = outgoing()
         with.destinations = listOf(MoneroDestination(address, BigInteger.ONE))
         val without = outgoing()
@@ -409,7 +409,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_OfATransferThatIsNeitherIncomingNorOutgoing_Fails() {
+    fun testTransferQueryOfATransferThatIsNeitherIncomingNorOutgoingFails() {
         val transfer = object : MoneroTransfer() {
             override val isIncoming: Boolean? = null
             override fun copy(): MoneroTransfer = this
@@ -419,7 +419,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_QueryParent_ChecksTheQueryOfTheTx() {
+    fun testTransferQueryQueryParentChecksTheQueryOfTheTx() {
         val tx = tx()
         val transfer = incoming(100)
         transfer.tx = tx
@@ -435,7 +435,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun transferQuery_QueryParent_OfATransferWithoutATx_IsNotMet() {
+    fun testTransferQueryQueryParentOfATransferWithoutATxIsNotMet() {
         val query = MoneroTransferQuery()
         query.txQuery = MoneroTxQuery()
         assertFalse(query.meetsCriteria(incoming()))
@@ -445,12 +445,12 @@ class MoneroWalletQueryTest {
     // ----------------------------------- output query -----------------------------------
 
     @Test
-    fun outputQuery_WithNothingSet_MeetsEveryOutput() {
+    fun testOutputQueryWithNothingSetMeetsEveryOutput() {
         assertTrue(MoneroOutputQuery().meetsCriteria(wallet(1), false))
     }
 
     @TestFactory
-    fun outputQuery_FieldsOfTheOutput_AreMatched(): List<DynamicTest> {
+    fun testOutputQueryFieldsOfTheOutputAreMatched(): List<DynamicTest> {
         class Field(val name: String, val set: (MoneroOutputWallet) -> Unit, val setQuery: (MoneroOutputQuery, Boolean) -> Unit)
         val fields = listOf(
             Field("accountIndex", { it.accountIndex = 2 }, { q, same -> q.accountIndex = if (same) 2 else 9 }),
@@ -481,7 +481,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun outputQuery_KeyImage() {
+    fun testOutputQueryKeyImage() {
         val output = wallet(1)
         output.keyImage = MoneroKeyImage().also {
             it.hex = hashA
@@ -507,7 +507,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun outputQuery_SubaddressIndices() {
+    fun testOutputQuerySubaddressIndices() {
         val output = wallet(1)
         output.subaddressIndex = 7
         val query = MoneroOutputQuery().also { it.subaddressIndices = listOf(7, 8) }
@@ -518,7 +518,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun outputQuery_MinAndMaxAmount() {
+    fun testOutputQueryMinAndMaxAmount() {
         val output = wallet(50)
         val min = MoneroOutputQuery().also { it.minAmount = BigInteger.TEN }
         assertTrue(min.meetsCriteria(output, false))
@@ -534,7 +534,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun outputQuery_QueryParent_ChecksTheQueryOfTheTx() {
+    fun testOutputQueryQueryParentChecksTheQueryOfTheTx() {
         val tx = tx()
         val output = wallet(1)
         output.tx = tx
@@ -552,7 +552,7 @@ class MoneroWalletQueryTest {
     // ----------------------------------- copy -----------------------------------
 
     @Test
-    fun transferQuery_Copy_HasItsOwnDestinations() {
+    fun testTransferQueryCopyHasItsOwnDestinations() {
         val query = MoneroTransferQuery()
         val destination = MoneroDestination(address, BigInteger.valueOf(100))
         query.destinations = listOf(destination)
@@ -563,7 +563,7 @@ class MoneroWalletQueryTest {
     }
 
     @Test
-    fun queries_CopyKeepWhatTheyMeet() {
+    fun testQueriesCopyKeepWhatTheyMeet() {
         val tx = confirmedTx(100)
         tx.paymentId = "c".repeat(16)
         val txQuery = MoneroTxQuery()

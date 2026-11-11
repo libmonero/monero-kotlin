@@ -49,7 +49,7 @@ class MoneroWalletModelMergeTest {
     // ----------------------------------- incoming transfer -----------------------------------
 
     @Test
-    fun incomingTransfer_Copy_IsIndependent() {
+    fun testIncomingTransferCopyIsIndependent() {
         val transfer = incoming(0, 1, 500000)
         transfer.address = address
         transfer.numSuggestedConfirmations = 10
@@ -61,7 +61,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun incomingTransfer_Merge_FillsWhatIsNotSet() {
+    fun testIncomingTransferMergeFillsWhatIsNotSet() {
         val a = incoming(0, 1, 500000)
         val b = a.copy()
         b.address = address
@@ -70,7 +70,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun incomingTransfer_Merge_OfAFieldThatDiffers_Fails() {
+    fun testIncomingTransferMergeOfAFieldThatDiffersFails() {
         val a = incoming(0, 1, 500000)
         assertFailsWith<MoneroError> { a.merge(incoming(1, 1, 500000)) }
         assertFailsWith<MoneroError> { a.merge(incoming(0, 2, 500000)) }
@@ -82,7 +82,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun incomingTransfer_Merge_NumSuggestedConfirmations_IsTheLower() {
+    fun testIncomingTransferMergeNumSuggestedConfirmationsIsTheLower() {
         val a = incoming(0, 1)
         a.numSuggestedConfirmations = 10
         val b = incoming(0, 1)
@@ -95,7 +95,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun incomingTransfer_Merge_InDifferentTxs_MergesTheTxs() {
+    fun testIncomingTransferMergeInDifferentTxsMergesTheTxs() {
         val txA = tx()
         val txB = tx()
         txB.numConfirmations = 9
@@ -109,7 +109,7 @@ class MoneroWalletModelMergeTest {
 
     // monero-project returns the transfer of a failed tx of the pool with an amount of zero, and it is not a conflict
     @Test
-    fun incomingTransfer_Merge_ZeroAgainstAnAmount_KeepsTheOriginal() {
+    fun testIncomingTransferMergeZeroAgainstAnAmountKeepsTheOriginal() {
         val tx = tx()
         val a = incoming(0, null, 500)
         a.tx = tx
@@ -127,7 +127,7 @@ class MoneroWalletModelMergeTest {
     // ----------------------------------- outgoing transfer -----------------------------------
 
     @Test
-    fun outgoingTransfer_Copy_IsIndependent() {
+    fun testOutgoingTransferCopyIsIndependent() {
         val transfer = MoneroOutgoingTransfer()
         transfer.amount = BigInteger.valueOf(500000)
         transfer.accountIndex = 0
@@ -141,7 +141,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outgoingTransfer_Merge_AdoptsWhatIsNotSet() {
+    fun testOutgoingTransferMergeAdoptsWhatIsNotSet() {
         val a = MoneroOutgoingTransfer()
         a.amount = BigInteger.valueOf(500000)
         a.accountIndex = 0
@@ -156,7 +156,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outgoingTransfer_Merge_DestinationsWithUnsetFields_AreTheSame() {
+    fun testOutgoingTransferMergeDestinationsWithUnsetFieldsAreTheSame() {
         val a = MoneroOutgoingTransfer()
         a.destinations = listOf(MoneroDestination())
         val b = MoneroOutgoingTransfer()
@@ -166,7 +166,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outgoingTransfer_Merge_OfDestinationsThatDiffer_Fails() {
+    fun testOutgoingTransferMergeOfDestinationsThatDifferFails() {
         val a = MoneroOutgoingTransfer()
         a.destinations = listOf(MoneroDestination(address, BigInteger.ONE))
         val b = MoneroOutgoingTransfer()
@@ -179,7 +179,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outgoingTransfer_Merge_OfTheSameDestinations_KeepsThem() {
+    fun testOutgoingTransferMergeOfTheSameDestinationsKeepsThem() {
         val a = MoneroOutgoingTransfer()
         a.destinations = listOf(MoneroDestination(address, BigInteger.ONE))
         val b = a.copy()
@@ -190,7 +190,7 @@ class MoneroWalletModelMergeTest {
     // ----------------------------------- output of a wallet -----------------------------------
 
     @Test
-    fun outputWallet_Copy_IsIndependent() {
+    fun testOutputWalletCopyIsIndependent() {
         val output = MoneroOutputWallet()
         output.amount = BigInteger.valueOf(1000000)
         output.index = 2
@@ -204,7 +204,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outputWallet_Merge_FillsWhatIsNotSet() {
+    fun testOutputWalletMergeFillsWhatIsNotSet() {
         val a = MoneroOutputWallet()
         a.amount = BigInteger.valueOf(1000000)
         a.index = 2
@@ -219,7 +219,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outputWallet_Merge_AlsoMergesTheOutput() {
+    fun testOutputWalletMergeAlsoMergesTheOutput() {
         val a = MoneroOutputWallet()
         val b = MoneroOutputWallet()
         b.keyImage = MoneroKeyImage().also { it.hex = hash }
@@ -230,7 +230,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outputWallet_Merge_OfAFieldThatDiffers_Fails() {
+    fun testOutputWalletMergeOfAFieldThatDiffersFails() {
         val a = MoneroOutputWallet()
         a.accountIndex = 0
         val b = MoneroOutputWallet()
@@ -244,7 +244,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun outputWallet_Merge_OfAnOutputThatIsNotOfAWallet_MergesTheOutput() {
+    fun testOutputWalletMergeOfAnOutputThatIsNotOfAWalletMergesTheOutput() {
         val a = MoneroOutputWallet()
         val b = MoneroOutput()
         b.index = 4
@@ -255,7 +255,7 @@ class MoneroWalletModelMergeTest {
     // ----------------------------------- tx of a wallet -----------------------------------
 
     @Test
-    fun txWallet_Copy_IsIndependent() {
+    fun testTxWalletCopyIsIndependent() {
         val tx = tx()
         tx.note = "hello"
         tx.incomingTransfers = listOf(incoming(0, 1, 5))
@@ -267,7 +267,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Copy_ReCopiesTheInputsAsOutputsOfAWallet() {
+    fun testTxWalletCopyReCopiesTheInputsAsOutputsOfAWallet() {
         val tx = MoneroTxWallet()
         tx.hash = hash
         val input = MoneroOutputWallet()
@@ -295,7 +295,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_FillsTheNote() {
+    fun testTxWalletMergeFillsTheNote() {
         val a = tx()
         val b = a.copy()
         b.note = "hello"
@@ -304,7 +304,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OfTheFieldsOfTheWallet() {
+    fun testTxWalletMergeOfTheFieldsOfTheWallet() {
         val a = tx()
         val b = tx()
         b.isIncoming = true
@@ -327,7 +327,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OfAFieldThatDiffers_Fails() {
+    fun testTxWalletMergeOfAFieldThatDiffersFails() {
         val a = tx()
         a.note = "one"
         val b = tx()
@@ -336,7 +336,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_IsLocked_CanBecomeFalse() {
+    fun testTxWalletMergeIsLockedCanBecomeFalse() {
         val a = tx()
         a.isLocked = false
         val b = a.copy()
@@ -346,7 +346,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OfATxWithoutIsConfirmed_Works() {
+    fun testTxWalletMergeOfATxWithoutIsConfirmedWorks() {
         val a = tx(null)
         val b = tx(null)
         b.note = "hello"
@@ -355,7 +355,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OfATxThatIsNotOfAWallet_MergesTheTx() {
+    fun testTxWalletMergeOfATxThatIsNotOfAWalletMergesTheTx() {
         val a = tx()
         val b = MoneroTx()
         b.hash = hash
@@ -365,7 +365,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_IncomingTransfers_OfTheSameAccountAndSubaddress_AreMerged() {
+    fun testTxWalletMergeIncomingTransfersOfTheSameAccountAndSubaddressAreMerged() {
         val a = tx()
         val first = incoming(0, 1, 100)
         val second = incoming(0, 2, 200)
@@ -385,7 +385,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_IncomingTransfers_WithoutIndices_AreKeptDistinct() {
+    fun testTxWalletMergeIncomingTransfersWithoutIndicesAreKeptDistinct() {
         val a = tx()
         val transferA = incoming(null, null)
         a.incomingTransfers = listOf(transferA)
@@ -397,7 +397,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_IncomingTransfers_WithOnlyTheAccount_AreKeptDistinct() {
+    fun testTxWalletMergeIncomingTransfersWithOnlyTheAccountAreKeptDistinct() {
         val a = tx()
         a.incomingTransfers = listOf(incoming(0, null))
         val b = tx()
@@ -407,7 +407,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OutgoingTransfer_IsTakenWhenThereIsNone() {
+    fun testTxWalletMergeOutgoingTransferIsTakenWhenThereIsNone() {
         val a = tx()
         val b = tx()
         val outgoing = MoneroOutgoingTransfer()
@@ -419,7 +419,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OutgoingTransfers_AreMerged() {
+    fun testTxWalletMergeOutgoingTransfersAreMerged() {
         val a = tx()
         val mine = MoneroOutgoingTransfer()
         mine.amount = BigInteger.valueOf(1000)
@@ -435,7 +435,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_Inputs_AreMergedAsOutputsOfAWallet() {
+    fun testTxWalletMergeInputsAreMergedAsOutputsOfAWallet() {
         val a = tx()
         val inputA = MoneroOutputWallet().also { it.keyImage = MoneroKeyImage().also { image -> image.hex = "1".repeat(64) } }
         a.inputs = listOf(inputA)
@@ -453,7 +453,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_InDifferentBlocks_MergesTheTransfersToo() {
+    fun testTxWalletMergeInDifferentBlocksMergesTheTransfersToo() {
         val blockA = MoneroBlock()
         blockA.height = 10
         val txA = tx()
@@ -473,7 +473,7 @@ class MoneroWalletModelMergeTest {
     }
 
     @Test
-    fun txWallet_Merge_OfItself_DoesNothing() {
+    fun testTxWalletMergeOfItselfDoesNothing() {
         val a = tx()
         a.incomingTransfers = listOf(incoming(0, 1))
         a.merge(a)

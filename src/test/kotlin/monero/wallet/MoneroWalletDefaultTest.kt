@@ -82,7 +82,7 @@ class MoneroWalletDefaultTest {
     private fun tx(hash: String?) = MoneroTxWallet().also { it.hash = hash }
 
     @Test
-    fun testSetDaemonConnection_OfAUri_MakesTheConnection() {
+    fun testTestSetDaemonConnectionOfAUriMakesTheConnection() {
         wallet.setDaemonConnection("http://127.0.0.1:18081", "user", "abc123", "127.0.0.1:9050", true)
         val connection = wallet.connection!!
         assertEquals("http://127.0.0.1:18081", connection.uri)
@@ -93,7 +93,7 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testSetDaemonConnection_OfAUriOnly_LeavesTheRestUnset() {
+    fun testTestSetDaemonConnectionOfAUriOnlyLeavesTheRestUnset() {
         wallet.setDaemonConnection("http://127.0.0.1:18081")
         val connection = wallet.connection!!
         assertNull(connection.username)
@@ -103,7 +103,7 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testSync_WithAListener_StartsAtTheLastHeight() {
+    fun testTestSyncWithAListenerStartsAtTheLastHeight() {
         val listener = MoneroWalletListener()
         assertSame(wallet.syncResult, wallet.sync(listener))
         assertNull(wallet.startHeight)
@@ -111,7 +111,7 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testGetSubaddress_AsksForTheIndexAndReturnsTheOne() {
+    fun testTestGetSubaddressAsksForTheIndexAndReturnsTheOne() {
         val subaddress = MoneroSubaddress()
         wallet.subaddresses = listOf(subaddress)
         assertSame(subaddress, wallet.getSubaddress(1, 2))
@@ -119,25 +119,25 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testGetSubaddress_OfAnIndexThatIsNotThere_Fails() {
+    fun testTestGetSubaddressOfAnIndexThatIsNotThereFails() {
         val error = assertFailsWith<MoneroError> { wallet.getSubaddress(1, 2) }
         assertEquals("The subaddress 1,2 is not found", error.message)
     }
 
     @Test
-    fun testGetSubaddress_WhenTheWalletReturnsMore_Fails() {
+    fun testTestGetSubaddressWhenTheWalletReturnsMoreFails() {
         wallet.subaddresses = listOf(MoneroSubaddress(), MoneroSubaddress())
         assertFailsWith<MoneroError> { wallet.getSubaddress(1, 2) }
     }
 
     @Test
-    fun testGetTxs_OfHashes_QueriesTheHashes() {
+    fun testTestGetTxsOfHashesQueriesTheHashes() {
         wallet.getTxs(listOf("a", "b"))
         assertEquals(listOf("a", "b"), wallet.txQuery!!.hashes)
     }
 
     @Test
-    fun testGetTxs_OfHashes_AreInTheOrderOfTheHashes() {
+    fun testTestGetTxsOfHashesAreInTheOrderOfTheHashes() {
         // the wallet returns them in the order of the blocks
         val a = tx("a")
         val b = tx("b")
@@ -147,7 +147,7 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testGetTxs_OfHashes_PutsWhatWasNotAskedForLast() {
+    fun testTestGetTxsOfHashesPutsWhatWasNotAskedForLast() {
         val a = tx("a")
         val other = tx("other")
         val noHash = tx(null)
@@ -156,7 +156,7 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testGetTxs_OfRepeatedHashes_KeepsTheFirstPosition() {
+    fun testTestGetTxsOfRepeatedHashesKeepsTheFirstPosition() {
         val a = tx("a")
         val b = tx("b")
         wallet.txs = listOf(a, b)
@@ -164,7 +164,7 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testGetTx_AsksForTheHashAndReturnsTheFirst() {
+    fun testTestGetTxAsksForTheHashAndReturnsTheFirst() {
         val first = tx("hash")
         wallet.txs = listOf(first, tx("hash"))
         assertSame(first, wallet.getTx("hash"))
@@ -172,40 +172,40 @@ class MoneroWalletDefaultTest {
     }
 
     @Test
-    fun testGetTx_OfAnUnknownHash_IsNull() {
+    fun testTestGetTxOfAnUnknownHashIsNull() {
         assertNull(wallet.getTx("hash"))
     }
 
     @Test
-    fun testGetTransfers_OfAnAccount_QueriesTheAccount() {
+    fun testTestGetTransfersOfAnAccountQueriesTheAccount() {
         wallet.getTransfers(1)
         assertEquals(1, wallet.transferQuery!!.accountIndex)
         assertNull(wallet.transferQuery!!.subaddressIndex)
     }
 
     @Test
-    fun testGetTransfers_OfASubaddress_QueriesTheSubaddress() {
+    fun testTestGetTransfersOfASubaddressQueriesTheSubaddress() {
         wallet.getTransfers(1, 2)
         assertEquals(1, wallet.transferQuery!!.accountIndex)
         assertEquals(2, wallet.transferQuery!!.subaddressIndex)
     }
 
     @Test
-    fun testDescribeUnsignedTxSet_DescribesAnUnsignedTxSet() {
+    fun testTestDescribeUnsignedTxSetDescribesAnUnsignedTxSet() {
         wallet.describeUnsignedTxSet("unsigned")
         assertEquals("unsigned", wallet.described!!.unsignedTxHex)
         assertNull(wallet.described!!.multisigTxHex)
     }
 
     @Test
-    fun testDescribeMultisigTxSet_DescribesAMultisigTxSet() {
+    fun testTestDescribeMultisigTxSetDescribesAMultisigTxSet() {
         wallet.describeMultisigTxSet("multisig")
         assertEquals("multisig", wallet.described!!.multisigTxHex)
         assertNull(wallet.described!!.unsignedTxHex)
     }
 
     @Test
-    fun testSetAccountLabel_SetsTheLabelOfTheFirstSubaddress() {
+    fun testTestSetAccountLabelSetsTheLabelOfTheFirstSubaddress() {
         wallet.setAccountLabel(2, "savings")
         assertEquals(Triple(2, 0, "savings"), wallet.labelled)
     }

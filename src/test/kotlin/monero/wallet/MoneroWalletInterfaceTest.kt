@@ -31,7 +31,7 @@ class MoneroWalletInterfaceTest {
     // a function of the interface without a test here is a function whose default nobody has tried, and a test that calls none is a test that was
     // left behind. A test calls the function that its name says, or the one of its Covers when it has the name of the test of monero-python
     @Test
-    fun everyFunctionOfTheInterface_HasATest() {
+    fun testEveryFunctionOfTheInterfaceHasATest() {
         val tests = MoneroWalletInterfaceTest::class.java.declaredMethods.filter { it.isAnnotationPresent(NotSupported::class.java) }
         val functions = MoneroWallet::class.java.methods.map { it.name }.toSet()
         fun covered(test: Method): Set<String> = test.getAnnotation(Covers::class.java)?.let { setOf(it.function) } ?: functions.filter { function ->

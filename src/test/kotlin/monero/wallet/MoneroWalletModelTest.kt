@@ -166,12 +166,12 @@ class MoneroWalletModelTest {
     // fixtures: what monero-c writes
 
     @Test
-    fun fixtures_AreAllTested() {
+    fun testFixturesAreAllTested() {
         assertEquals(ModelTestSupport.fixtureNames("wallet"), fixtureTypes.keys.sorted())
     }
 
     @Test
-    fun fixtures_AreJson_WithoutByteOrderMark() {
+    fun testFixturesAreJsonWithoutByteOrderMark() {
         for (name in fixtureTypes.keys) {
             val bytes = ModelTestSupport.fixtureFile("wallet", name).readBytes()
             assertFalse(bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte(), name)
@@ -180,7 +180,7 @@ class MoneroWalletModelTest {
     }
 
     @TestFactory
-    fun fixture_IsWrittenBackUnchanged() = fixtureTypes.map { (name, type) ->
+    fun testFixtureIsWrittenBackUnchanged() = fixtureTypes.map { (name, type) ->
         dynamicTest(name) {
             val json = fixture(name)
             assertSameJson(json, write(read(json, type)))
@@ -188,7 +188,7 @@ class MoneroWalletModelTest {
     }
 
     @TestFactory
-    fun fixture_IsWrittenBackUnchanged_AfterReadingTheWrittenJson() = fixtureTypes.map { (name, type) ->
+    fun testFixtureIsWrittenBackUnchangedAfterReadingTheWrittenJson() = fixtureTypes.map { (name, type) ->
         dynamicTest(name) {
             val json = fixture(name)
             val written = write(read(json, type))
@@ -197,14 +197,14 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun syncResult_ReadsTheFixtures() {
+    fun testSyncResultReadsTheFixtures() {
         val result = readFixture("sync_result", MoneroSyncResult::class.java)
         assertEquals(100L, result.numBlocksFetched)
         assertEquals(true, result.receivedMoney)
     }
 
     @Test
-    fun rpcConnection_ReadsTheFixture() {
+    fun testRpcConnectionReadsTheFixture() {
         val connection = readFixture("rpc_connection", MoneroRpcConnection::class.java)
         assertTrue(connection.uri!!.startsWith("http://127"))
         assertEquals(0, connection.priority)
@@ -213,14 +213,14 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun walletVersion_ReadsTheFixture() {
+    fun testWalletVersionReadsTheFixture() {
         val version = readFixture("wallet_version", MoneroVersion::class.java)
         assertEquals(65568, version.number)
         assertEquals(false, version.isRelease)
     }
 
     @Test
-    fun account_WithSubaddresses_ReadsTheFixture() {
+    fun testAccountWithSubaddressesReadsTheFixture() {
         val account = readFixture("account_with_subaddresses", MoneroAccount::class.java)
         assertEquals(0, account.index)
         assertEquals(BigInteger.valueOf(3518101685576566), account.balance)
@@ -237,12 +237,12 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun account_WithoutSubaddresses_HasNoListOfThem() {
+    fun testAccountWithoutSubaddressesHasNoListOfThem() {
         assertNull(readFixture("account_without_subaddresses", MoneroAccount::class.java).subaddresses)
     }
 
     @Test
-    fun accounts_ReadTheFixture() {
+    fun testAccountsReadTheFixture() {
         val accounts = MoneroJson.deserialize<List<MoneroAccount>>(fixture("accounts_with_subaddresses"))
         assertTrue(accounts.isNotEmpty())
         assertEquals(accounts.indices.toList(), accounts.map { it.index })
@@ -251,7 +251,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun integratedAddress_ReadsTheFixtures() {
+    fun testIntegratedAddressReadsTheFixtures() {
         val decoded = readFixture("integrated_address_decoded", MoneroIntegratedAddress::class.java)
         assertEquals("0123456789abcdef", decoded.paymentId)
         assertTrue(decoded.integratedAddress!!.startsWith("4CSNP3qpqW".take(2)))
@@ -259,7 +259,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun messageSignatureResults_ReadTheFixtures() {
+    fun testMessageSignatureResultsReadTheFixtures() {
         val spend = readFixture("message_signature_spend", MoneroMessageSignatureResult::class.java)
         assertEquals(true, spend.isGood)
         assertEquals(false, spend.isOld)
@@ -270,7 +270,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun addressBookEntries_ReadTheFixture() {
+    fun testAddressBookEntriesReadTheFixture() {
         val entries = MoneroJson.deserialize<List<MoneroAddressBookEntry>>(fixture("address_book_entries"))
         assertEquals(listOf(0L, 1L), entries.map { it.index })
         assertEquals(listOf("friend", "my deposits"), entries.map { it.description })
@@ -278,7 +278,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txs_OfMinerTxs_ReadTheFixture() {
+    fun testTxsOfMinerTxsReadTheFixture() {
         val result = readFixture("txs_miner", MoneroWalletBlocksResult::class.java)
         val block = result.blocks!![0]
         assertEquals(1L, block.height)
@@ -304,7 +304,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun tx_InThePool_IsInTheBlockWithoutAHeight() {
+    fun testTxInThePoolIsInTheBlockWithoutAHeight() {
         val result = readFixture("txs_pool", MoneroWalletBlocksResult::class.java)
         val block = result.blocks!![0]
         assertNull(block.height)
@@ -328,7 +328,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun tx_WhenMined_IsInABlockWithAHeight() {
+    fun testTxWhenMinedIsInABlockWithAHeight() {
         val tx = readFixture("tx_outgoing_confirmed", MoneroWalletBlocksResult::class.java).getTxs()[0]
         assertEquals(101L, tx.height)
         assertEquals(1791741219L, tx.block!!.timestamp)
@@ -337,7 +337,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun tx_ToASubaddress_HasTheDestinationsThatItPays() {
+    fun testTxToASubaddressHasTheDestinationsThatItPays() {
         val tx = readFixture("tx_to_subaddress", MoneroWalletBlocksResult::class.java).getTxs()[0]
         val destinations = tx.outgoingTransfer!!.destinations!!
         assertEquals(listOf(BigInteger.valueOf(50000000000), BigInteger.valueOf(700000000)), destinations.map { it.amount })
@@ -345,7 +345,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun emptyResults_ReadAsEmptyLists() {
+    fun testEmptyResultsReadAsEmptyLists() {
         val result = readFixture("txs_empty", MoneroWalletBlocksResult::class.java)
         assertEquals(emptyList(), result.blocks)
         assertEquals(emptyList(), result.getTxs())
@@ -356,7 +356,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun outputs_ReadTheFixture() {
+    fun testOutputsReadTheFixture() {
         val result = readFixture("outputs_miner", MoneroWalletBlocksResult::class.java)
         val outputs = result.getOutputs()
         assertTrue(outputs.isNotEmpty())
@@ -378,13 +378,13 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun outputs_FrozenAndSpent_ReadTheFixtures() {
+    fun testOutputsFrozenAndSpentReadTheFixtures() {
         assertTrue(readFixture("outputs_frozen", MoneroWalletBlocksResult::class.java).getOutputs().any { it.isFrozen == true })
         assertTrue(readFixture("outputs_spent", MoneroWalletBlocksResult::class.java).getOutputs().any { it.isSpent == true })
     }
 
     @Test
-    fun listenerNotifications_ReadTheFixtures() {
+    fun testListenerNotificationsReadTheFixtures() {
         val received = readFixture("listener_output_received_first", MoneroWalletBlocksResult::class.java)
         val output = received.getOutputs()[0]
         assertEquals(BigInteger.valueOf(35184338534400), output.amount)
@@ -403,7 +403,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txSet_OfACreatedTx_ReadsTheFixture() {
+    fun testTxSetOfACreatedTxReadsTheFixture() {
         val result = readFixture("tx_sets_created", MoneroTxSetsResult::class.java)
         assertEquals(1, result.txSets!!.size)
         val set = result.txSets!![0]
@@ -423,7 +423,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txSets_OfManyTxsAndOfSweeps_ReadTheFixtures() {
+    fun testTxSetsOfManyTxsAndOfSweepsReadTheFixtures() {
         val many = readFixture("tx_sets_created_many", MoneroTxSetsResult::class.java).getTxs()
         assertEquals(1, many.size)
         assertEquals(listOf(BigInteger.valueOf(300000000), BigInteger.valueOf(400000000)), many[0].outgoingTransfer!!.destinations!!.map { it.amount })
@@ -434,7 +434,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txSet_OfAViewOnlyWallet_HasTheUnsignedHex() {
+    fun testTxSetOfAViewOnlyWalletHasTheUnsignedHex() {
         val set = readFixture("tx_sets_unsigned", MoneroTxSetsResult::class.java).txSets!![0]
         assertTrue(set.unsignedTxHex!!.startsWith("4d6f6e65726f"))
         assertNull(set.signedTxHex)
@@ -442,7 +442,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txSet_Signed_HasTheSignedHexAndNoDetails() {
+    fun testTxSetSignedHasTheSignedHexAndNoDetails() {
         val set = readFixture("tx_sets_signed", MoneroTxSetsResult::class.java).txSets!![0]
         assertTrue(set.signedTxHex!!.startsWith("4d6f6e65726f"))
         val tx = set.txs!![0]
@@ -453,7 +453,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txSet_Described_HasTheDetailsOfTheTx() {
+    fun testTxSetDescribedHasTheDetailsOfTheTx() {
         val tx = readFixture("tx_sets_described", MoneroTxSetsResult::class.java).getTxs()[0]
         assertEquals(BigInteger.valueOf(70364919152761), tx.inputSum)
         assertEquals(BigInteger.valueOf(70362319952761), tx.outputSum)
@@ -466,7 +466,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun keyImages_ReadTheFixtures() {
+    fun testKeyImagesReadTheFixtures() {
         val export = readFixture("key_images_export", MoneroKeyImageExportResult::class.java)
         assertEquals(0L, export.offset)
         assertEquals(117, export.keyImages!!.size)
@@ -478,7 +478,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun checks_ReadTheFixtures() {
+    fun testChecksReadTheFixtures() {
         val tx = readFixture("check_tx", MoneroCheckTx::class.java)
         assertEquals(true, tx.isGood)
         assertEquals(1L, tx.numConfirmations)
@@ -492,7 +492,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun multisig_ReadsTheFixtures() {
+    fun testMultisigReadsTheFixtures() {
         val ready = readFixture("multisig_info_ready", MoneroMultisigInfo::class.java)
         assertEquals(true, ready.isMultisig)
         assertEquals(true, ready.isReady)
@@ -504,7 +504,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txConfig_OfAPaymentUri_ReadsTheFixture() {
+    fun testTxConfigOfAPaymentUriReadsTheFixture() {
         val config = readFixture("tx_config_from_uri", MoneroTxConfig::class.java)
         assertEquals("for lunch", config.note)
         assertEquals("Bob", config.recipientName)
@@ -514,7 +514,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun listsOfText_ReadTheFixtures() {
+    fun testListsOfTextReadTheFixtures() {
         val languages = MoneroJson.deserialize<List<String>>(fixture("seed_languages"))
         assertTrue(languages.contains("English"))
         assertEquals(12, languages.size)
@@ -524,7 +524,7 @@ class MoneroWalletModelTest {
     // configs and queries: what a caller writes and monero-c reads
 
     @Test
-    fun walletConfig_WithEveryField_IsReadAndWritten() {
+    fun testWalletConfigWithEveryFieldIsReadAndWritten() {
         val json = """{"path":"wallet","password":"pw","networkType":2,"server":{"uri":"http://localhost:38081","username":"u","password":"p"},
             "isTrustedDaemon":true,"seed":"hefty value","seedOffset":"off","primaryAddress":"$address","privateViewKey":"v",
             "privateSpendKey":"s","restoreHeight":573936,"language":"English","saveCurrent":false,"accountLookahead":2,"subaddressLookahead":20,
@@ -537,13 +537,13 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun walletConfig_OfARegtestWallet_IsWhatTheIntegrationTestsOfMoneroCSend() {
+    fun testWalletConfigOfARegtestWalletIsWhatTheIntegrationTestsOfMoneroCSend() {
         val json = """{"path":"w","password":"p","networkType":0,"server":{"uri":"http://127.0.0.1:18081"},"regtest":true,"restoreHeight":0}"""
         assertSameJson(json, write(readJson(json, MoneroWalletConfig::class.java)))
     }
 
     @Test
-    fun txConfig_WithEveryField_IsReadAndWritten() {
+    fun testTxConfigWithEveryFieldIsReadAndWritten() {
         val json = """{"destinations":[{"address":"a","amount":1},{"address":"b","amount":2}],"subtractFeeFrom":[0,1],"paymentId":"p",
             "priority":2,"ringSize":16,"fee":3,"accountIndex":1,"subaddressIndices":[0,2],"canSplit":true,"relay":false,"note":"n",
             "recipientName":"r","belowAmount":4,"sweepEachSubaddress":true,"keyImage":"k"}"""
@@ -554,7 +554,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txConfig_Priority_IsTheNumber() {
+    fun testTxConfigPriorityIsTheNumber() {
         val expected = listOf(0 to MoneroTxPriority.DEFAULT, 1 to MoneroTxPriority.UNIMPORTANT, 2 to MoneroTxPriority.NORMAL, 3 to MoneroTxPriority.ELEVATED)
         for ((number, priority) in expected) {
             val config = readJson("""{"priority":$number}""", MoneroTxConfig::class.java)
@@ -564,14 +564,14 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txConfig_WithOneDestination_HasItsAddressAndAmount() {
+    fun testTxConfigWithOneDestinationHasItsAddressAndAmount() {
         val config = readJson("""{"destinations":[{"address":"a","amount":5}]}""", MoneroTxConfig::class.java)
         assertEquals("a", config.address)
         assertEquals(BigInteger.valueOf(5), config.amount)
     }
 
     @Test
-    fun txConfig_SettingTheAddressAndTheAmount_MakesTheDestination() {
+    fun testTxConfigSettingTheAddressAndTheAmountMakesTheDestination() {
         val config = MoneroTxConfig()
         assertNull(config.address)
         config.address = "a"
@@ -583,13 +583,13 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txConfig_AddDestination_ChainsAndKeepsTheOrder() {
+    fun testTxConfigAddDestinationChainsAndKeepsTheOrder() {
         val config = MoneroTxConfig().addDestination("a", BigInteger.ONE).addDestination("b")
         assertSameJson("""{"destinations":[{"address":"a","amount":1},{"address":"b"}]}""", write(config))
     }
 
     @Test
-    fun txConfig_WithManyDestinations_RefusesAnAddressAndAnAmount() {
+    fun testTxConfigWithManyDestinationsRefusesAnAddressAndAnAmount() {
         val config = MoneroTxConfig().addDestination("a", BigInteger.ONE).addDestination("b", BigInteger.TWO)
         assertNull(config.address)
         assertNull(config.amount)
@@ -599,7 +599,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txQuery_WithEveryField_IsReadAndWritten() {
+    fun testTxQueryWithEveryFieldIsReadAndWritten() {
         val json = """{"hashes":["a","b"],"hasPaymentId":true,"paymentIds":["p"],"height":5,"minHeight":1,"maxHeight":9,"includeOutputs":true,
             "isConfirmed":true,"inTxPool":false,"isIncoming":true,"isOutgoing":false,"isLocked":false,"isMinerTx":false,
             "transferQuery":{"isIncoming":true,"accountIndex":1,"txQuery":{"isConfirmed":true}},
@@ -614,7 +614,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txQuery_ThatMoneroCTestsSend_IsWrittenBackUnchanged() {
+    fun testTxQueryThatMoneroCTestsSendIsWrittenBackUnchanged() {
         for (json in listOf("""{}""", """{"isConfirmed":true,"minHeight":50}""", """{"hash":"abc"}""", """{"isOutgoing":true,"transferQuery":{"hasDestinations":true}}""",
             """{"outputQuery":{"isSpent":false},"includeOutputs":true}""")) {
             assertSameJson(json, write(readJson(json, MoneroTxQuery::class.java)))
@@ -622,7 +622,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun transferQuery_ThatMoneroCTestsSend_IsWrittenBackUnchanged() {
+    fun testTransferQueryThatMoneroCTestsSendIsWrittenBackUnchanged() {
         for (json in listOf("""{"isIncoming":true,"accountIndex":1}""", """{"isIncoming":false,"destinations":[{"address":"a","amount":1}]}""",
             """{"isIncoming":true,"txQuery":{"isConfirmed":true,"minHeight":50}}""", """{"address":"a","subaddressIndex":2}""")) {
             assertSameJson(json, write(readJson(json, MoneroTransferQuery::class.java)))
@@ -630,7 +630,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun outputQuery_ThatMoneroCTestsSend_IsWrittenBackUnchanged() {
+    fun testOutputQueryThatMoneroCTestsSendIsWrittenBackUnchanged() {
         for (json in listOf("""{"isSpent":false}""", """{"accountIndex":0,"subaddressIndices":[0,1],"minAmount":5,"maxAmount":10}""",
             """{"isFrozen":true,"txQuery":{"isLocked":true}}""", """{"keyImage":{"hex":"k"}}""")) {
             assertSameJson(json, write(readJson(json, MoneroOutputQuery::class.java)))
@@ -638,7 +638,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun transferQuery_HoldsTheQueryOfItsTx() {
+    fun testTransferQueryHoldsTheQueryOfItsTx() {
         val query = readJson("""{"isIncoming":true,"txQuery":{"isConfirmed":true,"minHeight":50}}""", MoneroTransferQuery::class.java)
         assertEquals(true, query.isIncoming)
         assertEquals(false, query.isOutgoing)
@@ -646,7 +646,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun transferQuery_ThatAsksForNeither_HasNoDirection() {
+    fun testTransferQueryThatAsksForNeitherHasNoDirection() {
         val query = readJson("""{"accountIndex":1}""", MoneroTransferQuery::class.java)
         assertNull(query.isIncoming)
         assertNull(query.isOutgoing)
@@ -654,7 +654,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun transferQuery_WithDestinations_IsWritten() {
+    fun testTransferQueryWithDestinationsIsWritten() {
         val query = MoneroTransferQuery()
         query.destinations = listOf(MoneroDestination("a", BigInteger.ONE), MoneroDestination("b"))
         query.hasDestinations = true
@@ -664,13 +664,13 @@ class MoneroWalletModelTest {
     // the rest of the models
 
     @Test
-    fun subaddress_WithEveryField_IsReadAndWritten() {
+    fun testSubaddressWithEveryFieldIsReadAndWritten() {
         val json = """{"accountIndex":1,"index":2,"address":"a","label":"l","balance":3,"unlockedBalance":4,"numUnspentOutputs":5,"isUsed":true,"numBlocksToUnlock":6}"""
         assertSameJson(json, write(readJson(json, MoneroSubaddress::class.java)))
     }
 
     @Test
-    fun account_WithATag_IsReadAndWritten() {
+    fun testAccountWithATagIsReadAndWritten() {
         val json = """{"index":1,"primaryAddress":"a","balance":2,"unlockedBalance":3,"tag":"savings"}"""
         val account = readJson(json, MoneroAccount::class.java)
         assertEquals("savings", account.tag)
@@ -678,7 +678,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun accountTags_AreReadAndWritten() {
+    fun testAccountTagsAreReadAndWritten() {
         val json = """[{"tag":"savings","label":"Savings","accountIndices":[0,2]},{"tag":"empty","accountIndices":[]}]"""
         val tags = MoneroJson.deserialize<List<MoneroAccountTag>>(json)
         assertEquals(listOf(0, 2), tags[0].accountIndices)
@@ -686,7 +686,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun decodedAddress_IsReadAndWritten_WithTheNumbers() {
+    fun testDecodedAddressIsReadAndWrittenWithTheNumbers() {
         for ((number, type) in MoneroAddressType.entries.withIndex()) {
             val json = """{"address":"a","addressType":$number,"networkType":1}"""
             val decoded = readJson(json, MoneroDecodedAddress::class.java)
@@ -698,13 +698,13 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun multisigSignResult_IsReadAndWritten() {
+    fun testMultisigSignResultIsReadAndWritten() {
         val json = """{"signedMultisigTxHex":"abc","txHashes":["a","b"]}"""
         assertSameJson(json, write(readJson(json, MoneroMultisigSignResult::class.java)))
     }
 
     @Test
-    fun txSet_WithEveryHex_IsReadAndWritten() {
+    fun testTxSetWithEveryHexIsReadAndWritten() {
         val json = """{"txs":[{"hash":"a"}],"signedTxHex":"s","unsignedTxHex":"u","multisigTxHex":"m"}"""
         val set = readJson(json, MoneroTxSet::class.java)
         assertEquals("u", set.unsignedTxHex)
@@ -712,7 +712,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun tx_OfAWallet_WithEveryFieldOfItsOwn_IsReadAndWritten() {
+    fun testTxOfAWalletWithEveryFieldOfItsOwnIsReadAndWritten() {
         val json = """{"hash":"h","isIncoming":true,"isOutgoing":true,"note":"n","inputSum":1,"outputSum":2,"changeAddress":"c","changeAmount":3,
             "numDummyOutputs":4,"extraHex":"e","incomingTransfers":[{"amount":5,"accountIndex":0,"subaddressIndex":1,"address":"a","numSuggestedConfirmations":10}],
             "outgoingTransfer":{"amount":6,"accountIndex":0,"subaddressIndices":[0],"addresses":["x"],"destinations":[{"address":"d","amount":6}]},
@@ -724,7 +724,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun blocksOfAWallet_HaveTheTxsOfAWallet_AndTheBlocksOfTheDaemonDoNot() {
+    fun testBlocksOfAWalletHaveTheTxsOfAWalletAndTheBlocksOfTheDaemonDoNot() {
         val json = """{"height":3,"txs":[{"hash":"a","isIncoming":true,"incomingTransfers":[{"amount":1}]}]}"""
         val wallet = readJson(json, MoneroBlockWallet::class.java)
         assertTrue(wallet.txs!![0] is MoneroTxWallet)
@@ -736,7 +736,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txOfAWallet_ReadsItsInputsAndOutputs_AsWalletOutputs() {
+    fun testTxOfAWalletReadsItsInputsAndOutputsAsWalletOutputs() {
         val tx = readJson("""{"inputs":[{"accountIndex":1,"isSpent":true}],"outputs":[{"subaddressIndex":2,"isFrozen":true}]}""", MoneroTxWallet::class.java)
         assertEquals(MoneroOutputWallet::class, tx.inputs!![0]::class)
         assertEquals(true, tx.getInputsWallet()[0].isSpent)
@@ -748,7 +748,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txOfAWallet_WritesItsOutputs_AsTheClassesThatTheyAre() {
+    fun testTxOfAWalletWritesItsOutputsAsTheClassesThatTheyAre() {
         val tx = MoneroTxWallet()
         val output = MoneroOutputWallet()
         output.accountIndex = 3
@@ -758,7 +758,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun jsonThatIsNotValid_IsRejected() {
+    fun testJsonThatIsNotValidIsRejected() {
         for (json in listOf("""{"outputs":{"amount":1}}""", """{"outputs":[1]}""", """{"incomingTransfers":[[]]}""", """{"inputs":"x"}""")) {
             assertFailsWith<MoneroError>(json) { readJson(json, MoneroTxWallet::class.java) }
         }
@@ -773,7 +773,7 @@ class MoneroWalletModelTest {
     // results with their txs
 
     @Test
-    fun walletBlocksResult_GetTxs_ListsTheTxsInTheOrderOfTheBlocks() {
+    fun testWalletBlocksResultGetTxsListsTheTxsInTheOrderOfTheBlocks() {
         val json = """{"blocks":[{"height":1,"txs":[{"hash":"a","outgoingTransfer":{"amount":1},"outputs":[{"amount":10}],"inputs":[{"amount":20}]},{"hash":"b"}]},
             {"txs":[{"hash":"c","incomingTransfers":[{"amount":2},{"amount":3}],"outputs":[{"amount":30}]}]}]}"""
         val result = readJson(json, MoneroWalletBlocksResult::class.java)
@@ -785,7 +785,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txSetsResult_GetTxs_ListsTheTxsInTheOrderOfTheSets() {
+    fun testTxSetsResultGetTxsListsTheTxsInTheOrderOfTheSets() {
         val result = readJson("""{"txSets":[{"txs":[{"hash":"a"},{"hash":"b"}]},{"signedTxHex":"s"},{"txs":[{"hash":"c"}]}]}""", MoneroTxSetsResult::class.java)
         assertEquals(listOf("a", "b", "c"), result.getTxs().map { it.hash })
         assertEquals(emptyList(), readJson("{}", MoneroTxSetsResult::class.java).getTxs())
@@ -794,7 +794,7 @@ class MoneroWalletModelTest {
     // parents
 
     @Test
-    fun tx_SetsItselfAsTheTxOfItsTransfers() {
+    fun testTxSetsItselfAsTheTxOfItsTransfers() {
         val tx = MoneroTxWallet()
         val incoming = MoneroIncomingTransfer()
         val outgoing = MoneroOutgoingTransfer()
@@ -806,7 +806,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun set_SetsItselfAsTheSetOfItsTxs() {
+    fun testSetSetsItselfAsTheSetOfItsTxs() {
         val set = MoneroTxSet()
         val tx = MoneroTxWallet()
         set.txs = listOf(tx)
@@ -814,7 +814,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun block_OfAWallet_SetsItselfAsTheBlockOfItsTxs() {
+    fun testBlockOfAWalletSetsItselfAsTheBlockOfItsTxs() {
         val block = MoneroBlockWallet()
         val tx = MoneroTxWallet()
         block.txs = listOf(tx)
@@ -822,7 +822,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun parents_AreSetByTheDeserializers_WhateverTheOrderOfTheFields() {
+    fun testParentsAreSetByTheDeserializersWhateverTheOrderOfTheFields() {
         val json = """{"txs":[{"outgoingTransfer":{"amount":1},"incomingTransfers":[{"amount":2}],"outputs":[{"amount":3}],"hash":"a"}],"height":9}"""
         val block = readJson(json, MoneroBlockWallet::class.java)
         val tx = block.getTxsWallet()[0]
@@ -837,7 +837,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun parents_AreNotInTheJson_SoAGraphIsWrittenWithoutCycles() {
+    fun testParentsAreNotInTheJsonSoAGraphIsWrittenWithoutCycles() {
         val set = MoneroTxSet()
         val tx = MoneroTxWallet()
         val block = MoneroBlockWallet()
@@ -854,7 +854,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun tx_WhenItsListsAreReplacedOrCleared_IsStillSafe() {
+    fun testTxWhenItsListsAreReplacedOrClearedIsStillSafe() {
         val tx = MoneroTxWallet()
         tx.incomingTransfers = listOf(MoneroIncomingTransfer())
         tx.incomingTransfers = null
@@ -870,7 +870,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun blockWithManyTxs_IsReadAndWritten() {
+    fun testBlockWithManyTxsIsReadAndWritten() {
         val txs = (0 until 1000).joinToString(",") { """{"hash":"tx$it","isIncoming":true,"incomingTransfers":[{"amount":$it,"accountIndex":0}]}""" }
         val json = """{"blocks":[{"height":5,"txs":[$txs]}]}"""
         val result = readJson(json, MoneroWalletBlocksResult::class.java)
@@ -882,7 +882,7 @@ class MoneroWalletModelTest {
     // copies
 
     @Test
-    fun copy_OfATx_IsDeep_AndHasItsOwnTransfersAndOutputs() {
+    fun testCopyOfATxIsDeepAndHasItsOwnTransfersAndOutputs() {
         val tx = readFixture("txs_miner", MoneroWalletBlocksResult::class.java).getTxs()[0]
         val copy = tx.copy()
         assertNull(copy.block)
@@ -900,7 +900,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun copy_OfASet_HasItsOwnTxs() {
+    fun testCopyOfASetHasItsOwnTxs() {
         val set = readFixture("tx_sets_created", MoneroTxSetsResult::class.java).txSets!![0]
         val copy = set.copy()
         assertNotSame(set.txs!![0], copy.txs!![0])
@@ -910,7 +910,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun copy_OfABlock_HasItsOwnTxsOfAWallet() {
+    fun testCopyOfABlockHasItsOwnTxsOfAWallet() {
         val block = readFixture("txs_miner", MoneroWalletBlocksResult::class.java).blocks!![0]
         val copy = block.copy()
         assertTrue(copy.txs!![0] is MoneroTxWallet)
@@ -921,7 +921,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun copy_OfAQuery_CopiesTheQueriesInsideIt() {
+    fun testCopyOfAQueryCopiesTheQueriesInsideIt() {
         val query = readJson("""{"hashes":["a"],"transferQuery":{"isIncoming":true,"txQuery":{"minHeight":1}},"outputQuery":{"minAmount":5,"txQuery":{"hashes":["b"]}}}""", MoneroTxQuery::class.java)
         val copy = query.copy()
         assertNotSame(query.transferQuery, copy.transferQuery)
@@ -932,7 +932,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun copy_IsOfTheSameClass_WhateverTheTypeItIsCalledOn() {
+    fun testCopyIsOfTheSameClassWhateverTheTypeItIsCalledOn() {
         val tx: MoneroTx = MoneroTxWallet()
         assertEquals(MoneroTxWallet::class, tx.copy()::class)
         val wallet: MoneroTxWallet = MoneroTxQuery()
@@ -948,13 +948,13 @@ class MoneroWalletModelTest {
     // enumerations, numbers and listeners
 
     @Test
-    fun enumerations_HaveTheNumbersOfMoneroCpp() {
+    fun testEnumerationsHaveTheNumbersOfMoneroCpp() {
         assertEquals(listOf("DEFAULT", "UNIMPORTANT", "NORMAL", "ELEVATED"), MoneroTxPriority.entries.map { it.name })
         assertEquals(listOf("SIGN_WITH_SPEND_KEY", "SIGN_WITH_VIEW_KEY"), MoneroMessageSignatureType.entries.map { it.name })
     }
 
     @Test
-    fun messageSignatureType_IsTheTextThatTheResultHas() {
+    fun testMessageSignatureTypeIsTheTextThatTheResultHas() {
         for ((text, type) in listOf("spend" to MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY, "view" to MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY)) {
             val result = readJson("""{"signatureType":"$text"}""", MoneroMessageSignatureResult::class.java)
             assertEquals(type, result.signatureType)
@@ -963,14 +963,14 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun messageSignatureType_ThatIsNotSpendOrView_IsRejected() {
+    fun testMessageSignatureTypeThatIsNotSpendOrViewIsRejected() {
         for (json in listOf("""{"signatureType":"other"}""", """{"signatureType":""}""", """{"signatureType":0}""", """{"signatureType":[]}""")) {
             assertFailsWith<MoneroError>(json) { readJson(json, MoneroMessageSignatureResult::class.java) }
         }
     }
 
     @Test
-    fun numbers_UseTheWholeRangeOfTheirType() {
+    fun testNumbersUseTheWholeRangeOfTheirType() {
         val max = two64.subtract(BigInteger.ONE)
         val json = """{"amount":$max,"accountIndex":${Int.MAX_VALUE}}"""
         val transfer = readJson(json, MoneroIncomingTransfer::class.java)
@@ -980,14 +980,14 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun text_WithEscapesAndUnicode_SurvivesTheRoundTrip() {
+    fun testTextWithEscapesAndUnicodeSurvivesTheRoundTrip() {
         val tx = MoneroTxWallet()
         tx.note = "quote \" backslash \\ newline \n unicode é中😀"
         assertEquals(tx.note, readJson(write(tx), MoneroTxWallet::class.java).note)
     }
 
     @Test
-    fun emptyText_IsAValue_NotAFieldThatIsNotSet() {
+    fun testEmptyTextIsAValueNotAFieldThatIsNotSet() {
         val tx = MoneroTxWallet()
         tx.note = ""
         assertEquals("""{"note":""}""", write(tx))
@@ -995,7 +995,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun listener_ThatOverridesNothing_DoesNothing() {
+    fun testListenerThatOverridesNothingDoesNothing() {
         val listener = MoneroWalletListener()
         listener.onSyncProgress(1, 0, 2, 50.0, "half")
         listener.onNewBlock(1)
@@ -1005,7 +1005,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun listener_GetsTheOutputsOfTheNotifications_InTheirTxAndBlock() {
+    fun testListenerGetsTheOutputsOfTheNotificationsInTheirTxAndBlock() {
         val output = readFixture("listener_output_received_first", MoneroWalletBlocksResult::class.java).getOutputs()[0]
         var received: MoneroOutputWallet? = null
         val listener = object : MoneroWalletListener() {
@@ -1021,7 +1021,7 @@ class MoneroWalletModelTest {
     // ------------------------------- values that are not valid ---------------------------------
 
     @Test
-    fun messageSignatureResult_WithASignatureTypeThatIsNotOne_IsRefused() {
+    fun testMessageSignatureResultWithASignatureTypeThatIsNotOneIsRefused() {
         for (type in listOf("bogus", "", "SPEND", "0")) {
             val error = assertFailsWith<MoneroError>(type) { readJson("""{"signatureType":"$type"}""", MoneroMessageSignatureResult::class.java) }
             assertTrue("MoneroMessageSignatureResult" in error.message!!, error.message)
@@ -1029,7 +1029,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun messageSignatureResult_SignatureType_IsSpendOrView() {
+    fun testMessageSignatureResultSignatureTypeIsSpendOrView() {
         for ((name, type) in mapOf("spend" to MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY, "view" to MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY)) {
             val result = readJson("""{"isGood":true,"isOld":false,"version":2,"signatureType":"$name"}""", MoneroMessageSignatureResult::class.java)
             assertEquals(type, result.signatureType)
@@ -1038,7 +1038,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun decodedAddress_WithANetworkTypeOrAnAddressTypeThatIsNotOne_IsRefused() {
+    fun testDecodedAddressWithANetworkTypeOrAnAddressTypeThatIsNotOneIsRefused() {
         for (json in listOf("""{"networkType":-1}""", """{"networkType":4}""", """{"addressType":-1}""", """{"addressType":3}""")) {
             val error = assertFailsWith<MoneroError>(json) { readJson(json, MoneroDecodedAddress::class.java) }
             assertTrue("MoneroDecodedAddress" in error.message!!, error.message)
@@ -1046,7 +1046,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun decodedAddress_Types_AreTheNumbers() {
+    fun testDecodedAddressTypesAreTheNumbers() {
         val addressTypes = mapOf(0 to MoneroAddressType.PRIMARY_ADDRESS, 1 to MoneroAddressType.INTEGRATED_ADDRESS, 2 to MoneroAddressType.SUBADDRESS)
         for ((number, type) in addressTypes) assertEquals(type, readJson("""{"addressType":$number}""", MoneroDecodedAddress::class.java).addressType)
         val networkTypes = mapOf(0 to MoneroNetworkType.MAINNET, 1 to MoneroNetworkType.TESTNET, 2 to MoneroNetworkType.STAGENET, 3 to MoneroNetworkType.REGTEST)
@@ -1057,7 +1057,7 @@ class MoneroWalletModelTest {
 
     // the fields of a tx that a query shares with a tx of a wallet are written once
     @Test
-    fun txQuery_IsIncomingAndIsOutgoing_AreWrittenOnce() {
+    fun testTxQueryIsIncomingAndIsOutgoingAreWrittenOnce() {
         val query = readJson("""{"isIncoming":true,"isOutgoing":false}""", MoneroTxQuery::class.java)
         assertEquals(true, query.isIncoming)
         assertEquals(false, query.isOutgoing)
@@ -1068,7 +1068,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txQuery_InputQueryAndOutputQuery_AreReadAndWritten() {
+    fun testTxQueryInputQueryAndOutputQueryAreReadAndWritten() {
         val json = """{"inputQuery":{"minAmount":5,"index":1},"outputQuery":{"minAmount":7,"index":2}}"""
         val query = readJson(json, MoneroTxQuery::class.java)
         assertEquals(BigInteger.valueOf(5), query.inputQuery!!.minAmount)
@@ -1079,7 +1079,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun txQuery_TransferQuery_IsReadAndWrittenWithItsFields() {
+    fun testTxQueryTransferQueryIsReadAndWrittenWithItsFields() {
         val json = """{"height":150,"transferQuery":{"isIncoming":true,"amount":500000,"accountIndex":0}}"""
         val query = readJson(json, MoneroTxQuery::class.java)
         assertEquals(150L, query.height)
@@ -1092,7 +1092,7 @@ class MoneroWalletModelTest {
     // ------------------------------- the results ---------------------------------
 
     @Test
-    fun txSet_Txs_AreTxsOfAWallet() {
+    fun testTxSetTxsAreTxsOfAWallet() {
         val set = readJson("""{"txs":[{"hash":"a"},{"hash":"b"}]}""", MoneroTxSet::class.java)
         assertEquals(2, set.txs!!.size)
         assertTrue(set.txs!!.all { it.javaClass == MoneroTxWallet::class.java })
@@ -1103,7 +1103,7 @@ class MoneroWalletModelTest {
     // ------------------------------- the constructors ---------------------------------
 
     @Test
-    fun addressBookEntry_OfTheArguments_HasThem() {
+    fun testAddressBookEntryOfTheArgumentsHasThem() {
         val entry = MoneroAddressBookEntry(0, address, "friend", "e".repeat(16))
         assertEquals(0L, entry.index)
         assertEquals(address, entry.address)
@@ -1114,7 +1114,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun accountTag_OfTheArguments_HasThem() {
+    fun testAccountTagOfTheArgumentsHasThem() {
         val tag = MoneroAccountTag("savings", "Savings accounts")
         assertEquals("savings", tag.tag)
         assertEquals("Savings accounts", tag.label)
@@ -1124,7 +1124,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun decodedAddress_OfTheArguments_HasThem() {
+    fun testDecodedAddressOfTheArgumentsHasThem() {
         val decoded = MoneroDecodedAddress(address, MoneroAddressType.PRIMARY_ADDRESS, MoneroNetworkType.MAINNET)
         assertEquals(address, decoded.address)
         assertEquals(MoneroAddressType.PRIMARY_ADDRESS, decoded.addressType)
@@ -1133,7 +1133,7 @@ class MoneroWalletModelTest {
     }
 
     @Test
-    fun syncResult_OfTheArguments_HasThem() {
+    fun testSyncResultOfTheArgumentsHasThem() {
         val result = MoneroSyncResult(12, true)
         assertEquals(12L, result.numBlocksFetched)
         assertEquals(true, result.receivedMoney)

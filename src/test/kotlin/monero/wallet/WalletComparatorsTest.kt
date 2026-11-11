@@ -48,7 +48,7 @@ class WalletComparatorsTest {
     // ----------------------------------- incoming transfers -----------------------------------
 
     @Test
-    fun incomingTransferComparator_OrdersBySubaddress() {
+    fun testIncomingTransferComparatorOrdersBySubaddress() {
         val t1 = transfer(MoneroTxWallet(), 0, 0)
         val t2 = transfer(MoneroTxWallet(), 0, 1)
         val comparator = IncomingTransferComparator()
@@ -58,14 +58,14 @@ class WalletComparatorsTest {
     }
 
     @Test
-    fun incomingTransferComparator_OrdersByAccountBeforeSubaddress() {
+    fun testIncomingTransferComparatorOrdersByAccountBeforeSubaddress() {
         val low = transfer(null, 0, 5)
         val high = transfer(null, 1, 0)
         assertTrue(IncomingTransferComparator().compare(low, high) < 0)
     }
 
     @Test
-    fun incomingTransferComparator_OrdersByHeightFirst() {
+    fun testIncomingTransferComparatorOrdersByHeightFirst() {
         val early = transfer(txAt(100), 5, 5)
         val late = transfer(txAt(200), 0, 0)
         val pool = transfer(txAt(null), 0, 0)
@@ -75,14 +75,14 @@ class WalletComparatorsTest {
     }
 
     @Test
-    fun incomingTransferComparator_PutsATransferWithoutATxAfterTheOnesThatHaveOne() {
+    fun testIncomingTransferComparatorPutsATransferWithoutATxAfterTheOnesThatHaveOne() {
         val withTx = transfer(txAt(null), 9, 9)
         val withoutTx = transfer(null, 0, 0)
         assertTrue(IncomingTransferComparator().compare(withTx, withoutTx) < 0)
     }
 
     @Test
-    fun incomingTransferComparator_OfTransfersWithoutIndices_PutsThemFirst() {
+    fun testIncomingTransferComparatorOfTransfersWithoutIndicesPutsThemFirst() {
         val unset = transfer(null, null, null)
         val set = transfer(null, 0, 0)
         assertTrue(IncomingTransferComparator().compare(unset, set) < 0)
@@ -92,7 +92,7 @@ class WalletComparatorsTest {
     // ----------------------------------- outputs -----------------------------------
 
     @Test
-    fun outputComparator_OrdersByIndex() {
+    fun testOutputComparatorOrdersByIndex() {
         val o1 = output(MoneroTx(), 0, 0, 0, "a".repeat(64))
         val o2 = output(MoneroTx(), 0, 0, 1, "b".repeat(64))
         val comparator = OutputComparator()
@@ -101,7 +101,7 @@ class WalletComparatorsTest {
     }
 
     @Test
-    fun outputComparator_OrdersByAccount() {
+    fun testOutputComparatorOrdersByAccount() {
         val tx = MoneroTx()
         val o1 = output(tx, 0, 0, 0, "a".repeat(64))
         val o2 = output(tx, 1, 0, 0, "a".repeat(64))
@@ -110,7 +110,7 @@ class WalletComparatorsTest {
     }
 
     @Test
-    fun outputComparator_OrdersBySubaddress() {
+    fun testOutputComparatorOrdersBySubaddress() {
         val tx = MoneroTx()
         val o1 = output(tx, 0, 0, 0, "a".repeat(64))
         val o2 = output(tx, 0, 1, 0, "a".repeat(64))
@@ -119,7 +119,7 @@ class WalletComparatorsTest {
     }
 
     @Test
-    fun outputComparator_OrdersByKeyImage_WhenTheRestIsTheSame() {
+    fun testOutputComparatorOrdersByKeyImageWhenTheRestIsTheSame() {
         val tx = MoneroTx()
         val o1 = output(tx, 0, 0, 0, "a".repeat(64))
         val o2 = output(tx, 0, 0, 0, "b".repeat(64))
@@ -131,14 +131,14 @@ class WalletComparatorsTest {
     }
 
     @Test
-    fun outputComparator_OrdersByHeightFirst() {
+    fun testOutputComparatorOrdersByHeightFirst() {
         val early = output(txAt(100), 9, 9, 9, "z".repeat(64))
         val late = output(txAt(200), 0, 0, 0, "a".repeat(64))
         assertTrue(OutputComparator().compare(early, late) < 0)
     }
 
     @Test
-    fun outputComparator_PutsAnOutputWithoutAKeyImageFirst() {
+    fun testOutputComparatorPutsAnOutputWithoutAKeyImageFirst() {
         val tx = MoneroTx()
         val without = output(tx, 0, 0, 0, null)
         val with = output(tx, 0, 0, 0, "a".repeat(64))

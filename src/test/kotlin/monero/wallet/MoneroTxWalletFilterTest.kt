@@ -37,7 +37,7 @@ class MoneroTxWalletFilterTest {
     }
 
     @Test
-    fun txWallet_FilterInputsWallet_KeepsWhatMeetsTheQuery() {
+    fun testTxWalletFilterInputsWalletKeepsWhatMeetsTheQuery() {
         val tx = tx()
         tx.inputs = listOf(inputOf(0, 100), inputOf(1, 200), inputOf(0, 300))
         val query = MoneroOutputQuery().also { it.accountIndex = 0 }
@@ -50,7 +50,7 @@ class MoneroTxWalletFilterTest {
     }
 
     @Test
-    fun txWallet_GetInputsWallet_DoesNotChangeTheTx() {
+    fun testTxWalletGetInputsWalletDoesNotChangeTheTx() {
         val tx = tx()
         tx.inputs = listOf(inputOf(0, 100), inputOf(1, 200), inputOf(0, 300))
         val matched = tx.getInputsWallet(MoneroOutputQuery().also { it.accountIndex = 0 })
@@ -60,7 +60,7 @@ class MoneroTxWalletFilterTest {
     }
 
     @Test
-    fun txWallet_FilterOutputsWallet_KeepsWhatMeetsTheQuery() {
+    fun testTxWalletFilterOutputsWalletKeepsWhatMeetsTheQuery() {
         val tx = tx()
         tx.outputs = listOf(inputOf(0, 100), inputOf(1, 200), inputOf(0, 300))
         val query = MoneroOutputQuery().also { it.accountIndex = 0 }
@@ -71,7 +71,7 @@ class MoneroTxWalletFilterTest {
     }
 
     @Test
-    fun txWallet_GetOutputsWallet_DoesNotChangeTheTx() {
+    fun testTxWalletGetOutputsWalletDoesNotChangeTheTx() {
         val tx = tx()
         tx.outputs = listOf(inputOf(0, 100), inputOf(1, 200))
         assertEquals(1, tx.getOutputsWallet(MoneroOutputQuery().also { it.accountIndex = 1 }).size)
@@ -79,7 +79,7 @@ class MoneroTxWalletFilterTest {
     }
 
     @Test
-    fun txWallet_FilterTransfers_KeepsWhatMeetsTheQuery() {
+    fun testTxWalletFilterTransfersKeepsWhatMeetsTheQuery() {
         val tx = tx()
         tx.outgoingTransfer = outgoing(1000)
         tx.incomingTransfers = listOf(
@@ -98,7 +98,7 @@ class MoneroTxWalletFilterTest {
     }
 
     @Test
-    fun txWallet_GetTransfers_AreTheOutgoingOneThenTheIncomingOnes_AndDoNotChangeTheTx() {
+    fun testTxWalletGetTransfersAreTheOutgoingOneThenTheIncomingOnesAndDoNotChangeTheTx() {
         val tx = tx()
         tx.outgoingTransfer = outgoing(1000)
         tx.incomingTransfers = listOf(incoming(100), incoming(200))

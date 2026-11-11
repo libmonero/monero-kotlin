@@ -63,7 +63,7 @@ class WalletEqualityTest {
     // ----------------------------------- accounts -----------------------------------
 
     @Test
-    fun assertAccountsEqual_AcceptsTheSameAccountsWithoutLookingAtTagsAndLabels() {
+    fun testAssertAccountsEqualAcceptsTheSameAccountsWithoutLookingAtTagsAndLabels() {
         WalletEquality.assertAccountsEqual(
             listOf(account(0, 5, "savings", subaddress(0, 5, used = true, label = "primary"))),
             listOf(account(0, 5, null, subaddress(0, 5, used = true, label = "other label")))
@@ -71,31 +71,31 @@ class WalletEqualityTest {
     }
 
     @Test
-    fun assertAccountsEqual_ComparesTheSubaddresses() {
+    fun testAssertAccountsEqualComparesTheSubaddresses() {
         assertFailsWith<AssertionError> {
             WalletEquality.assertAccountsEqual(listOf(account(0, 5, null, subaddress(0, 5))), listOf(account(0, 5, null, subaddress(0, 4))))
         }
     }
 
     @Test
-    fun assertAccountsEqual_ComparesTheBalances() {
+    fun testAssertAccountsEqualComparesTheBalances() {
         assertFailsWith<AssertionError> { WalletEquality.assertAccountsEqual(listOf(account(0, 5)), listOf(account(0, 6))) }
     }
 
     @Test
-    fun assertAccountsEqual_AcceptsAnAccountPastTheEndThatIsUnused() {
+    fun testAssertAccountsEqualAcceptsAnAccountPastTheEndThatIsUnused() {
         val unused = account(1, 0, null, subaddress(0))
         WalletEquality.assertAccountsEqual(listOf(account(0, 5)), listOf(account(0, 5), unused))
         WalletEquality.assertAccountsEqual(listOf(account(0, 5), unused), listOf(account(0, 5)))
     }
 
     @Test
-    fun assertAccountsEqual_RejectsAnAccountPastTheEndThatHasFunds() {
+    fun testAssertAccountsEqualRejectsAnAccountPastTheEndThatHasFunds() {
         assertFailsWith<AssertionError> { WalletEquality.assertAccountsEqual(listOf(account(0, 5)), listOf(account(0, 5), account(1, 3, null, subaddress(0, 3, used = true)))) }
     }
 
     @Test
-    fun assertAccountsEqual_AcceptsSubaddressesPastTheEndThatAreUnusedAndRejectsUsedOnes() {
+    fun testAssertAccountsEqualAcceptsSubaddressesPastTheEndThatAreUnusedAndRejectsUsedOnes() {
         val first = subaddress(0, 5, used = true)
         WalletEquality.assertAccountsEqual(listOf(account(0, 5, null, first)), listOf(account(0, 5, null, subaddress(0, 5, used = true), subaddress(1))))
         WalletEquality.assertAccountsEqual(listOf(account(0, 5, null, subaddress(0, 5, used = true), subaddress(1))), listOf(account(0, 5, null, subaddress(0, 5, used = true))))
@@ -107,7 +107,7 @@ class WalletEqualityTest {
     // ----------------------------------- transactions -----------------------------------
 
     @Test
-    fun assertTxsEqual_AcceptsTheSameTxsWithoutLookingAtNotesAndTheTxsOfThePool() {
+    fun testAssertTxsEqualAcceptsTheSameTxsWithoutLookingAtNotesAndTheTxsOfThePool() {
         WalletEquality.assertTxsEqual(
             listOf(tx("a", 10, note = "a note"), tx("b", 11), tx("pool", 0, inPool = true)),
             listOf(tx("a", 10), tx("b", 11))
@@ -115,44 +115,44 @@ class WalletEqualityTest {
     }
 
     @Test
-    fun assertTxsEqual_ComparesTheFields() {
+    fun testAssertTxsEqualComparesTheFields() {
         assertFailsWith<AssertionError> { WalletEquality.assertTxsEqual(listOf(tx("a", 10, fee = 10)), listOf(tx("a", 10, fee = 11))) }
     }
 
     @Test
-    fun assertTxsEqual_RejectsATxThatTheOtherWalletDoesNotHave() {
+    fun testAssertTxsEqualRejectsATxThatTheOtherWalletDoesNotHave() {
         assertFailsWith<AssertionError> { WalletEquality.assertTxsEqual(listOf(tx("a", 10), tx("b", 11)), listOf(tx("a", 10))) }
         assertFailsWith<AssertionError> { WalletEquality.assertTxsEqual(listOf(tx("a", 10)), listOf(tx("b", 10))) }
     }
 
     @Test
-    fun assertTxsEqual_RejectsATxInAnotherBlock() {
+    fun testAssertTxsEqualRejectsATxInAnotherBlock() {
         assertFailsWith<AssertionError> { WalletEquality.assertTxsEqual(listOf(tx("a", 10)), listOf(tx("a", 12))) }
     }
 
     // ----------------------------------- transfers -----------------------------------
 
     @Test
-    fun assertTransfersEqual_AcceptsTheSameTransfersWithoutLookingAtTheAddresses() {
+    fun testAssertTransfersEqualAcceptsTheSameTransfersWithoutLookingAtTheAddresses() {
         val a1 = tx("a", 10)
         val a2 = tx("a", 10)
         WalletEquality.assertTransfersEqual(listOf(transfer(a1, 5), transfer(tx("b", 11), 7)), listOf(transfer(a2, 5).also { it.address = "another" }, transfer(tx("b", 11), 7)))
     }
 
     @Test
-    fun assertTransfersEqual_ComparesTheAmounts() {
+    fun testAssertTransfersEqualComparesTheAmounts() {
         assertFailsWith<AssertionError> { WalletEquality.assertTransfersEqual(listOf(transfer(tx("a", 10), 5)), listOf(transfer(tx("a", 10), 6))) }
     }
 
     @Test
-    fun assertTransfersEqual_RejectsTransfersThatAreNotInAscendingOrderByHeight() {
+    fun testAssertTransfersEqualRejectsTransfersThatAreNotInAscendingOrderByHeight() {
         val first = listOf(transfer(tx("a", 11), 5), transfer(tx("b", 10), 7))
         val second = listOf(transfer(tx("a", 11), 5), transfer(tx("b", 10), 7))
         assertFailsWith<AssertionError> { WalletEquality.assertTransfersEqual(first, second) }
     }
 
     @Test
-    fun assertTransfersEqual_RejectsTransfersOfATxThatAreNotTogether() {
+    fun testAssertTransfersEqualRejectsTransfersOfATxThatAreNotTogether() {
         val a = tx("a", 10)
         val b = tx("b", 10)
         val first = listOf(transfer(a, 1), transfer(b, 2), transfer(a, 3))
