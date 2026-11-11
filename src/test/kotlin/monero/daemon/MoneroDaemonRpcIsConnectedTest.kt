@@ -30,7 +30,7 @@ class MoneroDaemonRpcIsConnectedTest {
     }
 
     @Test
-    fun isConnected_FollowsTheDaemon() {
+    fun testIsConnectedFollowsTheDaemon() {
         NativeTestSupport.assumeAvailable()
         val server = versionServer()
         try {
@@ -47,7 +47,7 @@ class MoneroDaemonRpcIsConnectedTest {
     }
 
     @Test
-    fun isConnected_OfADaemonThatDoesNotAnswer_IsFalseAndNotAnError() {
+    fun testIsConnectedOfADaemonThatDoesNotAnswerIsFalseAndNotAnError() {
         NativeTestSupport.assumeAvailable()
 
         // the port of a server that is stopped

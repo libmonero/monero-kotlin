@@ -26,7 +26,7 @@ class TxHeightComparatorTest {
     }
 
     @Test
-    fun txHeightComparator_OrdersByHeight() {
+    fun testTxHeightComparatorOrdersByHeight() {
         val low = txAtHeight(100)
         val high = txAtHeight(200)
         val comparator = TxHeightComparator()
@@ -36,7 +36,7 @@ class TxHeightComparatorTest {
     }
 
     @Test
-    fun txHeightComparator_PutsTheTxsThatAreNotInABlockLast() {
+    fun testTxHeightComparatorPutsTheTxsThatAreNotInABlockLast() {
         val confirmed = txAtHeight(100)
         val unconfirmed = txAtHeight(null)
         val comparator = TxHeightComparator()
@@ -46,7 +46,7 @@ class TxHeightComparatorTest {
     }
 
     @Test
-    fun txHeightComparator_KeepsTheOrderOfTheTxsOfABlock() {
+    fun testTxHeightComparatorKeepsTheOrderOfTheTxsOfABlock() {
         val block = MoneroBlock()
         block.height = 100
         val first = MoneroTx()
@@ -60,7 +60,7 @@ class TxHeightComparatorTest {
     }
 
     @Test
-    fun txHeightComparator_SortsAMixOfBlocksAndThePool() {
+    fun testTxHeightComparatorSortsAMixOfBlocksAndThePool() {
         val pool = txAtHeight(null)
         val high = txAtHeight(300)
         val low = txAtHeight(100)

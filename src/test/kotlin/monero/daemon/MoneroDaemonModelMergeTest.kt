@@ -43,7 +43,7 @@ class MoneroDaemonModelMergeTest {
     // ----------------------------------- block header -----------------------------------
 
     @Test
-    fun blockHeader_Merge_FillsWhatIsNotSet_AndTakesTheHigherHeightAndTimestamp() {
+    fun testBlockHeaderMergeFillsWhatIsNotSetAndTakesTheHigherHeightAndTimestamp() {
         val a = MoneroBlockHeader()
         a.hash = hashA
         a.height = 100
@@ -61,7 +61,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun blockHeader_Merge_NeverLowersTheHeightOrTheTimestamp() {
+    fun testBlockHeaderMergeNeverLowersTheHeightOrTheTimestamp() {
         val a = MoneroBlockHeader()
         a.height = 200
         a.timestamp = 1800000000
@@ -74,7 +74,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun blockHeader_Merge_OfAFieldThatDiffers_Fails() {
+    fun testBlockHeaderMergeOfAFieldThatDiffersFails() {
         val a = MoneroBlockHeader()
         a.hash = hashA
         val b = MoneroBlockHeader()
@@ -85,7 +85,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun blockHeader_Merge_OfTheDifficultyAndTheReward() {
+    fun testBlockHeaderMergeOfTheDifficultyAndTheReward() {
         val a = MoneroBlockHeader()
         val b = MoneroBlockHeader()
         b.difficulty = BigInteger.ONE.shiftLeft(100)
@@ -98,7 +98,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun blockHeader_Merge_OfItself_DoesNothing() {
+    fun testBlockHeaderMergeOfItselfDoesNothing() {
         val a = MoneroBlockHeader()
         a.hash = hashA
         a.merge(a)
@@ -108,7 +108,7 @@ class MoneroDaemonModelMergeTest {
     // ----------------------------------- block -----------------------------------
 
     @Test
-    fun block_Merge_FillsTheHexAndTheTxHashes() {
+    fun testBlockMergeFillsTheHexAndTheTxHashes() {
         val a = MoneroBlock()
         a.hash = hashA
         a.height = 100
@@ -121,7 +121,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_OfTxHashesThatDiffer_Fails() {
+    fun testBlockMergeOfTxHashesThatDifferFails() {
         val a = MoneroBlock()
         a.txHashes = listOf(hashA)
         val b = MoneroBlock()
@@ -131,7 +131,7 @@ class MoneroDaemonModelMergeTest {
 
     // a header that is called on a block merges the block
     @Test
-    fun blockHeader_Merge_OfABlock_MergesTheBlock() {
+    fun testBlockHeaderMergeOfABlockMergesTheBlock() {
         val a = MoneroBlock()
         a.height = 100
         val b = MoneroBlock()
@@ -143,7 +143,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_OfAHeader_MergesTheHeader() {
+    fun testBlockMergeOfAHeaderMergesTheHeader() {
         val block = MoneroBlock()
         val header = MoneroBlockHeader()
         header.height = 7
@@ -152,7 +152,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_AdoptsTheMinerTxOfTheOther() {
+    fun testBlockMergeAdoptsTheMinerTxOfTheOther() {
         val a = MoneroBlock()
         a.height = 100
         val b = MoneroBlock()
@@ -167,7 +167,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_MergesDistinctMinerTxs() {
+    fun testBlockMergeMergesDistinctMinerTxs() {
         val a = MoneroBlock()
         val minerA = tx(hashA, true)
         a.minerTx = minerA
@@ -183,7 +183,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_MergesTheTxsThatHaveTheSameHash_AndAddsTheOthers() {
+    fun testBlockMergeMergesTheTxsThatHaveTheSameHashAndAddsTheOthers() {
         val a = MoneroBlock()
         val txA = tx(hashA, true)
         a.txs = listOf(txA)
@@ -201,7 +201,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_KeepsTheTxsWithoutAHashApart() {
+    fun testBlockMergeKeepsTheTxsWithoutAHashApart() {
         val a = MoneroBlock()
         val txA = tx(null)
         a.txs = listOf(txA)
@@ -214,7 +214,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun block_Merge_OfTheSameTx_KeepsOneOfIt() {
+    fun testBlockMergeOfTheSameTxKeepsOneOfIt() {
         val a = MoneroBlock()
         val shared = tx(null)
         a.txs = listOf(shared)
@@ -227,7 +227,7 @@ class MoneroDaemonModelMergeTest {
     // ----------------------------------- tx -----------------------------------
 
     @Test
-    fun tx_Merge_FillsWhatIsNotSet() {
+    fun testTxMergeFillsWhatIsNotSet() {
         val a = tx(hashA, true)
         a.fee = BigInteger.valueOf(7500000)
         val b = a.copy()
@@ -240,7 +240,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_OfATxWithoutIsConfirmed_Works() {
+    fun testTxMergeOfATxWithoutIsConfirmedWorks() {
         val a = tx(hashA)
         val b = tx(hashA)
         b.numConfirmations = 2
@@ -249,7 +249,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_OfAFieldThatDiffers_Fails() {
+    fun testTxMergeOfAFieldThatDiffersFails() {
         val a = tx(hashA)
         val b = tx(hashB)
         val error = assertFailsWith<MoneroError> { a.merge(b) }
@@ -262,7 +262,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_IsConfirmed_CanBecomeTrue_AndDoesNotGoBack() {
+    fun testTxMergeIsConfirmedCanBecomeTrueAndDoesNotGoBack() {
         val a = tx(hashA, false)
         a.merge(tx(hashA, true))
         assertEquals(true, a.isConfirmed)
@@ -273,7 +273,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_IsDoubleSpendSeen_RelayAndIsRelayedAndIsFailed_CanBecomeTrue() {
+    fun testTxMergeIsDoubleSpendSeenRelayAndIsRelayedAndIsFailedCanBecomeTrue() {
         val a = tx(hashA, true)
         a.isDoubleSpendSeen = false
         a.relay = false
@@ -292,7 +292,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_InTxPool_CanBecomeTrue() {
+    fun testTxMergeInTxPoolCanBecomeTrue() {
         val a = tx(hashA, false)
         a.inTxPool = false
         val b = a.copy()
@@ -302,7 +302,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_IsLocked_CanBecomeFalse() {
+    fun testTxMergeIsLockedCanBecomeFalse() {
         val a = tx(hashA, true)
         a.isLocked = false
         val b = a.copy()
@@ -319,7 +319,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_NumConfirmations_IsTheHigher() {
+    fun testTxMergeNumConfirmationsIsTheHigher() {
         val a = tx(hashA, true)
         a.numConfirmations = 10
         val b = tx(hashA, true)
@@ -331,7 +331,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_WhenConfirmed_IsNotInThePool_AndHasNoTimesOfThePool() {
+    fun testTxMergeWhenConfirmedIsNotInThePoolAndHasNoTimesOfThePool() {
         val a = tx(hashA, false)
         a.inTxPool = true
         a.receivedTimestamp = 100
@@ -345,7 +345,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_InThePool_KeepsTheEarliestReceivedAndTheLatestRelayed() {
+    fun testTxMergeInThePoolKeepsTheEarliestReceivedAndTheLatestRelayed() {
         val a = tx(hashA, false)
         a.receivedTimestamp = 100
         a.lastRelayedTimestamp = 200
@@ -358,7 +358,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_ExtraAndOutputIndices() {
+    fun testTxMergeExtraAndOutputIndices() {
         val a = tx(hashA, true)
         val b = a.copy()
         b.extra = listOf(1, 2, 3, 255)
@@ -369,7 +369,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_OfExtraThatDiffers_Fails() {
+    fun testTxMergeOfExtraThatDiffersFails() {
         val a = tx(hashA)
         a.extra = listOf(1)
         val b = tx(hashA)
@@ -378,7 +378,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_Inputs_MergesTheSameKeyImage_AndAddsTheOthers() {
+    fun testTxMergeInputsMergesTheSameKeyImageAndAddsTheOthers() {
         val a = tx(hashA, true)
         a.inputs = listOf(input(a, "1".repeat(64)))
         val b = tx(hashA, true)
@@ -394,7 +394,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_Inputs_WithoutAKeyImage_AreAdded() {
+    fun testTxMergeInputsWithoutAKeyImageAreAdded() {
         val a = tx(hashA, true)
         a.inputs = listOf(MoneroOutput())
         val b = tx(hashA, true)
@@ -404,7 +404,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_Outputs_MergesTheSameKeyImageOrStealthKey_AndAddsTheOthers() {
+    fun testTxMergeOutputsMergesTheSameKeyImageOrStealthKeyAndAddsTheOthers() {
         val a = tx(hashA, true)
         val byKeyImage = input(a, "1".repeat(64))
         val byStealthKey = MoneroOutput().also { it.stealthPublicKey = "s".repeat(64) }
@@ -426,7 +426,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_Outputs_AreTheOnesOfTheOther_WhenThisHasNone() {
+    fun testTxMergeOutputsAreTheOnesOfTheOtherWhenThisHasNone() {
         val a = tx(hashA, true)
         val b = tx(hashA, true)
         val output = MoneroOutput()
@@ -437,7 +437,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_AdoptsTheBlockOfTheOther_AndTakesItsPlaceInIt() {
+    fun testTxMergeAdoptsTheBlockOfTheOtherAndTakesItsPlaceInIt() {
         val block = MoneroBlock()
         block.height = 200
         val other = tx(hashA, true)
@@ -450,7 +450,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_InDifferentBlocks_MergesTheBlocks() {
+    fun testTxMergeInDifferentBlocksMergesTheBlocks() {
         val blockA = MoneroBlock()
         blockA.height = 100
         val txA = tx(hashA, true)
@@ -470,7 +470,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_OfATxInABlockWithOneThatIsNot_KeepsTheBlock() {
+    fun testTxMergeOfATxInABlockWithOneThatIsNotKeepsTheBlock() {
         val block = MoneroBlock()
         val inBlock = tx(hashA, true)
         block.txs = listOf(inBlock)
@@ -482,7 +482,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun tx_Merge_OfItself_DoesNothing() {
+    fun testTxMergeOfItselfDoesNothing() {
         val a = tx(hashA, true)
         a.inputs = listOf(input(a, "1".repeat(64)))
         a.merge(a)
@@ -492,7 +492,7 @@ class MoneroDaemonModelMergeTest {
     // ----------------------------------- key image -----------------------------------
 
     @Test
-    fun keyImage_Merge_FillsTheSignature() {
+    fun testKeyImageMergeFillsTheSignature() {
         val a = MoneroKeyImage()
         a.hex = hashA
         val b = a.copy()
@@ -502,7 +502,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun keyImage_Merge_OfAHexThatDiffers_Fails() {
+    fun testKeyImageMergeOfAHexThatDiffersFails() {
         val a = MoneroKeyImage()
         a.hex = hashA
         val b = MoneroKeyImage()
@@ -513,7 +513,7 @@ class MoneroDaemonModelMergeTest {
     // ----------------------------------- output -----------------------------------
 
     @Test
-    fun output_Merge_AdoptsTheKeyImageOfTheOther() {
+    fun testOutputMergeAdoptsTheKeyImageOfTheOther() {
         val a = MoneroOutput()
         a.amount = BigInteger.valueOf(1000000)
         a.index = 5
@@ -524,7 +524,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun output_Merge_MergesTheKeyImages() {
+    fun testOutputMergeMergesTheKeyImages() {
         val a = MoneroOutput()
         a.keyImage = MoneroKeyImage().also { it.hex = hashA }
         val b = MoneroOutput()
@@ -534,7 +534,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun output_Merge_RingOutputIndicesStealthPublicKeyAndMask() {
+    fun testOutputMergeRingOutputIndicesStealthPublicKeyAndMask() {
         val a = MoneroOutput()
         a.amount = BigInteger.valueOf(1000000)
         a.index = 5
@@ -549,7 +549,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun output_Merge_OfAnAmountThatDiffers_Fails() {
+    fun testOutputMergeOfAnAmountThatDiffersFails() {
         val a = MoneroOutput()
         a.amount = BigInteger.ONE
         val b = MoneroOutput()
@@ -558,7 +558,7 @@ class MoneroDaemonModelMergeTest {
     }
 
     @Test
-    fun output_Merge_InDifferentTxs_MergesTheTxs() {
+    fun testOutputMergeInDifferentTxsMergesTheTxs() {
         val txA = tx(hashA, true)
         val txB = tx(hashA, true)
         txB.numConfirmations = 9

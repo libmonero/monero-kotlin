@@ -63,7 +63,7 @@ class MoneroDaemonDefaultTest {
     private val daemon = Recorder()
 
     @Test
-    fun testGetTx_AsksForTheHashAndReturnsTheFirst() {
+    fun testTestGetTxAsksForTheHashAndReturnsTheFirst() {
         val first = MoneroTx()
         daemon.txs = listOf(first, MoneroTx())
         assertSame(first, daemon.getTx("hash"))
@@ -71,44 +71,44 @@ class MoneroDaemonDefaultTest {
     }
 
     @Test
-    fun testGetTx_PassesPrune() {
+    fun testTestGetTxPassesPrune() {
         daemon.getTx("hash", true)
         assertEquals(listOf("getTxs [hash] true"), daemon.calls)
     }
 
     @Test
-    fun testGetTx_OfAnUnknownHash_IsNull() {
+    fun testTestGetTxOfAnUnknownHashIsNull() {
         assertNull(daemon.getTx("hash"))
     }
 
     @Test
-    fun testGetTxHex_AsksForTheHashAndReturnsTheFirst() {
+    fun testTestGetTxHexAsksForTheHashAndReturnsTheFirst() {
         daemon.hexes = listOf("first", "second")
         assertEquals("first", daemon.getTxHex("hash", true))
         assertEquals(listOf("getTxHexes [hash] true"), daemon.calls)
     }
 
     @Test
-    fun testRelayTxByHash_RelaysTheList() {
+    fun testTestRelayTxByHashRelaysTheList() {
         daemon.relayTxByHash("hash")
         assertEquals(listOf("relayTxsByHash [hash]"), daemon.calls)
     }
 
     @Test
-    fun testFlushTxPool_OfAHash_FlushesTheList() {
+    fun testTestFlushTxPoolOfAHashFlushesTheList() {
         daemon.flushTxPool("hash")
         assertEquals(listOf("flushTxPool [hash]"), daemon.calls)
     }
 
     @Test
-    fun testGetKeyImageSpentStatus_AsksForTheKeyImageAndReturnsTheFirst() {
+    fun testTestGetKeyImageSpentStatusAsksForTheKeyImageAndReturnsTheFirst() {
         daemon.statuses = listOf(MoneroKeyImageSpentStatus.entries[1], MoneroKeyImageSpentStatus.entries[0])
         assertEquals(MoneroKeyImageSpentStatus.entries[1], daemon.getKeyImageSpentStatus("image"))
         assertEquals(listOf("getKeyImageSpentStatuses [image]"), daemon.calls)
     }
 
     @Test
-    fun testSetPeerBan_SetsTheList() {
+    fun testTestSetPeerBanSetsTheList() {
         val ban = MoneroBan()
         ban.host = "127.0.0.1"
         daemon.setPeerBan(ban)
@@ -116,13 +116,13 @@ class MoneroDaemonDefaultTest {
     }
 
     @Test
-    fun testSubmitBlock_SubmitsTheList() {
+    fun testTestSubmitBlockSubmitsTheList() {
         daemon.submitBlock("blob")
         assertEquals(listOf("submitBlocks [blob]"), daemon.calls)
     }
 
     @Test
-    fun testRemoveBootstrapDaemon_SetsAnEmptyAddress() {
+    fun testTestRemoveBootstrapDaemonSetsAnEmptyAddress() {
         daemon.removeBootstrapDaemon()
         assertEquals(listOf("setBootstrapDaemon '' '' '' ''"), daemon.calls)
     }

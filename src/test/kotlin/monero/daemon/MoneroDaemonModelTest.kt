@@ -128,12 +128,12 @@ class MoneroDaemonModelTest {
     // fixtures: what monero-c writes
 
     @Test
-    fun fixtures_AreAllTested() {
+    fun testFixturesAreAllTested() {
         assertEquals(ModelTestSupport.fixtureNames("daemon"), fixtureTypes.keys.sorted())
     }
 
     @Test
-    fun fixtures_AreJson_WithoutByteOrderMark() {
+    fun testFixturesAreJsonWithoutByteOrderMark() {
         for (name in fixtureTypes.keys) {
             val bytes = ModelTestSupport.fixtureFile("daemon", name).readBytes()
             assertFalse(bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte(), name)
@@ -142,7 +142,7 @@ class MoneroDaemonModelTest {
     }
 
     @TestFactory
-    fun fixture_IsWrittenBackUnchanged() = fixtureTypes.map { (name, type) ->
+    fun testFixtureIsWrittenBackUnchanged() = fixtureTypes.map { (name, type) ->
         dynamicTest(name) {
             val json = fixture(name)
             assertSameJson(json, write(read(json, type)))
@@ -150,7 +150,7 @@ class MoneroDaemonModelTest {
     }
 
     @TestFactory
-    fun fixture_IsWrittenBackUnchanged_AfterReadingTheWrittenJson() = fixtureTypes.map { (name, type) ->
+    fun testFixtureIsWrittenBackUnchangedAfterReadingTheWrittenJson() = fixtureTypes.map { (name, type) ->
         dynamicTest(name) {
             val json = fixture(name)
             val written = write(read(json, type))
@@ -159,7 +159,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun daemonInfo_ReadsTheFixture() {
+    fun testDaemonInfoReadsTheFixture() {
         val info = readFixture("daemon_info", MoneroDaemonInfo::class.java)
         assertEquals(topHash, info.topBlockHash)
         assertEquals(0L, info.credits)
@@ -177,7 +177,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun daemonSyncInfo_ReadsTheFixture() {
+    fun testDaemonSyncInfoReadsTheFixture() {
         val info = readFixture("sync_info", MoneroDaemonSyncInfo::class.java)
         assertEquals(102L, info.height)
         assertEquals(0L, info.targetHeight)
@@ -187,7 +187,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun hardForkInfo_ReadsTheFixture() {
+    fun testHardForkInfoReadsTheFixture() {
         val info = readFixture("hard_fork_info", MoneroHardForkInfo::class.java)
         assertEquals(1L, info.earliestHeight)
         assertEquals(true, info.isEnabled)
@@ -199,7 +199,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun feeEstimate_ReadsTheFixture() {
+    fun testFeeEstimateReadsTheFixture() {
         val estimate = readFixture("fee_estimate", MoneroFeeEstimate::class.java)
         assertEquals(BigInteger.valueOf(1200000), estimate.fee)
         assertEquals(10000L, estimate.quantizationMask)
@@ -208,7 +208,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun miningStatus_ReadsTheFixture() {
+    fun testMiningStatusReadsTheFixture() {
         val status = readFixture("mining_status", MoneroMiningStatus::class.java)
         assertEquals(false, status.isActive)
         assertEquals(0L, status.speed)
@@ -218,21 +218,21 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun minerTxSum_ReadsTheFixture() {
+    fun testMinerTxSumReadsTheFixture() {
         val sum = readFixture("miner_tx_sum", MoneroMinerTxSum::class.java)
         assertEquals(BigInteger.valueOf(351840365463352), sum.emissionSum)
         assertEquals(BigInteger.ZERO, sum.feeSum)
     }
 
     @Test
-    fun pruneResult_ReadsTheFixture() {
+    fun testPruneResultReadsTheFixture() {
         val result = readFixture("prune_result", MoneroPruneResult::class.java)
         assertEquals(false, result.isPruned)
         assertEquals(0, result.pruningSeed)
     }
 
     @Test
-    fun submitTxResult_ReadsTheFixture() {
+    fun testSubmitTxResultReadsTheFixture() {
         val result = readFixture("submit_tx_result", MoneroSubmitTxResult::class.java)
         assertEquals(true, result.isGood)
         assertEquals(true, result.isRelayed)
@@ -242,21 +242,21 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun generateBlocksResult_ReadsTheFixture() {
+    fun testGenerateBlocksResultReadsTheFixture() {
         val result = readFixture("generate_blocks_result", MoneroGenerateBlocksResult::class.java)
         assertEquals(101L, result.height)
         assertEquals(listOf(topHash), result.blockHashes)
     }
 
     @Test
-    fun version_ReadsTheFixture() {
+    fun testVersionReadsTheFixture() {
         val version = readFixture("version", MoneroVersion::class.java)
         assertEquals(196624, version.number)
         assertEquals(true, version.isRelease)
     }
 
     @Test
-    fun networkStats_ReadsTheFixture() {
+    fun testNetworkStatsReadsTheFixture() {
         val stats = readFixture("network_stats", MoneroDaemonNetworkStats::class.java)
         assertEquals(1791736227L, stats.startTime)
         assertEquals(0L, stats.totalPacketsIn)
@@ -264,7 +264,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun txPoolStats_ReadsTheFixture() {
+    fun testTxPoolStatsReadsTheFixture() {
         val stats = readFixture("tx_pool_stats", MoneroTxPoolStats::class.java)
         assertEquals(1, stats.numTxs)
         assertEquals(0, stats.numNotRelayed)
@@ -276,7 +276,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun outputHistogram_ReadsTheFixture() {
+    fun testOutputHistogramReadsTheFixture() {
         val entries = MoneroJson.deserialize<List<MoneroOutputHistogramEntry>>(fixture("output_histogram"))
         assertEquals(2, entries.size)
         assertEquals(BigInteger.ZERO, entries[0].amount)
@@ -286,7 +286,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun outputDistribution_ReadsTheFixture() {
+    fun testOutputDistributionReadsTheFixture() {
         val entries = MoneroJson.deserialize<List<MoneroOutputDistributionEntry>>(fixture("output_distribution"))
         assertEquals(1, entries.size)
         assertEquals(BigInteger.ZERO, entries[0].amount)
@@ -297,13 +297,13 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun emptyLists_AreReadAsEmptyLists() {
+    fun testEmptyListsAreReadAsEmptyLists() {
         assertEquals(emptyList(), MoneroJson.deserialize<List<MoneroAltChain>>(fixture("alt_chains_empty")))
         assertEquals(emptyList(), MoneroJson.deserialize<List<MoneroPeer>>(fixture("peers_empty")))
     }
 
     @Test
-    fun blockHeader_ReadsTheFixture() {
+    fun testBlockHeaderReadsTheFixture() {
         val header = readFixture("last_block_header", MoneroBlockHeader::class.java)
         assertEquals(101L, header.height)
         assertEquals(topHash, header.hash)
@@ -320,7 +320,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun blockHeaders_ReadTheFixture() {
+    fun testBlockHeadersReadTheFixture() {
         val headers = MoneroJson.deserialize<List<MoneroBlockHeader>>(fixture("block_headers"))
         assertEquals(3L, headers.first().height)
         for (i in 1 until headers.size) {
@@ -330,7 +330,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun blockTemplate_ReadsTheFixture() {
+    fun testBlockTemplateReadsTheFixture() {
         val template = readFixture("block_template", MoneroBlockTemplate::class.java)
         assertEquals(101L, template.height)
         assertEquals(prevHash, template.prevHash)
@@ -344,7 +344,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun minerData_ReadsTheFixture() {
+    fun testMinerDataReadsTheFixture() {
         val data = readFixture("miner_data", MoneroMinerData::class.java)
         assertEquals(16, data.majorVersion)
         assertEquals(101L, data.height)
@@ -360,7 +360,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun block_ReadsTheFixture() {
+    fun testBlockReadsTheFixture() {
         val block = readFixture("block", MoneroBlock::class.java)
         assertEquals(5L, block.height)
         assertNotNull(block.hex)
@@ -378,7 +378,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun block_WithTxHashes_ReadsTheFixture() {
+    fun testBlockWithTxHashesReadsTheFixture() {
         val block = readFixture("block_with_tx", MoneroBlock::class.java)
         assertEquals(101L, block.height)
         assertEquals(listOf(txHash), block.txHashes)
@@ -387,14 +387,14 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun blocks_ReadTheFixture() {
+    fun testBlocksReadTheFixture() {
         val blocks = MoneroJson.deserialize<List<MoneroBlock>>(fixture("blocks"))
         assertEquals(listOf(99L, 100L, 101L), blocks.map { it.height })
         for (block in blocks) assertSame(block, block.minerTx!!.block)
     }
 
     @Test
-    fun blocksByHashResult_ReadsTheFixture() {
+    fun testBlocksByHashResultReadsTheFixture() {
         val result = readFixture("blocks_by_hash_result", MoneroGetBlocksByHashResult::class.java)
         assertEquals(102L, result.currentHeight)
         assertEquals(1L, result.blocks!!.first().height)
@@ -402,7 +402,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun txInBlock_ReadsTheFixture() {
+    fun testTxInBlockReadsTheFixture() {
         val result = readFixture("tx_in_block", MoneroBlocksResult::class.java)
         assertEquals(1, result.blocks!!.size)
         val block = result.blocks!![0]
@@ -441,7 +441,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun txInPool_ReadsTheFixture_WithABlockThatHasNoHeight() {
+    fun testTxInPoolReadsTheFixtureWithABlockThatHasNoHeight() {
         val result = readFixture("tx_in_pool", MoneroBlocksResult::class.java)
         val block = result.blocks!![0]
         assertNull(block.height)
@@ -458,7 +458,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun txPool_ReadsTheFixture() {
+    fun testTxPoolReadsTheFixture() {
         val txs = readFixture("tx_pool", MoneroBlocksResult::class.java).getTxs()
         assertEquals(1, txs.size)
         val tx = txs[0]
@@ -471,7 +471,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun prunedTx_ReadsTheFixture() {
+    fun testPrunedTxReadsTheFixture() {
         val tx = readFixture("tx_pruned_in_block", MoneroBlocksResult::class.java).getTxs()[0]
         assertNotNull(tx.prunedHex)
         assertNull(tx.fullHex)
@@ -482,7 +482,7 @@ class MoneroDaemonModelTest {
     // what a regtest node can not produce
 
     @Test
-    fun peer_IsReadAndWritten() {
+    fun testPeerIsReadAndWritten() {
         val json = """{"id":"a1b2","address":"1.2.3.4:18080","host":"1.2.3.4","port":18080,"isOnline":true,"lastSeenTimestamp":1700000000,
             "pruningSeed":3,"rpcPort":18081,"rpcCreditsPerHash":7,"hash":"h","avgDownload":10,"avgUpload":11,"currentDownload":12,
             "currentUpload":13,"height":3000000,"isIncoming":false,"liveTime":99,"isLocalIp":false,"isLocalHost":false,"numReceives":5,
@@ -496,7 +496,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun peer_ConnectionType_IsTheNumberOfAddressType() {
+    fun testPeerConnectionTypeIsTheNumberOfAddressType() {
         val expected = mapOf(0 to MoneroConnectionType.INVALID, 1 to MoneroConnectionType.IPV4, 2 to MoneroConnectionType.IPV6,
             3 to MoneroConnectionType.TOR, 4 to MoneroConnectionType.I2P)
         for ((number, type) in expected) {
@@ -507,12 +507,12 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun peer_WithoutAddressType_HasNoConnectionType() {
+    fun testPeerWithoutAddressTypeHasNoConnectionType() {
         assertNull(readJson("""{"address":"a"}""", MoneroPeer::class.java).connectionType)
     }
 
     @Test
-    fun syncInfo_WithPeersAndSpans_IsReadAndWritten() {
+    fun testSyncInfoWithPeersAndSpansIsReadAndWritten() {
         val json = """{"credits":4,"topBlockHash":"t","height":3000000,"targetHeight":3000100,"nextNeededPruningSeed":2,
             "overview":"..oom","peers":[{"address":"1.2.3.4:18080","height":3000000}],
             "spans":[{"connectionId":"c","numBlocks":20,"remoteAddress":"1.2.3.4:18080","rate":1,"speed":2,"size":3,"startHeight":2999990}]}"""
@@ -524,13 +524,13 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun connectionSpan_IsReadAndWritten() {
+    fun testConnectionSpanIsReadAndWritten() {
         val json = """{"connectionId":"c","numBlocks":20,"remoteAddress":"r","rate":1,"speed":2,"size":3,"startHeight":4}"""
         assertSameJson(json, write(readJson(json, MoneroConnectionSpan::class.java)))
     }
 
     @Test
-    fun ban_IsReadAndWritten() {
+    fun testBanIsReadAndWritten() {
         val json = """{"host":"192.168.1.100","ip":1684279488,"isBanned":true,"seconds":3600}"""
         val ban = readJson(json, MoneroBan::class.java)
         assertEquals("192.168.1.100", ban.host)
@@ -540,14 +540,14 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun ban_IpIsAnUnsigned32BitNumber() {
+    fun testBanIpIsAnUnsigned32BitNumber() {
         val ban = readJson("""{"ip":4294967295}""", MoneroBan::class.java)
         assertEquals(4294967295L, ban.ip)
         assertEquals("""{"ip":4294967295}""", write(ban))
     }
 
     @Test
-    fun bans_AreReadAndWrittenAsAList() {
+    fun testBansAreReadAndWrittenAsAList() {
         val json = """[{"host":"a","isBanned":true},{"host":"b","isBanned":false,"seconds":0}]"""
         val bans = MoneroJson.deserialize<List<MoneroBan>>(json)
         assertEquals(listOf("a", "b"), bans.map { it.host })
@@ -555,7 +555,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun altChain_IsReadAndWritten() {
+    fun testAltChainIsReadAndWritten() {
         val json = """[{"blockHashes":["a","b"],"difficultyLow":10,"difficultyHigh":1,"length":2,"height":3000000,"mainChainParentBlockHash":"p"}]"""
         val chains = MoneroJson.deserialize<List<MoneroAltChain>>(json)
         assertEquals(listOf("a", "b"), chains[0].blockHashes)
@@ -565,7 +565,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun updateCheckResult_IsReadAndWritten() {
+    fun testUpdateCheckResultIsReadAndWritten() {
         val json = """{"isUpdateAvailable":true,"version":"0.18.6.0","hash":"h","autoUri":"https://a","userUri":"https://u"}"""
         val result = readJson(json, MoneroDaemonUpdateCheckResult::class.java)
         assertEquals(true, result.isUpdateAvailable)
@@ -574,7 +574,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun updateDownloadResult_IsAnUpdateCheckResult_WithThePathOfTheDownload() {
+    fun testUpdateDownloadResultIsAnUpdateCheckResultWithThePathOfTheDownload() {
         val json = """{"isUpdateAvailable":true,"version":"v","downloadPath":"/tmp/monero.tar.bz2"}"""
         val result = readJson(json, MoneroDaemonUpdateDownloadResult::class.java)
         assertEquals("/tmp/monero.tar.bz2", result.downloadPath)
@@ -583,7 +583,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun addAuxiliaryPowResult_IsReadAndWritten() {
+    fun testAddAuxiliaryPowResultIsReadAndWritten() {
         val json = """{"credits":1,"topBlockHash":"t","blockTemplateBlob":"b","blockHashingBlob":"h","merkleRoot":"m","merkleTreeDepth":3,
             "auxPow":[{"id":"i","hash":"x"},{"id":"j","hash":"y"}]}"""
         val result = readJson(json, MoneroAddAuxiliaryPowResult::class.java)
@@ -594,14 +594,14 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun txBacklogEntry_IsAnEmptyObject() {
+    fun testTxBacklogEntryIsAnEmptyObject() {
         val entries = MoneroJson.deserialize<List<MoneroTxBacklogEntry>>("[{},{}]")
         assertEquals(2, entries.size)
         assertEquals("[{},{}]", write(entries))
     }
 
     @Test
-    fun keyImage_IsReadAndWritten() {
+    fun testKeyImageIsReadAndWritten() {
         val json = """{"hex":"abc","signature":"def"}"""
         val keyImage = readJson(json, MoneroKeyImage::class.java)
         assertEquals("abc", keyImage.hex)
@@ -610,7 +610,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun txPoolStats_WithTransactions_HasTheHistogram() {
+    fun testTxPoolStatsWithTransactionsHasTheHistogram() {
         val json = """{"numTxs":3,"histo":{"1500":2,"4000":1},"histo98pc":600,"num10m":1}"""
         val stats = readJson(json, MoneroTxPoolStats::class.java)
         assertEquals(mapOf(1500L to 2L, 4000L to 1L), stats.histo)
@@ -620,7 +620,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun daemonInfo_WithEveryOptionalField_IsReadAndWritten() {
+    fun testDaemonInfoWithEveryOptionalFieldIsReadAndWritten() {
         val json = """{"credits":9,"topBlockHash":"t","version":"0.18.5.1","numAltBlocks":2,"blockSizeLimit":600000,"blockSizeMedian":300000,
             "blockWeightLimit":600000,"blockWeightMedian":300000,"bootstrapDaemonAddress":"node.example:18081","difficultyLow":5,"difficultyHigh":6,
             "cumulativeDifficultyLow":7,"cumulativeDifficultyHigh":8,"freeSpace":1,"numOfflinePeers":2,"numOnlinePeers":3,"height":3000000,
@@ -635,7 +635,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun miningStatus_WhenMining_IsReadAndWritten() {
+    fun testMiningStatusWhenMiningIsReadAndWritten() {
         val json = """{"isActive":true,"isBackground":false,"address":"4abc","speed":1500,"numThreads":4}"""
         val status = readJson(json, MoneroMiningStatus::class.java)
         assertEquals("4abc", status.address)
@@ -644,7 +644,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun submitTxResult_WhenRejected_HasTheReason() {
+    fun testSubmitTxResultWhenRejectedHasTheReason() {
         val json = """{"isGood":false,"isRelayed":false,"isDoubleSpend":true,"isFeeTooLow":true,"isMixinTooLow":true,"hasInvalidInput":true,
             "hasInvalidOutput":true,"hasTooFewOutputs":true,"isOverspend":true,"isTooBig":true,"sanityCheckFailed":true,"reason":"double spend",
             "isTxExtraTooBig":true,"isNonZeroUnlockTime":true}"""
@@ -655,7 +655,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun blockHeader_WithTheProofOfWorkHash_IsReadAndWritten() {
+    fun testBlockHeaderWithTheProofOfWorkHashIsReadAndWritten() {
         val json = """{"height":1,"powHash":"abc"}"""
         val header = readJson(json, MoneroBlockHeader::class.java)
         assertEquals("abc", header.powHash)
@@ -663,7 +663,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun tx_WithEveryField_IsReadAndWritten() {
+    fun testTxWithEveryFieldIsReadAndWritten() {
         val json = """{"hash":"h","version":2,"isMinerTx":false,"paymentId":"0000000000000000","fee":1,"ringSize":16,"relay":true,
             "isRelayed":true,"isConfirmed":true,"inTxPool":false,"isLocked":false,"numConfirmations":10,"unlockTime":18446744073709551615,
             "lastRelayedTimestamp":1,"receivedTimestamp":2,"isDoubleSpendSeen":false,"key":"k","fullHex":"f","prunedHex":"p","prunableHex":"q",
@@ -677,7 +677,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun output_WithEveryField_IsReadAndWritten() {
+    fun testOutputWithEveryFieldIsReadAndWritten() {
         val json = """{"keyImage":{"hex":"k","signature":"s"},"amount":18446744073709551615,"index":3,"ringOutputIndices":[1,2,3],
             "stealthPublicKey":"p","mask":"m"}"""
         val output = readJson(json, MoneroOutput::class.java)
@@ -686,7 +686,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun blocksResult_GetTxs_ListsTheTxsInTheOrderOfTheBlocks() {
+    fun testBlocksResultGetTxsListsTheTxsInTheOrderOfTheBlocks() {
         val json = """{"blocks":[{"height":1,"txs":[{"hash":"a"},{"hash":"b"}]},{"height":2,"txs":[{"hash":"c"}]},{"txs":[{"hash":"d"}]}]}"""
         val result = readJson(json, MoneroBlocksResult::class.java)
         assertEquals(listOf("a", "b", "c", "d"), result.getTxs().map { it.hash })
@@ -694,14 +694,14 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun blocksResult_GetTxs_IsEmpty_WithoutBlocks() {
+    fun testBlocksResultGetTxsIsEmptyWithoutBlocks() {
         assertEquals(emptyList(), readJson("""{"blocks":[]}""", MoneroBlocksResult::class.java).getTxs())
         assertEquals(emptyList(), readJson("{}", MoneroBlocksResult::class.java).getTxs())
         assertEquals(emptyList(), readJson("""{"blocks":[{"height":1}]}""", MoneroBlocksResult::class.java).getTxs())
     }
 
     @Test
-    fun blocksResult_GetTxs_ReturnsANewListEveryTime() {
+    fun testBlocksResultGetTxsReturnsANewListEveryTime() {
         val result = readJson("""{"blocks":[{"txs":[{"hash":"a"}]}]}""", MoneroBlocksResult::class.java)
         val first = result.getTxs() as MutableList<MoneroTx>
         first.clear()
@@ -709,7 +709,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun getBlockHashesResult_IsReadAndWritten() {
+    fun testGetBlockHashesResultIsReadAndWritten() {
         val json = """{"startHeight":10,"currentHeight":20,"hashes":["a","b"]}"""
         val result = readJson(json, MoneroGetBlockHashesResult::class.java)
         assertEquals(10L, result.startHeight)
@@ -720,7 +720,7 @@ class MoneroDaemonModelTest {
     // 128-bit numbers: two halves in the JSON
 
     @Test
-    fun difficulty_IsWrittenAsTwoHalves_AndReadFromThem() {
+    fun testDifficultyIsWrittenAsTwoHalvesAndReadFromThem() {
         val values = listOf(
             BigInteger.ZERO to ("0" to "0"),
             BigInteger.ONE to ("1" to "0"),
@@ -740,7 +740,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun difficulty_SetToNull_ClearsBothHalves() {
+    fun testDifficultySetToNullClearsBothHalves() {
         val header = readJson("""{"difficultyLow":5,"difficultyHigh":6}""", MoneroBlockHeader::class.java)
         header.difficulty = null
         assertNull(header.difficultyLow)
@@ -749,21 +749,21 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun difficulty_WithOnlyOneHalfInTheJson_IsStillAValue() {
+    fun testDifficultyWithOnlyOneHalfInTheJsonIsStillAValue() {
         assertEquals(BigInteger.valueOf(5), readJson("""{"difficultyLow":5}""", MoneroBlockHeader::class.java).difficulty)
         assertEquals(two64.multiply(BigInteger.valueOf(6)), readJson("""{"difficultyHigh":6}""", MoneroBlockHeader::class.java).difficulty)
         assertNull(readJson("{}", MoneroBlockHeader::class.java).difficulty)
     }
 
     @Test
-    fun difficulty_IsInherited_ByTheBlock() {
+    fun testDifficultyIsInheritedByTheBlock() {
         val block = readJson("""{"difficultyLow":1,"difficultyHigh":1,"cumulativeDifficultyLow":2,"cumulativeDifficultyHigh":0}""", MoneroBlock::class.java)
         assertEquals(two64.add(BigInteger.ONE), block.difficulty)
         assertEquals(BigInteger.valueOf(2), block.cumulativeDifficulty)
     }
 
     @Test
-    fun difficulty_ThatDoesNotFitIn128Bits_IsRefused() {
+    fun testDifficultyThatDoesNotFitIn128BitsIsRefused() {
         val header = MoneroBlockHeader()
         for (value in listOf(BigInteger.ONE.shiftLeft(128), BigInteger.valueOf(-1))) {
             kotlin.test.assertFailsWith<IllegalArgumentException>("$value") { header.difficulty = value }
@@ -772,7 +772,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun otherSums_AreSplitInTwoHalvesToo() {
+    fun testOtherSumsAreSplitInTwoHalvesToo() {
         val sum = MoneroMinerTxSum()
         sum.emissionSum = two64.add(BigInteger.valueOf(9))
         sum.feeSum = BigInteger.valueOf(4)
@@ -794,7 +794,7 @@ class MoneroDaemonModelTest {
     // parents: a block holds its txs, a tx its inputs and its outputs
 
     @Test
-    fun block_SetsItselfAsTheBlockOfItsTxs_AndOfItsMinerTx() {
+    fun testBlockSetsItselfAsTheBlockOfItsTxsAndOfItsMinerTx() {
         val block = MoneroBlock()
         val tx1 = MoneroTx()
         val tx2 = MoneroTx()
@@ -810,7 +810,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun tx_SetsItselfAsTheTxOfItsInputsAndOutputs() {
+    fun testTxSetsItselfAsTheTxOfItsInputsAndOutputs() {
         val tx = MoneroTx()
         val input = MoneroOutput()
         val output = MoneroOutput()
@@ -821,7 +821,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun tx_WhenItsListsAreReplacedOrCleared_IsStillSafe() {
+    fun testTxWhenItsListsAreReplacedOrClearedIsStillSafe() {
         val tx = MoneroTx()
         tx.outputs = listOf(MoneroOutput())
         tx.outputs = null
@@ -836,7 +836,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun tx_Height_IsNull_WithoutABlock() {
+    fun testTxHeightIsNullWithoutABlock() {
         assertNull(MoneroTx().height)
         val tx = MoneroTx()
         tx.block = MoneroBlock()
@@ -844,7 +844,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun parents_AreSetByTheDeserializer_WhateverTheOrderOfTheFields() {
+    fun testParentsAreSetByTheDeserializerWhateverTheOrderOfTheFields() {
         val json = """{"txs":[{"outputs":[{"amount":1}],"inputs":[{"index":2}],"hash":"a"}],"minerTx":{"hash":"m","outputs":[{"amount":2}]},"height":7}"""
         val block = readJson(json, MoneroBlock::class.java)
         val tx = block.txs!![0]
@@ -857,7 +857,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun parents_AreNotInTheJson_SoAGraphIsWrittenWithoutCycles() {
+    fun testParentsAreNotInTheJsonSoAGraphIsWrittenWithoutCycles() {
         val block = MoneroBlock()
         val tx = MoneroTx()
         val output = MoneroOutput()
@@ -871,7 +871,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun block_WithManyTxs_IsReadAndWritten() {
+    fun testBlockWithManyTxsIsReadAndWritten() {
         val txs = (0 until 2000).joinToString(",") { """{"hash":"tx$it","fee":$it,"outputs":[{"amount":$it}]}""" }
         val json = """{"height":5,"txs":[$txs]}"""
         val block = readJson(json, MoneroBlock::class.java)
@@ -883,7 +883,7 @@ class MoneroDaemonModelTest {
     // copies
 
     @Test
-    fun tx_Copy_KeepsThePrunedHexAndThePrunableHexApart() {
+    fun testTxCopyKeepsThePrunedHexAndThePrunableHexApart() {
         val tx = MoneroTx()
         tx.prunedHex = "pruned"
         tx.prunableHex = "prunable"
@@ -895,7 +895,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun tx_Copy_IsDeep() {
+    fun testTxCopyIsDeep() {
         val tx = readFixture("tx_in_block", MoneroBlocksResult::class.java).getTxs()[0]
         val copy = tx.copy()
         assertNotSame(tx.inputs!![0], copy.inputs!![0])
@@ -910,7 +910,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun tx_Copy_IsTheParentOfItsOwnOutputs_AndHasNoBlock() {
+    fun testTxCopyIsTheParentOfItsOwnOutputsAndHasNoBlock() {
         val tx = readFixture("tx_in_block", MoneroBlocksResult::class.java).getTxs()[0]
         val copy = tx.copy()
         assertNull(copy.block)
@@ -921,7 +921,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun block_Copy_IsDeep_AndIsTheParentOfItsOwnTxs() {
+    fun testBlockCopyIsDeepAndIsTheParentOfItsOwnTxs() {
         val block = readFixture("tx_in_block", MoneroBlocksResult::class.java).blocks!![0]
         block.minerTx = MoneroTx()
         val copy = block.copy()
@@ -936,7 +936,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun copy_IsOfTheSameClass_WhateverTheTypeItIsCalledOn() {
+    fun testCopyIsOfTheSameClassWhateverTheTypeItIsCalledOn() {
         val header: MoneroBlockHeader = MoneroBlock()
         assertEquals(MoneroBlock::class, header.copy()::class)
         val result: MoneroDaemonUpdateCheckResult = MoneroDaemonUpdateDownloadResult()
@@ -946,7 +946,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun keyImage_Copy_IsIndependent() {
+    fun testKeyImageCopyIsIndependent() {
         val keyImage = MoneroKeyImage()
         keyImage.hex = "a"
         val copy = keyImage.copy()
@@ -957,7 +957,7 @@ class MoneroDaemonModelTest {
     // ------------------------------- values that are not valid ---------------------------------
 
     @Test
-    fun peer_WithAnAddressTypeThatIsNotOne_IsRefused() {
+    fun testPeerWithAnAddressTypeThatIsNotOneIsRefused() {
         for (number in listOf(5, -1, 255)) {
             val error = assertFailsWith<MoneroError>("$number") { readJson("""{"addressType":$number}""", MoneroPeer::class.java) }
             assertTrue("MoneroPeer" in error.message!!, error.message)
@@ -965,7 +965,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun daemonInfo_WithANetworkTypeThatIsNotOne_IsRefused() {
+    fun testDaemonInfoWithANetworkTypeThatIsNotOneIsRefused() {
         for (number in listOf(4, 9, -1)) {
             val error = assertFailsWith<MoneroError>("$number") { readJson("""{"networkType":$number}""", MoneroDaemonInfo::class.java) }
             assertTrue("MoneroDaemonInfo" in error.message!!, error.message)
@@ -973,7 +973,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun daemonInfo_NetworkType_IsTheNumberOfTheNetwork() {
+    fun testDaemonInfoNetworkTypeIsTheNumberOfTheNetwork() {
         val expected = mapOf(0 to MoneroNetworkType.MAINNET, 1 to MoneroNetworkType.TESTNET, 2 to MoneroNetworkType.STAGENET, 3 to MoneroNetworkType.REGTEST)
         for ((number, type) in expected) {
             val info = readJson("""{"networkType":$number}""", MoneroDaemonInfo::class.java)
@@ -985,7 +985,7 @@ class MoneroDaemonModelTest {
     // ------------------------------- common models ---------------------------------
 
     @Test
-    fun rpcPaymentInfo_IsReadAndWritten() {
+    fun testRpcPaymentInfoIsReadAndWritten() {
         val json = """{"credits":42,"topBlockHash":"${"a".repeat(64)}"}"""
         val info = readJson(json, MoneroRpcPaymentInfo::class.java)
         assertEquals(42L, info.credits)
@@ -994,7 +994,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun rpcConnection_IsReadAndWritten() {
+    fun testRpcConnectionIsReadAndWritten() {
         val json = """{"uri":"http://127.0.0.1:18081","username":"user","password":"pass","proxyUri":"127.0.0.1:9050","zmqUri":"tcp://127.0.0.1:18083",
             "priority":2,"timeoutMs":5000,"sslVerify":false}"""
         val connection = readJson(json, MoneroRpcConnection::class.java)
@@ -1010,7 +1010,7 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun rpcConnection_PriorityAndTimeout_AreReadAndWritten() {
+    fun testRpcConnectionPriorityAndTimeoutAreReadAndWritten() {
         val connection = readJson("""{"uri":"http://127.0.0.1:18081","priority":2,"timeoutMs":5000}""", MoneroRpcConnection::class.java)
         assertEquals(2, connection.priority)
         assertEquals(5000L, connection.timeoutMs)
@@ -1019,7 +1019,7 @@ class MoneroDaemonModelTest {
 
     // monero-python drops them when the mining is not active, as monero-cpp reads the status. Here the JSON is what the model has
     @Test
-    fun miningStatus_WhenNotActive_KeepsWhatTheJsonHas() {
+    fun testMiningStatusWhenNotActiveKeepsWhatTheJsonHas() {
         val json = """{"isActive":false,"isBackground":true,"address":"4abc","speed":500,"numThreads":4}"""
         val status = readJson(json, MoneroMiningStatus::class.java)
         assertEquals(false, status.isActive)
@@ -1029,14 +1029,14 @@ class MoneroDaemonModelTest {
     }
 
     @Test
-    fun minerData_Difficulty_IsTheHexadecimalTextOfTheDaemon() {
+    fun testMinerDataDifficultyIsTheHexadecimalTextOfTheDaemon() {
         val json = """{"difficulty":"0x1f4"}"""
         assertEquals("0x1f4", readJson(json, MoneroMinerData::class.java).difficulty)
         assertEquals(json, write(readJson(json, MoneroMinerData::class.java)))
     }
 
     @Test
-    fun auxiliaryPow_OfTheArguments_HasThem() {
+    fun testAuxiliaryPowOfTheArgumentsHasThem() {
         val pow = MoneroAuxiliaryPow("a".repeat(64), "b".repeat(64))
         assertEquals("a".repeat(64), pow.id)
         assertEquals("b".repeat(64), pow.hash)
