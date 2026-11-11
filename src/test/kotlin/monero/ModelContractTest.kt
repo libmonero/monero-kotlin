@@ -32,14 +32,14 @@ class ModelContractTest {
         types.map { type -> dynamicTest(type.simpleName) { test(type) } }
 
     @Test
-    fun modelTypes_AreFound() {
+    fun testModelTypesAreFound() {
         for (name in listOf("MoneroTx", "MoneroBlock", "MoneroDaemonInfo", "MoneroTxWallet", "MoneroTxQuery", "MoneroWalletConfig", "MoneroRpcConnection")) {
             assertTrue(types.any { it.simpleName == name }, "$name is not found")
         }
     }
 
     @TestFactory
-    fun model_FieldsAreNamedInCamelCase() = forEachType { type ->
+    fun testModelFieldsAreNamedInCamelCase() = forEachType { type ->
         for (field in jsonFields(type)) {
             val name = jsonName(field)
             assertTrue(name.matches(Regex("[a-z][A-Za-z0-9]*")), "${type.simpleName}.$name is not in camel case")
@@ -47,18 +47,18 @@ class ModelContractTest {
     }
 
     @TestFactory
-    fun model_WhenNothingIsSet_IsAnEmptyObject() = forEachType { type ->
+    fun testModelWhenNothingIsSetIsAnEmptyObject() = forEachType { type ->
         assertEquals("{}", MoneroJson.serialize(newInstance(type)))
     }
 
     @TestFactory
-    fun model_ReadFromAnEmptyObject_HasNothingSet() = forEachType { type ->
+    fun testModelReadFromAnEmptyObjectHasNothingSet() = forEachType { type ->
         val model = MoneroJson.deserialize("{}", type)!!
         for (field in jsonFields(type)) assertNull(field.get(model), "${type.simpleName}.${field.name}")
     }
 
     @TestFactory
-    fun model_ReadFromNullFields_HasNothingSet() = forEachType { type ->
+    fun testModelReadFromNullFieldsHasNothingSet() = forEachType { type ->
         val json = JsonNodeFactory.instance.objectNode()
         for (field in jsonFields(type)) json.putNull(jsonName(field))
         val model = MoneroJson.deserialize(json.toString(), type)!!
@@ -66,13 +66,13 @@ class ModelContractTest {
     }
 
     @TestFactory
-    fun model_ReadFromAnObjectWithUnknownFields_IgnoresThem() = forEachType { type ->
+    fun testModelReadFromAnObjectWithUnknownFieldsIgnoresThem() = forEachType { type ->
         val model = MoneroJson.deserialize("""{"unknown":1,"alsoUnknown":{"a":[1,2]}}""", type)!!
         assertEquals("{}", MoneroJson.serialize(model))
     }
 
     @TestFactory
-    fun model_WithEveryFieldSet_IsReadAndWritten() = forEachType { type ->
+    fun testModelWithEveryFieldSetIsReadAndWritten() = forEachType { type ->
         val model = Sampler().populate(type)
         val json = MoneroJson.serialize(model)
 
@@ -87,7 +87,7 @@ class ModelContractTest {
     }
 
     @TestFactory
-    fun copy_HasEveryFieldOfTheOriginal() = types.filter { hasCopy(it) }.map { type ->
+    fun testCopyHasEveryFieldOfTheOriginal() = types.filter { hasCopy(it) }.map { type ->
         dynamicTest(type.simpleName) {
             val model = Sampler().populate(type)
             val copy = type.getMethod("copy").invoke(model)
@@ -99,7 +99,7 @@ class ModelContractTest {
     }
 
     @TestFactory
-    fun copy_OfAModelWithNothingSet_HasNothingSet() = types.filter { hasCopy(it) }.map { type ->
+    fun testCopyOfAModelWithNothingSetHasNothingSet() = types.filter { hasCopy(it) }.map { type ->
         dynamicTest(type.simpleName) {
             assertEquals("{}", MoneroJson.serialize(type.getMethod("copy").invoke(newInstance(type))))
         }

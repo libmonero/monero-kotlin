@@ -19,37 +19,37 @@ import org.junit.jupiter.api.Tag
 class TestMarkersTest {
 
     @Test
-    fun expectNotSupported_PassesWhenTheErrorSaysIt() {
+    fun testExpectNotSupportedPassesWhenTheErrorSaysIt() {
         TestMarkers.expectNotSupported("a") { throw MoneroError("Not supported") }
         TestMarkers.expectNotSupported("b") { throw MoneroError("The keys wallet does not support saving") }
         TestMarkers.expectNotSupported("c") { throw UnsupportedOperationException("it doesn't support that") }
     }
 
     @Test
-    fun expectNotSupported_ThrowsAnyOtherErrorAsItIs() {
+    fun testExpectNotSupportedThrowsAnyOtherErrorAsItIs() {
         val error = MoneroError("The wallet is closed")
         assertSame(error, assertFailsWith<MoneroError> { TestMarkers.expectNotSupported("a") { throw error } })
     }
 
     @Test
-    fun expectNotSupported_FailsWhenThereIsNoError() {
+    fun testExpectNotSupportedFailsWhenThereIsNoError() {
         assertFailsWith<AssertionFailedError> { TestMarkers.expectNotSupported("a") { } }
     }
 
     @Test
-    fun expectNotSupported_LetsAnAssertionFailureThrough() {
+    fun testExpectNotSupportedLetsAnAssertionFailureThrough() {
         // a check that fails is not the error of an operation that is not supported
         assertFailsWith<AssertionFailedError> { TestMarkers.expectNotSupported("a") { throw AssertionFailedError("not supported") } }
     }
 
     @Test
-    fun expectNotSupported_KeepsTheSkipOfAnAssumption() {
+    fun testExpectNotSupportedKeepsTheSkipOfAnAssumption() {
         val skip = TestAbortedException("no library")
         assertSame(skip, assertFailsWith<TestAbortedException> { TestMarkers.expectNotSupported("a") { throw skip } })
     }
 
     @Test
-    fun expectNotImplemented_SkipsWhileTheTestFails() {
+    fun testExpectNotImplementedSkipsWhileTheTestFails() {
         val error = MoneroError("not there")
         val skip = assertFailsWith<TestAbortedException> { TestMarkers.expectNotImplemented("a") { throw error } }
         assertSame(error, skip.cause)
@@ -58,34 +58,34 @@ class TestMarkersTest {
     }
 
     @Test
-    fun expectNotImplemented_PassesOnceTheTestPasses() {
+    fun testExpectNotImplementedPassesOnceTheTestPasses() {
         var ran = false
         TestMarkers.expectNotImplemented("a") { ran = true }
         assertTrue(ran)
     }
 
     @Test
-    fun expectNotImplemented_KeepsTheSkipOfAnAssumption() {
+    fun testExpectNotImplementedKeepsTheSkipOfAnAssumption() {
         val skip = TestAbortedException("no library")
         assertSame(skip, assertFailsWith<TestAbortedException> { TestMarkers.expectNotImplemented("a") { throw skip } })
     }
 
     @Test
-    fun expectNotImplemented_DoesNotHideAnErrorOfTheJvm() {
+    fun testExpectNotImplementedDoesNotHideAnErrorOfTheJvm() {
         assertFailsWith<StackOverflowError> { TestMarkers.expectNotImplemented("a") { throw StackOverflowError() } }
     }
 
     // passes if the extension is on: it throws what the mark expects
     @NotSupported
     @Test
-    fun marked_NotSupported_PassesWhenItThrowsNotSupported() {
+    fun testMarkedNotSupportedPassesWhenItThrowsNotSupported() {
         throw MoneroError("Not supported")
     }
 
     // is reported as skipped if the extension is on, and fails if it is not
     @NotImplemented
     @Test
-    fun marked_NotImplemented_IsSkippedWhileItFails() {
+    fun testMarkedNotImplementedIsSkippedWhileItFails() {
         fail("This is not implemented")
     }
 }

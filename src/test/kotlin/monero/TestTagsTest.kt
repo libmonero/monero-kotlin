@@ -21,7 +21,7 @@ import org.junit.platform.commons.support.AnnotationSupport
 class TestTagsTest {
 
     @Test
-    fun everyClassOfTests_IsTaggedUnitOrIntegration() {
+    fun testEveryClassOfTestsIsTaggedUnitOrIntegration() {
         val root = File(TestTagsTest::class.java.protectionDomain.codeSource.location.toURI())
         val classes = root.walkTopDown().filter { it.isFile && it.name.endsWith(".class") && '$' !in it.name }
             .map { Class.forName(it.relativeTo(root).path.removeSuffix(".class").replace(File.separatorChar, '.')) }
