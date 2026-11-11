@@ -66,7 +66,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the default directory of the ring database of each network, as test_get_default_ringdb_path_* of monero-python
     @Test
-    fun getDefaultRingdbPath_OfEachNetwork() {
+    fun testGetDefaultRingdbPath() {
         val mainnet = MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.MAINNET)
         assertTrue(mainnet.endsWith(".shared-ringdb"), mainnet)
         assertTrue(MoneroWalletFull.getDefaultRingdbPath(MoneroNetworkType.TESTNET).endsWith(".shared-ringdb${java.io.File.separator}testnet"))
@@ -104,7 +104,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun exportTheKeysOfAViewOnlyWallet_LeavesTheSpendKeyOut() {
+    fun testExportTheKeysOfAViewOnlyWalletLeavesTheSpendKeyOut() {
         MoneroWalletFull.createWallet(config()).use { wallet ->
             val keysData = wallet.getKeysFileBuffer(password, true)
             MoneroWalletFull.openWalletData(password, MoneroNetworkType.MAINNET, keysData).use { viewOnly ->
@@ -116,14 +116,14 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun exportTheKeys_WithAnotherPassword_IsAnError() {
+    fun testExportTheKeysWithAnotherPasswordIsAnError() {
         MoneroWalletFull.createWallet(config()).use { wallet ->
             assertFailsWith<MoneroError> { wallet.getKeysFileBuffer("not the password", false) }
         }
     }
 
     @Test
-    fun importTheKeys_WithAnotherPassword_OrAnEmptyBuffer_IsAnError() {
+    fun testImportTheKeysWithAnotherPasswordOrAnEmptyBufferIsAnError() {
         MoneroWalletFull.createWallet(config()).use { wallet ->
             val keysData = wallet.getKeysFileBuffer(password, false)
             assertFailsWith<MoneroError> { MoneroWalletFull.openWalletData("not the password", MoneroNetworkType.MAINNET, keysData) }
@@ -133,7 +133,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun exportTheWalletFiles_OfAClosedWallet_IsAnError() {
+    fun testExportTheWalletFilesOfAClosedWalletIsAnError() {
         val wallet = MoneroWalletFull.createWallet(config())
         wallet.close()
         assertFailsWith<MoneroError> { wallet.getKeysFileBuffer(password, false) }
@@ -143,7 +143,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- CREATE A WALLET ----------------------------------
 
     @Test
-    fun createWalletRandom_WritesTheWallet() {
+    fun testCreateWalletRandomFull() {
         val path = walletPath()
         assertFalse(MoneroWalletFull.walletExists(path))
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
@@ -159,7 +159,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletRandom_WithAnotherNetwork_IsOfThatNetwork() {
+    fun testCreateWalletRandomWithAnotherNetworkIsOfThatNetwork() {
         val config = config(walletPath())
         config.networkType = MoneroNetworkType.TESTNET
         MoneroWalletFull.createWalletRandom(config).use { wallet ->
@@ -168,20 +168,20 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletRandom_WithAnUnknownLanguage_IsAnError() {
+    fun testCreateWalletRandomWithAnUnknownLanguageIsAnError() {
         val config = config(walletPath())
         config.language = "Klingon"
         assertFailsWith<MoneroError> { MoneroWalletFull.createWalletRandom(config) }
     }
 
     @Test
-    fun createWalletRandom_WithoutAPath_IsAnError() {
+    fun testCreateWalletRandomWithoutAPathIsAnError() {
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWalletRandom(config()) }
         assertEquals("Must provide wallet path", error.message)
     }
 
     @Test
-    fun createWalletRandom_WithoutANetworkType_IsAnError() {
+    fun testCreateWalletRandomWithoutANetworkTypeIsAnError() {
         val config = MoneroWalletConfig()
         config.path = walletPath()
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWalletRandom(config) }
@@ -189,7 +189,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletRandom_AtThePathOfAnotherWallet_IsAnError() {
+    fun testCreateWalletRandomAtThePathOfAnotherWalletIsAnError() {
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).close()
         assertTrue(MoneroWalletFull.walletExists(path))
@@ -199,7 +199,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromSeed_KeepsTheRestoreHeight() {
+    fun testCreateWalletFromSeedFull() {
         val path = walletPath()
         val config = config(path)
         config.seed = seed
@@ -212,7 +212,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromSeed_WithoutARestoreHeight_ScansFromTheGenesis() {
+    fun testCreateWalletFromSeedWithoutARestoreHeightScansFromTheGenesis() {
         val config = config(walletPath())
         config.seed = seed
         MoneroWalletFull.createWalletFromSeed(config).use { wallet ->
@@ -221,7 +221,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromSeed_WithABrokenSeed_IsAnError() {
+    fun testCreateWalletFromSeedWithABrokenSeedIsAnError() {
         val config = config(walletPath())
         config.seed = brokenSeed
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWalletFromSeed(config) }
@@ -229,13 +229,13 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromSeed_WithoutASeed_IsAnError() {
+    fun testCreateWalletFromSeedWithoutASeedIsAnError() {
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWalletFromSeed(config(walletPath())) }
         assertEquals("Must provide wallet seed", error.message)
     }
 
     @Test
-    fun createWalletFromKeys_WithAllThreeKeys_IsNotViewOnly() {
+    fun testCreateWalletFromKeysWithAllThreeKeysIsNotViewOnly() {
         val path = walletPath()
         val config = config(path)
         config.primaryAddress = primaryAddress
@@ -249,7 +249,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_WithoutASpendKey_IsViewOnly() {
+    fun testCreateWalletFromKeysWithoutASpendKeyIsViewOnly() {
         val config = config(walletPath())
         config.primaryAddress = primaryAddress
         config.privateViewKey = privateViewKey
@@ -259,7 +259,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_WithAViewKeyButNoAddress_IsAnError() {
+    fun testCreateWalletFromKeysWithAViewKeyButNoAddressIsAnError() {
         val config = config(walletPath())
         config.privateViewKey = privateViewKey
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWalletFromKeys(config) }
@@ -267,7 +267,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_WithNoKeys_IsAnError() {
+    fun testCreateWalletFromKeysWithNoKeysIsAnError() {
         val config = config(walletPath())
         config.restoreHeight = 128
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWalletFromKeys(config) }
@@ -277,7 +277,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- THE CREATE CONFIG ----------------------------------
 
     @Test
-    fun createWallet_FromAConfigWithoutAPath_StaysInMemory() {
+    fun testCreateWalletFromAConfigWithoutAPathStaysInMemory() {
         val config = config()
         config.seed = seed
         MoneroWalletFull.createWallet(config).use { wallet ->
@@ -287,7 +287,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_FromAConfigWithAPath_WritesTheWallet() {
+    fun testCreateWalletFromAConfigWithAPathWritesTheWallet() {
         val path = walletPath()
         val config = config(path)
         config.seed = seed
@@ -300,7 +300,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_WithASeedAndKeys_IsAnError() {
+    fun testCreateWalletWithASeedAndKeysIsAnError() {
         val config = config(walletPath())
         config.seed = seed
         config.primaryAddress = primaryAddress
@@ -310,7 +310,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_WithARestoreHeightButNoSeedOrKeys_IsAnError() {
+    fun testCreateWalletWithARestoreHeightButNoSeedOrKeysIsAnError() {
         val config = config(walletPath())
         config.restoreHeight = 128
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWallet(config) }
@@ -318,7 +318,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_WithRegtestOutsideMainnet_IsAnError() {
+    fun testCreateWalletWithRegtestOutsideMainnetIsAnError() {
         val config = config(walletPath())
         config.networkType = MoneroNetworkType.TESTNET
         config.regtest = true
@@ -327,7 +327,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_WithoutANetworkType_IsAnError() {
+    fun testCreateWalletWithoutANetworkTypeIsAnError() {
         val config = MoneroWalletConfig()
         config.path = walletPath()
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.createWallet(config) }
@@ -337,7 +337,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- OPEN A WALLET ----------------------------------
 
     @Test
-    fun openWallet_ReadsWhatTheWalletWroteToItsFiles() {
+    fun testOpenWalletReadsWhatTheWalletWroteToItsFiles() {
         val path = walletPath()
         val config = config(path)
         config.seed = seed
@@ -353,14 +353,14 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun openWallet_OfNoWalletAtThePath_IsAnError() {
+    fun testOpenWalletOfNoWalletAtThePathIsAnError() {
         val path = walletPath()
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.openWallet(config(path)) }
         assertEquals("file not found \"$path.keys\"", error.message)
     }
 
     @Test
-    fun openWallet_WithTheWrongPassword_IsAnError() {
+    fun testOpenWalletWithTheWrongPasswordIsAnError() {
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).close()
 
@@ -371,20 +371,20 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun openWallet_WithoutAPath_IsAnError() {
+    fun testOpenWalletWithoutAPathIsAnError() {
         val error = assertFailsWith<MoneroError> { MoneroWalletFull.openWallet(config()) }
         assertEquals("Must provide wallet path", error.message)
     }
 
     @Test
-    fun walletExists_IsFalseForNoWallet() {
+    fun testWalletExistsIsFalseForNoWallet() {
         assertFalse(MoneroWalletFull.walletExists(walletPath()))
     }
 
     // ------------------------------- SEED AND KEYS ----------------------------------
 
     @Test
-    fun getSeedLanguage_IsTheLanguageOfTheConfig() {
+    fun testGetSeedLanguageIsTheLanguageOfTheConfig() {
         val config = config()
         config.language = "Spanish"
         MoneroWalletFull.createWallet(config).use { wallet ->
@@ -393,14 +393,14 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSeedLanguages_NeedsNoWallet() {
+    fun testGetSeedLanguagesNeedsNoWallet() {
         val wallet = testWallet()
         wallet.close()
         assertTrue(wallet.getSeedLanguages().contains(MoneroWalletFull.DEFAULT_LANGUAGE))
     }
 
     @Test
-    fun theKeys_OfAWalletFromKeys_AreTheOnesOfItsSeed() {
+    fun testTheKeysOfAWalletFromKeysAreTheOnesOfItsSeed() {
         val config = config(walletPath())
         config.primaryAddress = primaryAddress
         config.privateViewKey = privateViewKey
@@ -416,7 +416,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun aViewOnlyWallet_HasNoSeedAndNoSpendKey() {
+    fun testAViewOnlyWalletHasNoSeedAndNoSpendKey() {
         val path = walletPath()
         val config = config(path)
         config.primaryAddress = primaryAddress
@@ -436,7 +436,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- ADDRESSES, ACCOUNTS AND SUBADDRESSES ----------------------------------
 
     @Test
-    fun getAddress_OfASubaddress_IsAnAddressOfItsOwn() {
+    fun testGetAddressOfASubaddressIsAnAddressOfItsOwn() {
         testWallet().use { wallet ->
             val subaddress = wallet.getAddress(0, 1)
             validateAddress(subaddress)
@@ -449,7 +449,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getAccount_ReadsTheFirstAccount() {
+    fun testGetAccountReadsTheFirstAccount() {
         testWallet().use { wallet ->
             val account = wallet.getAccount(0)
             assertEquals(0, account.index)
@@ -459,7 +459,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getAccount_WithSubaddresses_ReadsThem() {
+    fun testGetAccountWithSubaddressesReadsThem() {
         testWallet().use { wallet ->
             val account = wallet.getAccount(0, true)
             assertEquals(primaryAddress, account.primaryAddress)
@@ -475,7 +475,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddresses_WithoutIndices_ReadsAllOfThem() {
+    fun testGetSubaddressesWithoutIndicesReadsAllOfThem() {
         testWallet().use { wallet ->
             val all = wallet.getSubaddresses(0)
             assertTrue(all.isNotEmpty())
@@ -486,7 +486,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddresses_ReadsTheIndices() {
+    fun testGetSubaddressesReadsTheIndices() {
         testWallet().use { wallet ->
             val subaddresses = wallet.getSubaddresses(0, listOf(0, 0))
             assertEquals(2, subaddresses.size)
@@ -499,7 +499,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddress_MatchesThePluralCall() {
+    fun testGetSubaddressMatchesThePluralCall() {
         testWallet().use { wallet ->
             val subaddress = wallet.getSubaddress(0, 0)
             assertEquals(primaryAddress, subaddress.address)
@@ -514,7 +514,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- MESSAGES ----------------------------------
 
     @Test
-    fun signAndVerifyMessages_WithTheSpendKeyAndTheViewKey() {
+    fun testSignAndVerifyMessagesWithTheSpendKeyAndTheViewKey() {
         val message = "This is a super important message which needs to be signed and verified."
         testWallet().use { wallet ->
             for (signatureType in listOf(SIGN_WITH_SPEND_KEY, SIGN_WITH_VIEW_KEY)) {
@@ -532,7 +532,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun verifyMessage_OfAnotherAddress_IsNotGood() {
+    fun testVerifyMessageOfAnotherAddressIsNotGood() {
         testWallet().use { wallet ->
             val signature = wallet.signMessage("hello", SIGN_WITH_SPEND_KEY, 0, 0)
             assertEquals(false, wallet.verifyMessage("hello", wallet.getAddress(0, 1), signature).isGood)
@@ -542,7 +542,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- PAYMENT URIS ----------------------------------
 
     @Test
-    fun getPaymentUri_WithoutAnAddress_IsAnError() {
+    fun testGetPaymentUriWithoutAnAddressIsAnError() {
         testWallet().use { wallet ->
             val config = MoneroTxConfig()
             config.destinations = listOf(MoneroDestination(null, BigInteger.ZERO))
@@ -552,7 +552,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun parsePaymentUri_OfNoUri_IsAnError() {
+    fun testParsePaymentUriOfNoUriIsAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.parsePaymentUri("this is not a uri") }
         }
@@ -561,7 +561,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- THE DAEMON CONNECTION ----------------------------------
 
     @Test
-    fun theDaemonConnection_IsNoneUntilItIsSet() {
+    fun testTheDaemonConnectionIsNoneUntilItIsSet() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertNull(wallet.getDaemonConnection())
 
@@ -571,7 +571,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun setDaemonConnection_WithNoUriOrNull_DisconnectsTheWallet() {
+    fun testSetDaemonConnectionWithNoUriOrNullDisconnectsTheWallet() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri))
             assertNotNull(wallet.getDaemonConnection())
@@ -586,7 +586,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun setDaemonConnection_KeepsTheCredentials() {
+    fun testSetDaemonConnectionKeepsTheCredentials() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val connection = MoneroRpcConnection(offlineServerUri)
             connection.username = "superuser"
@@ -601,7 +601,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun theDaemonConnection_IsNotKeptInTheFiles() {
+    fun testTheDaemonConnectionIsNotKeptInTheFiles() {
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
             wallet.setDaemonConnection(MoneroRpcConnection(offlineServerUri))
@@ -614,7 +614,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_WithAServer_ConnectsTheWallet() {
+    fun testCreateWalletWithAServerConnectsTheWallet() {
         val config = config()
         config.server = MoneroRpcConnection(offlineServerUri)
         MoneroWalletFull.createWallet(config).use { wallet ->
@@ -623,7 +623,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun theTrustOfTheDaemon_IsWhatTheConfigAndTheConnectionSay() {
+    fun testTheTrustOfTheDaemonIsWhatTheConfigAndTheConnectionSay() {
         val config = config()
         config.server = MoneroRpcConnection(offlineServerUri)
         config.isTrustedDaemon = true
@@ -639,7 +639,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun aDaemonOnALocalAddress_IsTrustedWhenTheTrustIsNotSet() {
+    fun testADaemonOnALocalAddressIsTrustedWhenTheTrustIsNotSet() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.setDaemonConnection(MoneroRpcConnection("http://127.0.0.1:18081"))
             assertTrue(wallet.isDaemonTrusted())
@@ -652,7 +652,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- SYNC AND THE CHAIN ----------------------------------
 
     @Test
-    fun aNewWallet_HasNotScanned() {
+    fun testANewWalletHasNotScanned() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFalse(wallet.isConnectedToDaemon())
             assertFalse(wallet.isSynced())
@@ -665,7 +665,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun aWalletWithAnOfflineServer_IsNotConnected() {
+    fun testAWalletWithAnOfflineServerIsNotConnected() {
         val config = config()
         config.server = MoneroRpcConnection(offlineServerUri)
         MoneroWalletFull.createWallet(config).use { wallet ->
@@ -675,7 +675,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun theCallsThatAskTheDaemon_OfAWalletThatIsNotConnected_AreAnError() {
+    fun testTheCallsThatAskTheDaemonOfAWalletThatIsNotConnectedAreAnError() {
         val config = config()
         config.server = MoneroRpcConnection(offlineServerUri)
         MoneroWalletFull.createWallet(config).use { wallet ->
@@ -689,7 +689,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // A date that does not fit the function of monero-c is refused, where it would be cut to fit and mean another date
     @Test
-    fun getHeightByDate_OfADateThatIsNotValid_IsAnError() {
+    fun testGetHeightByDateOfADateThatIsNotValidIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             for ((year, month, day) in listOf(Triple(2026, 0, 1), Triple(2026, 13, 1), Triple(2026, 1, 0), Triple(2026, 1, 32), Triple(-1, 1, 1), Triple(65536, 1, 1))) {
                 assertEquals("Invalid date: $year-$month-$day", assertFailsWith<MoneroError> { wallet.getHeightByDate(year, month, day) }.message)
@@ -698,7 +698,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun sync_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testSyncOfAWalletThatIsNotConnectedIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.sync() }
             assertEquals("Wallet is not connected to daemon", error.message)
@@ -706,7 +706,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun startSyncing_SucceedsWhileTheWalletIsNotConnected() {
+    fun testStartSyncingSucceedsWhileTheWalletIsNotConnected() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.startSyncing(1000)
             wallet.stopSyncing()
@@ -714,21 +714,21 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun startSyncing_WithAPeriodOutOfRange_IsAnError() {
+    fun testStartSyncingWithAPeriodOutOfRangeIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFailsWith<MoneroError> { wallet.startSyncing(0) }
         }
     }
 
     @Test
-    fun waitForNextBlock_OfAWalletThatIsNotConnected_TimesOut() {
+    fun testWaitForNextBlockOfAWalletThatIsNotConnectedTimesOut() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertNull(wallet.waitForNextBlock(100))
         }
     }
 
     @Test
-    fun waitForNextBlock_WithATimeoutOutOfRange_IsAnError() {
+    fun testWaitForNextBlockWithATimeoutOutOfRangeIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFailsWith<MoneroError> { wallet.waitForNextBlock(0) }
         }
@@ -737,7 +737,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- THE SHUTDOWN ----------------------------------
 
     @Test
-    fun requestShutdown_OfAWalletThatIsNotSyncing_Succeeds() {
+    fun testRequestShutdownOfAWalletThatIsNotSyncingSucceeds() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.requestShutdown()
             wallet.requestShutdown()
@@ -745,7 +745,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun requestShutdown_OfAClosedWallet_IsAnError() {
+    fun testRequestShutdownOfAClosedWalletIsAnError() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         val error = assertFailsWith<MoneroError> { wallet.requestShutdown() }
@@ -755,7 +755,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // The call of another thread never reaches a handle that the close has freed: it ends with the error of a closed
     // wallet, and the process stays up
     @Test
-    fun requestShutdown_WhileTheWalletCloses_NeverReachesAFreedHandle() {
+    fun testRequestShutdownWhileTheWalletClosesNeverReachesAFreedHandle() {
         repeat(20) {
             val wallet = testWallet()
             val ended = CompletableFuture<Throwable?>()
@@ -780,7 +780,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- TRANSACTIONS ----------------------------------
 
     @Test
-    fun getTxs_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testGetTxsOfAWalletThatIsNotConnectedIsAnError() {
         testWallet().use { wallet ->
             assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTxs() }.message)
             assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTxs(MoneroTxQuery()) }.message)
@@ -788,7 +788,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createTxs_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testCreateTxsOfAWalletThatIsNotConnectedIsAnError() {
         testWallet().use { wallet ->
             val config = MoneroTxConfig()
             config.accountIndex = 0
@@ -800,7 +800,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createTxs_WithoutAnAccount_IsAnError() {
+    fun testCreateTxsWithoutAnAccountIsAnError() {
         testWallet().use { wallet ->
             val config = MoneroTxConfig()
             config.destinations = listOf(MoneroDestination(primaryAddress, BigInteger.valueOf(1000000000000L)))
@@ -810,28 +810,28 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createTxs_WithoutADestination_IsAnError() {
+    fun testCreateTxsWithoutADestinationIsAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.createTxs(MoneroTxConfig()) }
         }
     }
 
     @Test
-    fun relayTx_OfMetadataThatIsNotOne_IsAnError() {
+    fun testRelayTxOfMetadataThatIsNotOneIsAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.relayTx("this is not the metadata of a transaction") }
         }
     }
 
     @Test
-    fun relayTx_OfATxWithoutMetadata_IsAnError() {
+    fun testRelayTxOfATxWithoutMetadataIsAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.relayTx(MoneroTxWallet()) }
         }
     }
 
     @Test
-    fun createTx_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testCreateTxOfAWalletThatIsNotConnectedIsAnError() {
         testWallet().use { wallet ->
             val config = MoneroTxConfig()
             config.accountIndex = 0
@@ -841,7 +841,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createTx_WithoutAnAccountOrADestination_IsAnError() {
+    fun testCreateTxWithoutAnAccountOrADestinationIsAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.createTx(MoneroTxConfig()) }
             val config = MoneroTxConfig()
@@ -851,7 +851,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun relayTxs_OfWhatAreNotTxs_AreAnError() {
+    fun testRelayTxsOfWhatAreNotTxsAreAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.relayTxs(listOf("this is not the metadata of a transaction")) }
             assertFailsWith<MoneroError> { wallet.relayTxs(listOf(MoneroTxWallet())) }
@@ -859,7 +859,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun signDescribeAndSubmitTxs_OfWhatIsNotTheHexOfTxs_AreAnError() {
+    fun testSignDescribeAndSubmitTxsOfWhatIsNotTheHexOfTxsAreAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.signTxs("this is not the hex of transactions") }
             assertFailsWith<MoneroError> { wallet.describeUnsignedTxSet("this is not the hex of transactions") }
@@ -870,7 +870,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txsFunctions_OfAClosedWallet_Fail() {
+    fun testTxsFunctionsOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         val txConfig = MoneroTxConfig()
@@ -883,7 +883,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun sweeps_OfAWalletThatIsNotConnected_AreAnError() {
+    fun testSweepsOfAWalletThatIsNotConnectedAreAnError() {
         testWallet().use { wallet ->
             val config = MoneroTxConfig()
             config.address = primaryAddress
@@ -896,7 +896,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun sweeps_WithoutAnAddress_AreAnError() {
+    fun testSweepsWithoutAnAddressAreAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.sweepUnlocked(MoneroTxConfig()) }
             assertFailsWith<MoneroError> { wallet.sweepOutput(MoneroTxConfig()) }
@@ -904,7 +904,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun sweeps_OfAClosedWallet_Fail() {
+    fun testSweepsOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.sweepOutput(MoneroTxConfig()) }
@@ -915,7 +915,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- MULTISIG ----------------------------------
 
     @Test
-    fun aWalletThatIsNotMultisig_SaysSo() {
+    fun testAWalletThatIsNotMultisigSaysSo() {
         testWallet().use { wallet ->
             assertFalse(wallet.isMultisig())
             assertFalse(wallet.isMultisigImportNeeded())
@@ -928,7 +928,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun prepareMultisig_ReturnsTheHexOfTheWallet() {
+    fun testPrepareMultisigReturnsTheHexOfTheWallet() {
         MoneroWalletFull.createWallet(config()).use { first ->
             MoneroWalletFull.createWallet(config()).use { second ->
                 val hex = first.prepareMultisig()
@@ -939,7 +939,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun makeMultisig_WithHexesThatAreNotPrepared_IsAnError() {
+    fun testMakeMultisigWithHexesThatAreNotPreparedIsAnError() {
         MoneroWalletFull.createWallet(config()).use { wallet ->
             wallet.prepareMultisig()
             val error = assertFailsWith<MoneroError> { wallet.makeMultisig(listOf("asd", "dsa"), 2, "") }
@@ -948,7 +948,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun aWalletInTheMiddleOfTheSetup_IsMultisigButNotReady() {
+    fun testAWalletInTheMiddleOfTheSetupIsMultisigButNotReady() {
         MoneroWalletFull.createWallet(config()).use { first ->
             MoneroWalletFull.createWallet(config()).use { second ->
                 val prepared = second.prepareMultisig()
@@ -966,7 +966,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun exchangeMultisigKeys_WithHexesThatAreNotOfTheRound_IsAnError() {
+    fun testExchangeMultisigKeysWithHexesThatAreNotOfTheRoundIsAnError() {
         MoneroWalletFull.createWallet(config()).use { wallet ->
             wallet.prepareMultisig()
             assertTrue(assertFailsWith<MoneroError> { wallet.exchangeMultisigKeys(listOf("asd", "dsa"), "") }.message!!.isNotEmpty())
@@ -975,32 +975,32 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the setups of the multisig sample code of monero-python
     @Test
-    fun theSetup_Of1Of2_MakesAFinalMultisigWallet() {
+    fun testTheSetupOf1Of2MakesAFinalMultisigWallet() {
         assertFinalMultisig(1, 2)
     }
 
     @Test
-    fun theSetup_Of1Of4_MakesAFinalMultisigWallet() {
+    fun testTheSetupOf1Of4MakesAFinalMultisigWallet() {
         assertFinalMultisig(1, 4)
     }
 
     @Test
-    fun theSetup_Of2Of2_MakesAFinalMultisigWallet() {
+    fun testTheSetupOf2Of2MakesAFinalMultisigWallet() {
         assertFinalMultisig(2, 2)
     }
 
     @Test
-    fun theSetup_Of2Of3_MakesAFinalMultisigWallet() {
+    fun testTheSetupOf2Of3MakesAFinalMultisigWallet() {
         assertFinalMultisig(2, 3)
     }
 
     @Test
-    fun theSetup_Of2Of4_MakesAFinalMultisigWallet() {
+    fun testTheSetupOf2Of4MakesAFinalMultisigWallet() {
         assertFinalMultisig(2, 4)
     }
 
     @Test
-    fun aFinalMultisigWallet_ExportsItsHex() {
+    fun testAFinalMultisigWalletExportsItsHex() {
         MultisigSupport.create(2, 2, { config() }).use { setup ->
             val hex = setup.participants[0].exportMultisigHex()
             assertTrue(hex.isNotEmpty())
@@ -1009,28 +1009,28 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun exportMultisigHex_OfAWalletThatIsNotMultisig_IsAnError() {
+    fun testExportMultisigHexOfAWalletThatIsNotMultisigIsAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.exportMultisigHex() }
         }
     }
 
     @Test
-    fun importMultisigHex_OfHexesThatAreNotOnes_IsAnError() {
+    fun testImportMultisigHexOfHexesThatAreNotOnesIsAnError() {
         MultisigSupport.create(2, 2, { config() }).use { setup ->
             assertFailsWith<MoneroError> { setup.participants[0].importMultisigHex(listOf("asd", "dsa"), false) }
         }
     }
 
     @Test
-    fun signMultisigTxHex_OfAHexThatIsNotATx_IsAnError() {
+    fun testSignMultisigTxHexOfAHexThatIsNotATxIsAnError() {
         MultisigSupport.create(2, 2, { config() }).use { setup ->
             assertFailsWith<MoneroError> { setup.participants[0].signMultisigTxHex("this is not a multisig transaction") }
         }
     }
 
     @Test
-    fun submitMultisigTxHex_OfAHexThatIsNotATx_IsAnError() {
+    fun testSubmitMultisigTxHexOfAHexThatIsNotATxIsAnError() {
         MultisigSupport.create(2, 2, { config() }).use { setup ->
             assertFailsWith<MoneroError> { setup.participants[0].submitMultisigTxHex("this is not a signed multisig transaction") }
         }
@@ -1039,7 +1039,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- THE LIFECYCLE ----------------------------------
 
     @Test
-    fun aClosedWallet_RefusesItsCalls() {
+    fun testAClosedWalletRefusesItsCalls() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertTrue(wallet.isClosed())
@@ -1088,7 +1088,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun setRestoreHeight_MovesWhereTheWalletScansFrom() {
+    fun testSetRestoreHeightMovesWhereTheWalletScansFrom() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.setRestoreHeight(10)
             assertEquals(10L, wallet.getRestoreHeight())
@@ -1099,7 +1099,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the cache file, at the path of the wallet, holds the chain that the wallet has scanned, and save writes it
     @Test
-    fun closeWithASave_WritesTheWallet() {
+    fun testCloseWithASaveWritesTheWallet() {
         val path = walletPath()
         val wallet = MoneroWalletFull.createWalletRandom(config(path))
         deleteTheCache(path)
@@ -1111,7 +1111,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun closeWithoutASave_DoesNotWriteTheWallet() {
+    fun testCloseWithoutASaveDoesNotWriteTheWallet() {
         val path = walletPath()
         val wallet = MoneroWalletFull.createWalletRandom(config(path))
         deleteTheCache(path)
@@ -1122,7 +1122,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun save_WritesTheWalletBeforeItCloses() {
+    fun testSaveWritesTheWalletBeforeItCloses() {
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
             deleteTheCache(path)
@@ -1134,7 +1134,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun save_WithoutAPath_IsAnError() {
+    fun testSaveWithoutAPathIsAnError() {
         val config = MoneroWalletConfig()
         config.networkType = MoneroNetworkType.TESTNET
         MoneroWalletFull.createWallet(config).use { wallet ->
@@ -1149,7 +1149,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun changePassword_WritesTheFilesWithTheNewOne() {
+    fun testChangePasswordWritesTheFilesWithTheNewOne() {
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
             wallet.changePassword(password, "a new password")
@@ -1164,7 +1164,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun changePassword_WithTheWrongOldOne_IsAnError() {
+    fun testChangePasswordWithTheWrongOldOneIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.changePassword("not the password", "a new password") }
             assertEquals("Invalid original password.", error.message)
@@ -1218,7 +1218,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- THE INTERFACE ----------------------------------
 
     @Test
-    fun wallet_IsAMoneroWallet() {
+    fun testWalletIsAMoneroWallet() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val asInterface: MoneroWallet = wallet
             assertEquals(wallet.getPrimaryAddress(), asInterface.getPrimaryAddress())
@@ -1229,7 +1229,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the sync of a wallet that has no node fails the same with a listener, which is not notified
     @Test
-    fun sync_WithAListener_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testSyncWithAListenerOfAWalletThatIsNotConnectedIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val listener = object : MoneroWalletListener() {
                 var notified = 0
@@ -1245,7 +1245,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun balances_OfAnAccountOrASubaddress_AreTheOnesOfThem() {
+    fun testBalancesOfAnAccountOrASubaddressAreTheOnesOfThem() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals(BigInteger.ZERO, wallet.getBalance())
             assertEquals(BigInteger.ZERO, wallet.getBalance(null, null))
@@ -1258,7 +1258,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun balances_OfASubaddressWithoutAnAccount_Fail() {
+    fun testBalancesOfASubaddressWithoutAnAccountFail() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getBalance(null, 0) }
             assertEquals("Cannot provide a subaddress index without an account index", error.message)
@@ -1269,7 +1269,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // monero-cpp derives the addresses of an account that the wallet has not made, as it does for the addresses out of range, so the
     // account has nothing: its balance is zero, and it is not an error
     @Test
-    fun balances_OfAnAccountThatWasNotMade_AreZero() {
+    fun testBalancesOfAnAccountThatWasNotMadeAreZero() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals(1, wallet.getAccounts().size)
             assertEquals(BigInteger.ZERO, wallet.getBalance(99))
@@ -1279,7 +1279,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // what the wallet does not do yet is the default of the interface, which says that it is not supported
     @Test
-    fun functionsNotWrittenYet_AreNotSupported() {
+    fun testFunctionsNotWrittenYetAreNotSupported() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val calls = mapOf<String, () -> Unit>(
                 "getAccountTags" to { wallet.getAccountTags() },
@@ -1293,7 +1293,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun waitForNextBlock_OfAClosedWallet_Fails() {
+    fun testWaitForNextBlockOfAClosedWalletFails() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.waitForNextBlock() }
@@ -1302,7 +1302,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- ACCOUNTS ----------------------------------
 
     @Test
-    fun getAccounts_WithATag_IsNotSupported() {
+    fun testGetAccountsWithATagIsNotSupported() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getAccounts(false, "savings") }
             assertTrue("no tags of accounts" in error.message!!, error.message)
@@ -1310,7 +1310,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun accounts_OfAClosedWallet_Fail() {
+    fun testAccountsOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.getAccounts() }
@@ -1321,7 +1321,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createAccount_OfAWalletOnDisk_IsKeptAfterASave() {
+    fun testCreateAccountOfAWalletOnDiskIsKeptAfterASave() {
         val path = walletPath()
         val label = "kept"
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
@@ -1338,7 +1338,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // like the transactions, the transfers of a wallet come from a node
     @Test
-    fun transfers_OfAWalletThatIsNotConnected_AreAnError() {
+    fun testTransfersOfAWalletThatIsNotConnectedAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTransfers() }.message)
             assertEquals("no connection to daemon", assertFailsWith<MoneroError> { wallet.getTransfers(0) }.message)
@@ -1347,7 +1347,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun transfers_WithAnIndexThatIsNegative_AreAnError() {
+    fun testTransfersWithAnIndexThatIsNegativeAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFailsWith<MoneroError> { wallet.getTransfers(MoneroTransferQuery().also { it.accountIndex = -1 }) }
             assertFailsWith<MoneroError> { wallet.getTransfers(MoneroTransferQuery().also { it.accountIndex = 0; it.subaddressIndex = -1 }) }
@@ -1357,7 +1357,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun transfers_OfAClosedWallet_Fail() {
+    fun testTransfersOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.getTransfers() }
@@ -1366,7 +1366,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- OUTPUTS AND KEY IMAGES ----------------------------------
 
     @Test
-    fun outputs_OfAWalletThatHasNone_AreEmpty() {
+    fun testOutputsOfAWalletThatHasNoneAreEmpty() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertTrue(wallet.getOutputs().isEmpty())
             assertTrue(wallet.getOutputs(MoneroOutputQuery().also { it.accountIndex = 0 }).isEmpty())
@@ -1374,7 +1374,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun outputs_WithAKeyImageThatIsNotTheWallets_CanNotBeFrozenThawedOrChecked() {
+    fun testOutputsWithAKeyImageThatIsNotTheWalletsCanNotBeFrozenThawedOrChecked() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val unknown = "a".repeat(64)
             assertFailsWith<MoneroError> { wallet.freezeOutput(unknown) }
@@ -1385,7 +1385,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun outputsAndKeyImages_OfAClosedWallet_Fail() {
+    fun testOutputsAndKeyImagesOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.getOutputs() }
@@ -1399,7 +1399,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun exportKeyImages_OfAWalletThatHasNoOutputs_HasNone() {
+    fun testExportKeyImagesOfAWalletThatHasNoOutputsHasNone() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertTrue(wallet.exportKeyImages(true).keyImages.isNullOrEmpty())
             assertEquals(0, wallet.exportKeyImages().keyImages?.size ?: 0)
@@ -1412,7 +1412,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     private val hash2 = "b".repeat(64)
 
     @Test
-    fun txNote_OfATxThatHasNone_IsEmpty() {
+    fun testTxNoteOfATxThatHasNoneIsEmpty() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("", wallet.getTxNote(hash1))
             assertEquals(listOf("", ""), wallet.getTxNotes(listOf(hash1, hash2)))
@@ -1420,7 +1420,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txNote_IsWhatWasSet() {
+    fun testTxNoteIsWhatWasSet() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.setTxNote(hash1, "pizza")
             assertEquals("pizza", wallet.getTxNote(hash1))
@@ -1436,7 +1436,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txNotes_AreWhatWasSet_InTheOrderOfTheHashes() {
+    fun testTxNotesAreWhatWasSetInTheOrderOfTheHashes() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             wallet.setTxNotes(listOf(hash1, hash2), listOf("first", "second"))
             assertEquals(listOf("first", "second"), wallet.getTxNotes(listOf(hash1, hash2)))
@@ -1448,7 +1448,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txNotes_WithAsManyHashesAsNotes_AreRequired() {
+    fun testTxNotesWithAsManyHashesAsNotesAreRequired() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFailsWith<MoneroError> { wallet.setTxNotes(listOf(hash1, hash2), listOf("only one")) }
             assertFailsWith<MoneroError> { wallet.setTxNotes(listOf(hash1), listOf("one", "two")) }
@@ -1457,7 +1457,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txNotes_OfWhatIsNotAHash_AreAnError() {
+    fun testTxNotesOfWhatIsNotAHashAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             for (invalid in listOf("invalid_id", "", "a".repeat(63), "z".repeat(64))) {
                 assertFailsWith<MoneroError>(invalid) { wallet.getTxNote(invalid) }
@@ -1470,7 +1470,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txNotes_AreKeptInTheFileOfTheWallet() {
+    fun testTxNotesAreKeptInTheFileOfTheWallet() {
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
             wallet.setTxNote(hash1, "kept")
@@ -1483,7 +1483,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txNotes_OfAClosedWallet_Fail() {
+    fun testTxNotesOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.getTxNote(hash1) }
@@ -1495,7 +1495,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- KEYS AND PROOFS OF TRANSACTIONS ----------------------------------
 
     @Test
-    fun txKeysAndProofs_OfATxThatTheWalletDoesNotHave_AreAnError() {
+    fun testTxKeysAndProofsOfATxThatTheWalletDoesNotHaveAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val address = wallet.getPrimaryAddress()
             assertFailsWith<MoneroError> { wallet.getTxKey(hash1) }
@@ -1505,7 +1505,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txKeysAndProofs_OfWhatIsNotAHash_AreAnError() {
+    fun testTxKeysAndProofsOfWhatIsNotAHashAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val address = wallet.getPrimaryAddress()
             val invalid = "TX hash has invalid format"
@@ -1519,7 +1519,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun checkTxKeyAndProof_WithAKeyOrAnAddressThatIsNotValid_AreAnError() {
+    fun testCheckTxKeyAndProofWithAKeyOrAnAddressThatIsNotValidAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val address = wallet.getPrimaryAddress()
             assertEquals("Tx key has invalid format", assertFailsWith<MoneroError> { wallet.checkTxKey(hash1, "invalid_tx_key", address) }.message)
@@ -1530,7 +1530,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun txKeysAndProofs_OfAClosedWallet_Fail() {
+    fun testTxKeysAndProofsOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         val address = wallet.getPrimaryAddress()
         wallet.close()
@@ -1545,7 +1545,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- PROOFS OF RESERVES ----------------------------------
 
     @Test
-    fun reserveProofs_OfAccountsThatCanNotBeProved_AreAnError() {
+    fun testReserveProofsOfAccountsThatCanNotBeProvedAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("Account index is out of bound", assertFailsWith<MoneroError> { wallet.getReserveProofAccount(99, BigInteger.ONE, "message") }.message)
             // a wallet that has nothing is refused before the amount is looked at
@@ -1556,7 +1556,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun checkReserveProof_WithAnAddressThatIsNotValid_IsAnError() {
+    fun testCheckReserveProofWithAnAddressThatIsNotValidIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("Invalid address", assertFailsWith<MoneroError> { wallet.checkReserveProof("invalid_address", null, "signature") }.message)
         }
@@ -1564,14 +1564,14 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the check of a signature needs a daemon, which the tests of the proofs against a regtest node have
     @Test
-    fun checkReserveProof_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testCheckReserveProofOfAWalletThatIsNotConnectedIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFailsWith<MoneroError> { wallet.checkReserveProof(wallet.getPrimaryAddress(), null, "signature") }
         }
     }
 
     @Test
-    fun reserveProofs_OfAClosedWallet_Fail() {
+    fun testReserveProofsOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         val address = wallet.getPrimaryAddress()
         wallet.close()
@@ -1593,7 +1593,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_OfANewWallet_IsEmpty() {
+    fun testAddressBookOfANewWalletIsEmpty() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals(emptyList(), wallet.getAddressBookEntries())
             assertEquals(emptyList(), wallet.getAddressBookEntries(emptyList()))
@@ -1602,7 +1602,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // Has an address book: adds standard addresses, gets them all or by index, edits them and deletes them
     @Test
-    fun addressBook_AddsEditsAndDeletesEntries() {
+    fun testAddressBookAddsEditsAndDeletesEntries() {
         val address = externalAddress()
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val indices = (0 until 5).map { wallet.addAddressBookEntry(address, "hi there!") }
@@ -1622,7 +1622,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_GetsTheEntriesOfTheIndices_InTheOrderOfTheIndices() {
+    fun testAddressBookGetsTheEntriesOfTheIndicesInTheOrderOfTheIndices() {
         val address = externalAddress()
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             for (i in 0 until 4) wallet.addAddressBookEntry(address, "entry $i")
@@ -1632,7 +1632,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_DeleteMovesTheEntriesAfterItOnePlaceDown() {
+    fun testAddressBookDeleteMovesTheEntriesAfterItOnePlaceDown() {
         val address = externalAddress()
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             for (i in 0 until 4) wallet.addAddressBookEntry(address, "entry $i")
@@ -1645,7 +1645,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // Adds subaddresses and integrated addresses, which come back as they were given and with no payment id
     @Test
-    fun addressBook_KeepsSubaddressesAndIntegratedAddresses() {
+    fun testAddressBookKeepsSubaddressesAndIntegratedAddresses() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val subaddress = wallet.getAddress(0, 1)
             val integrated = (0 until 5).map { wallet.getIntegratedAddress(null, "03284e41c342f03$it").integratedAddress!! }
@@ -1659,7 +1659,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_EditKeepsWhatIsNull() {
+    fun testAddressBookEditKeepsWhatIsNull() {
         val address = externalAddress()
         val other = externalAddress()
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
@@ -1683,7 +1683,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_EntryWithNoDescription_HasAnEmptyOne() {
+    fun testAddressBookEntryWithNoDescriptionHasAnEmptyOne() {
         val address = externalAddress()
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val index = wallet.addAddressBookEntry(address)
@@ -1692,7 +1692,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_WithWhatIsNotValid_IsAnError() {
+    fun testAddressBookWithWhatIsNotValidIsAnError() {
         val address = externalAddress()
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertFailsWith<MoneroError> { wallet.addAddressBookEntry("invalid_address", "no") }
@@ -1709,7 +1709,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_IsKeptInTheFileOfTheWallet() {
+    fun testAddressBookIsKeptInTheFileOfTheWallet() {
         val address = externalAddress()
         val path = walletPath()
         MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
@@ -1724,7 +1724,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun addressBook_OfAClosedWallet_Fails() {
+    fun testAddressBookOfAClosedWalletFails() {
         val address = externalAddress()
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
@@ -1737,7 +1737,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- LISTENERS ----------------------------------
 
     @Test
-    fun listeners_OfANewWallet_AreNone() {
+    fun testListenersOfANewWalletAreNone() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals(emptyList(), wallet.getListeners())
         }
@@ -1745,7 +1745,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // Can stop listening: the listeners are the ones that were added, in order, and none after they are removed
     @Test
-    fun listeners_AreWhatWasAdded_UntilTheyAreRemoved() {
+    fun testListenersAreWhatWasAddedUntilTheyAreRemoved() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val first = MoneroWalletListener()
             val second = MoneroWalletListener()
@@ -1770,7 +1770,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun removeListeners_RemovesAllOfThem() {
+    fun testRemoveListenersRemovesAllOfThem() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             repeat(3) { wallet.addListener(MoneroWalletListener()) }
             assertEquals(3, wallet.getListeners().size)
@@ -1783,7 +1783,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun removeListener_ThatIsNotRegistered_IsAnError() {
+    fun testRemoveListenerThatIsNotRegisteredIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.removeListener(MoneroWalletListener()) }
             assertEquals("Listener is not registered with wallet", error.message)
@@ -1797,7 +1797,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // a wallet that is closed with listeners registered frees them, and does not wait for them
     @Test
-    fun close_OfAWalletWithListeners_Returns() {
+    fun testCloseOfAWalletWithListenersReturns() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         repeat(3) { wallet.addListener(MoneroWalletListener()) }
         wallet.close()
@@ -1805,7 +1805,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun listeners_OfAClosedWallet_Fail() {
+    fun testListenersOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         val listener = MoneroWalletListener()
         wallet.addListener(listener)
@@ -1820,7 +1820,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     // ------------------------------- SCAN AND RESCAN ----------------------------------
 
     @Test
-    fun scanTxs_WithWhatIsNotAValidHash_IsAnError() {
+    fun testScanTxsWithWhatIsNotAValidHashIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("Invalid transaction hash: zz", assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1, "zz")) }.message)
             assertFailsWith<MoneroError> { wallet.scanTxs(listOf("a".repeat(63))) }
@@ -1828,7 +1828,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun scanTxs_WithNoHash_IsAnError() {
+    fun testScanTxsWithNoHashIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("No tx hashes given to scan", assertFailsWith<MoneroError> { wallet.scanTxs(emptyList()) }.message)
         }
@@ -1836,14 +1836,14 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the transactions come from the daemon, which a wallet with no node has not
     @Test
-    fun scanTxs_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testScanTxsOfAWalletThatIsNotConnectedIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("Failed to get transaction from daemon", assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1)) }.message)
         }
     }
 
     @Test
-    fun rescans_OfAWalletThatIsNotConnected_AreAnError() {
+    fun testRescansOfAWalletThatIsNotConnectedAreAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("Rescan spent can only be used with a trusted daemon", assertFailsWith<MoneroError> { wallet.rescanSpent() }.message)
             assertEquals("Wallet is not connected to daemon", assertFailsWith<MoneroError> { wallet.rescanBlockchain() }.message)
@@ -1851,7 +1851,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun scansAndRescans_OfAClosedWallet_Fail() {
+    fun testScansAndRescansOfAClosedWalletFail() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.scanTxs(listOf(hash1)) }
@@ -1863,7 +1863,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     // the daemon of a wallet that has none is not trusted, and mines for no one
     @Test
-    fun mining_OfAWalletThatIsNotConnected_IsAnError() {
+    fun testMiningOfAWalletThatIsNotConnectedIsAnError() {
         MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
             assertEquals("This command requires a trusted daemon.", assertFailsWith<MoneroError> { wallet.startMining(1, false, true) }.message)
             assertEquals("Couldn't stop mining due to unknown error.", assertFailsWith<MoneroError> { wallet.stopMining() }.message)
@@ -1871,7 +1871,7 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun mining_OfAClosedWallet_Fails() {
+    fun testMiningOfAClosedWalletFails() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))
         wallet.close()
         assertFailsWith<MoneroError> { wallet.startMining(1, false, true) }

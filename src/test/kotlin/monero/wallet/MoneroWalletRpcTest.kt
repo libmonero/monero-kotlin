@@ -41,7 +41,7 @@ class MoneroWalletRpcTest {
 
     // The wallet connects without asking the server anything: the server is asked by the first call
     @Test
-    fun wallet_OfAServerThatIsNotThere_IsMade_AndFailsAtItsFirstCall() {
+    fun testOfflineWallet() {
         val wallet = offlineWallet()
         try {
             val error = assertFailsWith<MoneroError> { wallet.isViewOnly() }
@@ -53,7 +53,7 @@ class MoneroWalletRpcTest {
     }
 
     @Test
-    fun getRpcConnection_IsTheOneOfTheWallet() {
+    fun testGetRpcConnectionIsTheOneOfTheWallet() {
         withWallet { wallet ->
             val connection = wallet.getRpcConnection()
             assertEquals(offlineServerUri, connection.uri)
@@ -62,7 +62,7 @@ class MoneroWalletRpcTest {
     }
 
     @Test
-    fun wallet_CanBeMadeFromAConnection() {
+    fun testWalletCanBeMadeFromAConnection() {
         withWallet(MoneroWalletRpc(MoneroRpcConnection(offlineServerUri))) { wallet ->
             assertEquals(offlineServerUri, wallet.getRpcConnection().uri)
         }
@@ -70,7 +70,7 @@ class MoneroWalletRpcTest {
 
     // The close of the wallet is a request to the server. When the server does not answer, the error is thrown, and the wallet is closed
     @Test
-    fun close_WhenTheServerDoesNotAnswer_ThrowsAndReleasesTheWallet() {
+    fun testCloseWhenTheServerDoesNotAnswerThrowsAndReleasesTheWallet() {
         val wallet = offlineWallet()
         val error = assertFailsWith<MoneroError> { wallet.close() }
         assertTrue(error.message!!.startsWith("Network error"), error.message)
@@ -80,7 +80,7 @@ class MoneroWalletRpcTest {
     }
 
     @Test
-    fun openAndCreate_WithoutAName_AreAnError() {
+    fun testOpenAndCreateWithoutANameAreAnError() {
         withWallet { wallet ->
             assertEquals("Must provide name of wallet to open", assertFailsWith<MoneroError> { wallet.openWallet(MoneroWalletConfig()) }.message)
             assertEquals("Must provide name of wallet to create", assertFailsWith<MoneroError> { wallet.createWallet(MoneroWalletConfig()) }.message)
@@ -88,7 +88,7 @@ class MoneroWalletRpcTest {
     }
 
     @Test
-    fun serverFunctions_OfAClosedWallet_Fail() {
+    fun testServerFunctionsOfAClosedWalletFail() {
         val wallet = offlineWallet()
         runCatching { wallet.close() }
         val config = MoneroWalletConfig().also { it.path = "name" }
