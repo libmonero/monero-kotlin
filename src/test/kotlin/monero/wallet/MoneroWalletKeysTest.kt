@@ -52,7 +52,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // ------------------------------- CREATE WALLET ----------------------------------
 
     @Test
-    fun createWalletRandom_ReadsItsKeys() {
+    fun testCreateWalletRandom() {
         val wallet = MoneroWalletKeys.createWalletRandom(config())
         try {
             validateMnemonic(wallet.getSeed())
@@ -66,7 +66,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletRandom_WithAnUnknownLanguage_IsAnError() {
+    fun testCreateWalletRandomWithUnknownLanguage() {
         val config = config()
         config.language = "english"
         val error = assertFailsWith<MoneroError> { MoneroWalletKeys.createWalletRandom(config) }
@@ -74,7 +74,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromSeed_ReadsTheTestWallet() {
+    fun testCreateWalletFromSeed() {
         val restored = MoneroWalletKeys.createWalletFromSeed(config(seed))
         try {
             assertEquals(primaryAddress, restored.getPrimaryAddress())
@@ -88,14 +88,14 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromSeed_WithABrokenSeed_IsAnError() {
+    fun testCreateWalletFromSeedWithBrokenSeed() {
         val config = config(brokenSeed)
         val error = assertFailsWith<MoneroError> { MoneroWalletKeys.createWalletFromSeed(config) }
         assertEquals("Invalid mnemonic", error.message)
     }
 
     @Test
-    fun createWalletFromSeedWithAnOffset_ChangesTheWallet() {
+    fun testCreateWalletFromSeedWithOffset() {
         val config = config(seed)
         config.seedOffset = "my secret offset!"
         val wallet = MoneroWalletKeys.createWalletFromSeed(config)
@@ -111,7 +111,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_FromAllThreeKeys_ReadsTheTestWallet() {
+    fun testCreateWalletFromKeys() {
         val config = config()
         config.primaryAddress = primaryAddress
         config.privateViewKey = privateViewKey
@@ -129,7 +129,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_FromTheSpendKey_DerivesTheViewKey() {
+    fun testCreateWalletFromKeysWithSpendKey() {
         val config = config()
         config.primaryAddress = primaryAddress
         config.privateSpendKey = privateSpendKey
@@ -144,7 +144,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_FromTheViewKey_IsViewOnly() {
+    fun testCreateWalletFromKeysWithViewKey() {
         val config = config()
         config.primaryAddress = primaryAddress
         config.privateViewKey = privateViewKey
@@ -163,13 +163,13 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_WithNoKeys_IsAnError() {
+    fun testCreateWalletFromKeysNoKeys() {
         val error = assertFailsWith<MoneroError> { MoneroWalletKeys.createWalletFromKeys(config()) }
         assertEquals("Neither spend key nor view key supplied", error.message)
     }
 
     @Test
-    fun createWalletFromKeys_WithAnInvalidSpendKey_IsAnError() {
+    fun testCreateWalletFromKeysInvalidSpendKey() {
         val config = config()
         config.privateSpendKey = "not-a-valid-hex-secret-key"
         val error = assertFailsWith<MoneroError> { MoneroWalletKeys.createWalletFromKeys(config) }
@@ -177,7 +177,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_WithAnInvalidViewKey_IsAnError() {
+    fun testCreateWalletFromKeysInvalidViewKey() {
         val config = config()
         config.primaryAddress = primaryAddress
         config.privateViewKey = "not-a-valid-hex-secret-key"
@@ -186,7 +186,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWalletFromKeys_AViewKeyWithoutAnAddress_IsAnError() {
+    fun testCreateWalletFromKeysViewKeyWithoutAddress() {
         val config = config()
         config.privateViewKey = "a".repeat(64)
         val error = assertFailsWith<MoneroError> { MoneroWalletKeys.createWalletFromKeys(config) }
@@ -194,7 +194,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun createWallet_WithoutANetworkType_IsAnError() {
+    fun testCreateWalletWithoutNetworkType() {
         val config = MoneroWalletConfig()
         config.seed = seed
         val error = assertFailsWith<MoneroError> { MoneroWalletKeys.createWalletFromSeed(config) }
@@ -205,7 +205,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     // The list of the languages is the one of monero-c, so a wallet that is closed lists them too
     @Test
-    fun getSeedLanguages_OfAClosedWallet_ListsTheLanguages() {
+    fun testGetSeedLanguagesOfClosedWallet() {
         val wallet = MoneroWalletKeys.createWalletRandom(config())
         wallet.close()
 
@@ -215,7 +215,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // ------------------------------- ADDRESSES, ACCOUNTS AND SUBADDRESSES ----------------------------------
 
     @Test
-    fun getSubaddressAddress_MatchesTheAccounts() {
+    fun testGetSubaddressAddress() {
         testWallet().use { wallet ->
             assertEquals(wallet.getPrimaryAddress(), wallet.getAddress(0, 0))
             for (account in testAccounts(wallet, true)) {
@@ -228,7 +228,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddressAddress_OutOfRangeOfTheWalkedIndices_StillAnswers() {
+    fun testGetSubaddressAddressOutOfRange() {
         testWallet().use { wallet ->
             val accounts = testAccounts(wallet, true)
             val accountIdx = accounts.size
@@ -240,7 +240,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getAccount_ReadsTheAccounts() {
+    fun testGetAccount() {
         testWallet().use { wallet ->
             for (account in testAccounts(wallet)) {
                 validateAddress(account.primaryAddress!!)
@@ -250,7 +250,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getAccount_WithSubaddresses_IsNotSupported() {
+    fun testGetAccountWithSubaddresses() {
         testWallet().use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getAccount(0, true) }
             assertEquals("monero_wallet_keys::get_account(account_idx, include_subaddresses) include_subaddresses must be false", error.message)
@@ -258,7 +258,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddresses_ReadsTheIndices() {
+    fun testGetSubaddressesByIndicesOfAllAccounts() {
         testWallet().use { wallet ->
             for (accountIdx in accountIndices) {
                 val subaddresses = wallet.getSubaddresses(accountIdx, subaddressIndices)
@@ -272,7 +272,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddressByIndex_MatchesThePluralCall() {
+    fun testGetSubaddressByIndex() {
         testWallet().use { wallet ->
             for (accountIdx in accountIndices) {
                 for (subaddress in wallet.getSubaddresses(accountIdx, subaddressIndices)) {
@@ -288,7 +288,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddresses_WithoutIndices_IsNotSupported() {
+    fun testGetSubaddressesWithEmptyIndices() {
         testWallet().use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getSubaddresses(0, emptyList()) }
             assertTrue(error.message!!.contains("does not have enumerable set of subaddresses"), error.message)
@@ -300,7 +300,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // ------------------------------- MESSAGES ----------------------------------
 
     @Test
-    fun signAndVerifyMessages_WithTheSpendKey() {
+    fun testSignAndVerifyMessagesWithSpendKey() {
         val message = "This is a super important message which needs to be signed and verified."
         testWallet().use { wallet ->
             val positions = listOf(Pair(0, 0), Pair(0, 1), Pair(1, 0))
@@ -320,7 +320,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // ------------------------------- LIFECYCLE ----------------------------------
 
     @Test
-    fun isClosed_ThroughTheLifecycleOfAWallet() {
+    fun testIsClosed() {
         val wallet = MoneroWalletKeys.createWalletRandom(config())
         assertFalse(wallet.isClosed())
         val address = wallet.getPrimaryAddress()
@@ -338,7 +338,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun closeWithASave_IsNotSupported() {
+    fun testCloseWithSaveNotSupported() {
         val wallet = MoneroWalletKeys.createWalletRandom(config())
         val error = assertFailsWith<MoneroError> { wallet.close(true) }
         assertTrue(error.message!!.contains("does not support saving"), error.message)
@@ -349,7 +349,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // Threads that close the same wallet at once close it once: a second close of the native handle is an error, and
     // freeing it twice is worse
     @Test
-    fun close_FromManyThreadsAtOnce_ClosesOnce() {
+    fun testCloseFromManyThreads() {
         repeat(5) {
             val wallet = MoneroWalletKeys.createWalletRandom(config())
             val threads = 8
@@ -401,7 +401,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // ------------------------------- THE INTERFACE ----------------------------------
 
     @Test
-    fun wallet_IsAMoneroWallet() {
+    fun testIsMoneroWallet() {
         testWallet().use { wallet ->
             val asInterface: MoneroWallet = wallet
             assertEquals(primaryAddress, asInterface.getPrimaryAddress())
@@ -412,7 +412,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     // a keys-only wallet has no chain, no daemon and no file, so what needs one is not supported
     @Test
-    fun functionsThatNeedAChainOrAFile_AreNotSupported() {
+    fun testFunctionsThatNeedChainOrFileNotSupported() {
         testWallet().use { wallet ->
             val calls = mapOf<String, () -> Unit>(
                 "getHeight" to { wallet.getHeight() },
@@ -438,7 +438,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddresses_WithoutIndices_Fails() {
+    fun testGetSubaddressesWithoutIndices() {
         testWallet().use { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getSubaddresses(0) }
             assertTrue("not supported" in error.message!!, error.message)
@@ -446,7 +446,7 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     @Test
-    fun getSubaddresses_OfIndices_ReadsThem() {
+    fun testGetSubaddressesByIndicesOfFirstAccount() {
         testWallet().use { wallet ->
             val subaddresses = wallet.getSubaddresses(0, listOf(0, 1))
             assertEquals(listOf(0, 1), subaddresses.map { it.index })
@@ -460,46 +460,46 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     @NotSupported
     @Test
-    override fun getAccounts_WithoutSubaddresses() = super.getAccounts_WithoutSubaddresses()
+    override fun testGetAccountsWithoutSubaddresses() = super.testGetAccountsWithoutSubaddresses()
 
     @NotSupported
     @Test
-    override fun getAccounts_WithSubaddresses() = super.getAccounts_WithSubaddresses()
+    override fun testGetAccountsWithSubaddresses() = super.testGetAccountsWithSubaddresses()
 
     @NotSupported
     @Test
-    override fun createAccount_WithoutALabel() = super.createAccount_WithoutALabel()
+    override fun testCreateAccountWithoutLabel() = super.testCreateAccountWithoutLabel()
 
     @NotSupported
     @Test
-    override fun createAccount_WithALabel() = super.createAccount_WithALabel()
+    override fun testCreateAccountWithLabel() = super.testCreateAccountWithLabel()
 
     @NotSupported
     @Test
-    override fun setAccountLabel_SetsTheLabelOfTheFirstSubaddress() = super.setAccountLabel_SetsTheLabelOfTheFirstSubaddress()
+    override fun testSetAccountLabel() = super.testSetAccountLabel()
 
     @NotSupported
     @Test
-    override fun getSubaddresses_OfEveryAccount() = super.getSubaddresses_OfEveryAccount()
+    override fun testGetSubaddresses() = super.testGetSubaddresses()
 
     @NotSupported
     @Test
-    override fun getSubaddresses_ByIndices() = super.getSubaddresses_ByIndices()
+    override fun testGetSubaddressesByIndices() = super.testGetSubaddressesByIndices()
 
     @NotSupported
     @Test
-    override fun createSubaddress_WithAndWithoutALabel() = super.createSubaddress_WithAndWithoutALabel()
+    override fun testCreateSubaddress() = super.testCreateSubaddress()
 
     @NotSupported
     @Test
-    override fun setSubaddressLabel_SetsTheLabelsOfTheSubaddresses() = super.setSubaddressLabel_SetsTheLabelsOfTheSubaddresses()
+    override fun testSetSubaddressLabel() = super.testSetSubaddressLabel()
 
     @NotSupported
     @Test
-    override fun getAddressIndex_OfTheAddressesOfTheWallet() = super.getAddressIndex_OfTheAddressesOfTheWallet()
+    override fun testGetAddressIndices() = super.testGetAddressIndices()
 
 
     @NotSupported
     @Test
-    override fun getAllBalances_AddUpAcrossTheSubaddressesTheAccountsAndTheWallet() = super.getAllBalances_AddUpAcrossTheSubaddressesTheAccountsAndTheWallet()
+    override fun testGetAllBalances() = super.testGetAllBalances()
 }
