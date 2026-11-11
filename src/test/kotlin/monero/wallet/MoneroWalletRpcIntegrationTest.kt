@@ -84,16 +84,16 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
     // monero-wallet-rpc does not say the language of the seed of a wallet
     @Test
     @NotSupported
-    override fun getSeedLanguage_IsTheDefaultLanguage() = super.getSeedLanguage_IsTheDefaultLanguage()
+    override fun testGetSeedLanguage() = super.testGetSeedLanguage()
 
     // monero-wallet-rpc does not give the public keys of a wallet, which monero-python marks as a TODO of monero-project
     @Test
     @NotImplemented
-    override fun getPublicViewKey_ReadsTheTestWallet() = super.getPublicViewKey_ReadsTheTestWallet()
+    override fun testGetPublicViewKey() = super.testGetPublicViewKey()
 
     @Test
     @NotImplemented
-    override fun getPublicSpendKey_ReadsTheTestWallet() = super.getPublicSpendKey_ReadsTheTestWallet()
+    override fun testGetPublicSpendKey() = super.testGetPublicSpendKey()
 
     // Supports the multisig sample code: wallets of two servers make a multisig wallet of 1 of 2 and of 2 of 2, each of which has the address
     // of the setup and says that it is multisig and ready, with its threshold and its participants
@@ -228,7 +228,7 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     // Can create a wallet with a randomly generated seed
     @Test
-    fun testCreateWalletRandom() {
+    fun testCreateWalletRandomRpc() {
         // a random wallet with the defaults
         val seed = newClient().use { wallet ->
             wallet.createWallet(config())
@@ -257,7 +257,7 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     // Can create a wallet from a seed: the same seed is the same wallet, and another language or an offset makes another one
     @Test
-    fun testCreateWalletFromSeed() {
+    fun testCreateWalletFromSeedRpc() {
         val (seed, address) = newClient().use { wallet ->
             wallet.createWallet(config())
             wallet.getSeed() to wallet.getPrimaryAddress()
@@ -345,7 +345,7 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     // Can get the languages of the seed that the server writes
     @Test
-    fun testGetSeedLanguages() {
+    fun testGetSeedLanguagesWithoutWallet() {
         newClient().use { wallet ->
             val languages = wallet.getSeedLanguages()
             assertTrue(languages.isNotEmpty())

@@ -123,7 +123,7 @@ abstract class BaseMoneroWalletTest {
     // ------------------------------- THE TESTS ----------------------------------
 
     @Test
-    fun getSeed_ReadsTheTestWallet() {
+    fun testGetSeed() {
         withTestWallet { wallet ->
             val seed = wallet.getSeed()
             validateMnemonic(seed)
@@ -132,14 +132,14 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    open fun getSeedLanguage_IsTheDefaultLanguage() {
+    open fun testGetSeedLanguage() {
         withTestWallet { wallet ->
             assertEquals(defaultLanguage, wallet.getSeedLanguage())
         }
     }
 
     @Test
-    fun getSeedLanguages_ListsTheLanguagesOfASeed() {
+    fun testGetSeedLanguages() {
         withTestWallet { wallet ->
             val languages = seedLanguages(wallet)
             assertTrue(languages.isNotEmpty())
@@ -149,7 +149,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getPrivateViewKey_ReadsTheTestWallet() {
+    fun testGetPrivateViewKey() {
         withTestWallet { wallet ->
             val key = wallet.getPrivateViewKey()
             validatePrivateKey(key)
@@ -158,7 +158,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getPrivateSpendKey_ReadsTheTestWallet() {
+    fun testGetPrivateSpendKey() {
         withTestWallet { wallet ->
             val key = wallet.getPrivateSpendKey()
             validatePrivateKey(key)
@@ -167,7 +167,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    open fun getPublicViewKey_ReadsTheTestWallet() {
+    open fun testGetPublicViewKey() {
         withTestWallet { wallet ->
             val key = wallet.getPublicViewKey()
             validatePrivateKey(key)
@@ -176,7 +176,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    open fun getPublicSpendKey_ReadsTheTestWallet() {
+    open fun testGetPublicSpendKey() {
         withTestWallet { wallet ->
             val key = wallet.getPublicSpendKey()
             validatePrivateKey(key)
@@ -185,7 +185,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getPrimaryAddress_ReadsTheTestWallet() {
+    fun testGetPrimaryAddress() {
         withTestWallet { wallet ->
             validateAddress(wallet.getPrimaryAddress())
             assertEquals(primaryAddress, wallet.getPrimaryAddress())
@@ -194,7 +194,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithoutAStandardAddress_UsesThePrimaryAddress() {
+    fun testGetIntegratedAddressWithoutStandardAddress() {
         withRandomWallet { wallet ->
             val integrated = wallet.getIntegratedAddress("", "a".repeat(16))
             assertEquals(wallet.getPrimaryAddress(), integrated.standardAddress)
@@ -203,7 +203,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithAStandardAddress_ReadsItBack() {
+    fun testGetIntegratedAddressWithStandardAddress() {
         withRandomWallet { wallet ->
             val address = wallet.getPrimaryAddress()
             val integrated = wallet.getIntegratedAddress(address, "b".repeat(16))
@@ -213,7 +213,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithAnInvalidAddress_IsAnError() {
+    fun testGetIntegratedAddressWithInvalidAddress() {
         withRandomWallet { wallet ->
             val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress("notanaddress", "a".repeat(16)) }
             assertEquals("Invalid address", error.message)
@@ -221,7 +221,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithASubaddress_IsAnError() {
+    fun testGetIntegratedAddressWithSubaddress() {
         withRandomWallet { wallet ->
             val subaddress = subaddressOf(wallet)
             val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(subaddress, "a".repeat(16)) }
@@ -230,7 +230,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithAnIntegratedAddress_IsAnError() {
+    fun testGetIntegratedAddressWithIntegratedAddress() {
         withRandomWallet { wallet ->
             val integrated = wallet.getIntegratedAddress("", "a".repeat(16)).integratedAddress
             val error = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(integrated, "a".repeat(16)) }
@@ -239,7 +239,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getIntegratedAddress_WithoutAPaymentId() {
+    fun testGetIntegratedAddressWithoutPaymentId() {
         withRandomWallet { wallet ->
             if (makesAPaymentId) {
                 val integrated = wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "")
@@ -253,7 +253,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun decodeIntegratedAddress_ReadsItBack() {
+    fun testDecodeIntegratedAddress() {
         withTestWallet { wallet ->
             val integrated = wallet.getIntegratedAddress("", paymentId)
             val decoded = wallet.decodeIntegratedAddress(integrated.integratedAddress!!)
@@ -270,7 +270,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun verifyMessage_WithoutASignatureHeader_IsNotGood() {
+    fun testVerifyMessageWithoutSignatureHeader() {
         withRandomWallet { wallet ->
             val result = wallet.verifyMessage("hello", wallet.getPrimaryAddress(), "not-a-signature")
             assertEquals(false, result.isGood)
@@ -278,7 +278,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun verifyMessage_ThatIsNotBase58_IsNotGood() {
+    fun testVerifyMessageNotBase58() {
         withRandomWallet { wallet ->
             val result = wallet.verifyMessage("hello", wallet.getPrimaryAddress(), "SigV2!!!not-base58!!!")
             assertEquals(false, result.isGood)
@@ -286,7 +286,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun verifyMessage_WithATruncatedSignature_IsNotGood() {
+    fun testVerifyMessageWithTruncatedSignature() {
         withRandomWallet { wallet ->
             val address = wallet.getPrimaryAddress()
             val signature = wallet.signMessage("hello", SIGN_WITH_SPEND_KEY, 0, 0)
@@ -297,7 +297,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getVersion_ReadsTheLibrary() {
+    fun testGetVersion() {
         withTestWallet { wallet ->
             val version = wallet.getVersion()
             assertNotNull(version.number)
@@ -307,7 +307,7 @@ abstract class BaseMoneroWalletTest {
     }
 
     @Test
-    fun getPaymentUri_RoundTripsAConfig() {
+    fun testGetPaymentUri() {
         withTestWallet { wallet ->
             val config = MoneroTxConfig()
             config.destinations = listOf(MoneroDestination(wallet.getAddress(0, 0), BigInteger.ZERO))
@@ -380,7 +380,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can get accounts without subaddresses
     @Test
-    open fun getAccounts_WithoutSubaddresses() {
+    open fun testGetAccountsWithoutSubaddresses() {
         withTestWallet { wallet ->
             val accounts = wallet.getAccounts()
             assertTrue(accounts.isNotEmpty())
@@ -393,7 +393,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can get accounts with subaddresses
     @Test
-    open fun getAccounts_WithSubaddresses() {
+    open fun testGetAccountsWithSubaddresses() {
         withTestWallet { wallet ->
             val accounts = wallet.getAccounts(true)
             assertTrue(accounts.isNotEmpty())
@@ -406,7 +406,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can create an account without a label
     @Test
-    open fun createAccount_WithoutALabel() {
+    open fun testCreateAccountWithoutLabel() {
         withTestWallet { wallet ->
             val accountsBefore = wallet.getAccounts()
             val created = wallet.createAccount()
@@ -418,7 +418,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can create an account with a label
     @Test
-    open fun createAccount_WithALabel() {
+    open fun testCreateAccountWithLabel() {
         withTestWallet { wallet ->
             val accountsBefore = wallet.getAccounts()
             val label = java.util.UUID.randomUUID().toString()
@@ -439,7 +439,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can set account labels
     @Test
-    open fun setAccountLabel_SetsTheLabelOfTheFirstSubaddress() {
+    open fun testSetAccountLabel() {
         withTestWallet { wallet ->
             if (wallet.getAccounts().size < 2) wallet.createAccount()
             val label = java.util.UUID.randomUUID().toString()
@@ -450,7 +450,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can get the subaddresses of an account
     @Test
-    open fun getSubaddresses_OfEveryAccount() {
+    open fun testGetSubaddresses() {
         withTestWallet { wallet ->
             val accounts = wallet.getAccounts()
             assertTrue(accounts.isNotEmpty())
@@ -467,7 +467,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can get the subaddresses of an account at some indices
     @Test
-    open fun getSubaddresses_ByIndices() {
+    open fun testGetSubaddressesByIndices() {
         withTestWallet { wallet ->
             for (account in wallet.getAccounts()) {
                 var subaddresses = wallet.getSubaddresses(account.index!!)
@@ -486,7 +486,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can create a subaddress with and without a label
     @Test
-    open fun createSubaddress_WithAndWithoutALabel() {
+    open fun testCreateSubaddress() {
         withTestWallet { wallet ->
             if (wallet.getAccounts().size < 2) wallet.createAccount()
             assertTrue(wallet.getAccounts().size > 1)
@@ -516,7 +516,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can set subaddress labels
     @Test
-    open fun setSubaddressLabel_SetsTheLabelsOfTheSubaddresses() {
+    open fun testSetSubaddressLabel() {
         withTestWallet { wallet ->
             while (wallet.getSubaddresses(0).size < 3) wallet.createSubaddress(0)
             for (subaddressIdx in wallet.getSubaddresses(0).indices) {
@@ -529,7 +529,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can get the account and the subaddress of an address
     @Test
-    open fun getAddressIndex_OfTheAddressesOfTheWallet() {
+    open fun testGetAddressIndices() {
         withTestWallet { wallet ->
             val accounts = wallet.getAccounts(true)
             val accountIdx = accounts.size - 1
@@ -553,7 +553,7 @@ abstract class BaseMoneroWalletTest {
 
     // Can get the balances of the wallet, of its accounts and of their subaddresses, which add up
     @Test
-    open fun getAllBalances_AddUpAcrossTheSubaddressesTheAccountsAndTheWallet() {
+    open fun testGetAllBalances() {
         withTestWallet { wallet ->
             if (wallet.getAccounts().size < 2) wallet.createAccount()
             val accounts = wallet.getAccounts(true)
