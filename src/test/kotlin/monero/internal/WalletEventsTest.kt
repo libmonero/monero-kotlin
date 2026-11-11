@@ -45,7 +45,7 @@ class WalletEventsTest {
     private fun millisSince(start: Long) = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)
 
     @Test
-    fun flush_WaitsForNothingWhenTheListenerIsIdle() {
+    fun testFlushWaitsForNothingWhenTheListenerIsIdle() {
         WalletEvents(TakingListener()).use { events ->
             events.flush(200)
         }
@@ -53,7 +53,7 @@ class WalletEventsTest {
 
     // A listener that is slow but finishes one notification after the other is waited for, though the queue takes it longer than the timeout
     @Test
-    fun flush_OfASlowListenerThatKeepsFinishingNotifications_WaitsForAllOfThem() {
+    fun testFlushOfASlowListenerThatKeepsFinishingNotificationsWaitsForAllOfThem() {
         val listener = SlowListener(taking = 10, delayMs = 100)
         WalletEvents(listener).use { events ->
             repeat(10) { events.notifyNewBlock(it.toLong()) }
@@ -67,7 +67,7 @@ class WalletEventsTest {
 
     // A listener that gets stuck on a notification holds the flush for the timeout, counted from the last notification that it finished
     @Test
-    fun flush_OfAListenerThatGetsStuck_FailsAfterTheTimeoutFromTheLastNotification() {
+    fun testFlushOfAListenerThatGetsStuckFailsAfterTheTimeoutFromTheLastNotification() {
         val listener = SlowListener(taking = 3, delayMs = 100)
         WalletEvents(listener).use { events ->
             try {
@@ -87,7 +87,7 @@ class WalletEventsTest {
     // A listener that never returns from a notification holds the flush for the timeout, and no longer: the flush has to give up instead of
     // holding the sync that called it
     @Test
-    fun flush_OfAListenerThatNeverReturns_FailsAfterTheTimeout() {
+    fun testFlushOfAListenerThatNeverReturnsFailsAfterTheTimeout() {
         val listener = SlowListener(taking = 0, delayMs = 0)
         WalletEvents(listener).use { events ->
             try {
@@ -105,7 +105,7 @@ class WalletEventsTest {
 
     // The wait of the flush is the wait of a sync: an interrupt of the thread that waits says so and keeps the flag
     @Test
-    fun flush_OfAListenerThatNeverReturns_FailsWhenInterrupted() {
+    fun testFlushOfAListenerThatNeverReturnsFailsWhenInterrupted() {
         val listener = SlowListener(taking = 0, delayMs = 0)
         WalletEvents(listener).use { events ->
             try {
@@ -136,7 +136,7 @@ class WalletEventsTest {
     // The thread of a listener that was removed took all it had before it stopped, and takes nothing after, so a flush that comes then, from a
     // sync that goes on while another thread removes the listener, has nothing to wait for
     @Test
-    fun flush_OfAClosedEvents_ReturnsAtOnce() {
+    fun testFlushOfAClosedEventsReturnsAtOnce() {
         val events = WalletEvents(TakingListener())
         events.close()
 

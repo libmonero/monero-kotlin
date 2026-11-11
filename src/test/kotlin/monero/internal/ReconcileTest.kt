@@ -23,7 +23,7 @@ class ReconcileTest {
     // ----------------------------------- the same value, or a side that is not set -----------------------------------
 
     @Test
-    fun value_OfTheSameValue_IsThatValue() {
+    fun testValueOfTheSameValueIsThatValue() {
         assertEquals(5L, Reconcile.value(5L, 5L, "n"))
         assertNull(Reconcile.value<Long>(null, null, "n"))
         assertEquals("x", Reconcile.value("x", "x", "s"))
@@ -31,7 +31,7 @@ class ReconcileTest {
     }
 
     @Test
-    fun value_OfASideThatIsNotSet_IsTheOther() {
+    fun testValueOfASideThatIsNotSetIsTheOther() {
         assertEquals(5L, Reconcile.value(null, 5L, "n"))
         assertEquals(5L, Reconcile.value(5L, null, "n"))
         assertEquals("x", Reconcile.value(null, "x", "s"))
@@ -41,7 +41,7 @@ class ReconcileTest {
     }
 
     @Test
-    fun value_OfValuesThatDiffer_Fails() {
+    fun testValueOfValuesThatDifferFails() {
         for ((a, b) in listOf<Pair<Any, Any>>(3L to 7L, "a" to "b", true to false)) {
             val error = assertFailsWith<MoneroError>("$a $b") { Reconcile.value(a, b, "the field") }
             assertTrue("Cannot reconcile" in error.message!!, error.message)
@@ -50,7 +50,7 @@ class ReconcileTest {
     }
 
     @Test
-    fun value_OfEqualValuesThatAreNotTheSameObject_IsTheFirst() {
+    fun testValueOfEqualValuesThatAreNotTheSameObjectIsTheFirst() {
         val a = java.math.BigInteger("100000000000000000000")
         val b = java.math.BigInteger("100000000000000000000")
         assertSame(a, Reconcile.value(a, b, "n"))
@@ -59,12 +59,12 @@ class ReconcileTest {
     // ----------------------------------- lists -----------------------------------
 
     @Test
-    fun list_OfTheSameList_IsThatList() {
+    fun testListOfTheSameListIsThatList() {
         assertEquals(listOf("a", "b"), Reconcile.list(listOf("a", "b"), listOf("a", "b"), "l"))
     }
 
     @Test
-    fun list_OfAListThatIsEmptyOrNotSet_IsTheOther() {
+    fun testListOfAListThatIsEmptyOrNotSetIsTheOther() {
         assertEquals(listOf("a", "b"), Reconcile.list(emptyList(), listOf("a", "b"), "l"))
         assertEquals(listOf("a", "b"), Reconcile.list(listOf("a", "b"), emptyList(), "l"))
         assertEquals(listOf("a", "b"), Reconcile.list(null, listOf("a", "b"), "l"))
@@ -74,7 +74,7 @@ class ReconcileTest {
     }
 
     @Test
-    fun list_OfListsThatDiffer_Fails() {
+    fun testListOfListsThatDifferFails() {
         val error = assertFailsWith<MoneroError> { Reconcile.list(listOf("a"), listOf("b"), "the list") }
         assertTrue("Cannot reconcile lists" in error.message!!, error.message)
         assertTrue("the list" in error.message!!, error.message)
@@ -84,20 +84,20 @@ class ReconcileTest {
     // ----------------------------------- numbers that can change -----------------------------------
 
     @Test
-    fun max_IsTheGreater() {
+    fun testMaxIsTheGreater() {
         assertEquals(7L, Reconcile.max(3, 7))
         assertEquals(7L, Reconcile.max(7, 3))
         assertEquals(3L, Reconcile.max(3, 3))
     }
 
     @Test
-    fun min_IsTheLesser() {
+    fun testMinIsTheLesser() {
         assertEquals(3L, Reconcile.min(3, 7))
         assertEquals(3L, Reconcile.min(7, 3))
     }
 
     @Test
-    fun maxAndMin_OfASideThatIsNotSet_AreTheOther() {
+    fun testMaxAndMinOfASideThatIsNotSetAreTheOther() {
         assertEquals(5L, Reconcile.max(null, 5))
         assertEquals(5L, Reconcile.max(5, null))
         assertEquals(5L, Reconcile.min(null, 5))
@@ -109,7 +109,7 @@ class ReconcileTest {
     // ----------------------------------- flags that can change -----------------------------------
 
     @Test
-    fun flag_OfValuesThatDiffer_IsThePreferredOne() {
+    fun testFlagOfValuesThatDifferIsThePreferredOne() {
         assertEquals(true, Reconcile.flag(false, true, true))
         assertEquals(true, Reconcile.flag(true, false, true))
         assertEquals(false, Reconcile.flag(false, true, false))
@@ -117,14 +117,14 @@ class ReconcileTest {
     }
 
     @Test
-    fun flag_OfTheSameValue_IsThatValue_WhateverIsPreferred() {
+    fun testFlagOfTheSameValueIsThatValueWhateverIsPreferred() {
         assertEquals(false, Reconcile.flag(false, false, true))
         assertEquals(true, Reconcile.flag(true, true, false))
         assertNull(Reconcile.flag(null, null, true))
     }
 
     @Test
-    fun flag_OfASideThatIsNotSet_IsTheOther_WhateverIsPreferred() {
+    fun testFlagOfASideThatIsNotSetIsTheOtherWhateverIsPreferred() {
         assertEquals(false, Reconcile.flag(false, null, true))
         assertEquals(false, Reconcile.flag(null, false, true))
         assertEquals(true, Reconcile.flag(null, true, false))

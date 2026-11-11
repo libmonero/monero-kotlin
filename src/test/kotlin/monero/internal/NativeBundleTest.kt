@@ -41,7 +41,7 @@ class NativeBundleTest {
 
     // The jar of monero-c has the library and its libusb in the folder of each platform
     @Test
-    fun extract_FromAJar_CopiesTheFilesOfThePlatform() {
+    fun testExtractFromAJarCopiesTheFilesOfThePlatform() {
         val jar = jar(
             "linux-x86-64/libmonero_c.so" to "library",
             "linux-x86-64/libusb-1.0.so.0" to "usb",
@@ -62,7 +62,7 @@ class NativeBundleTest {
     // A jar can name an entry with the parent in it or with a backslash, which the copy would write
     // outside the folder of the platform on windows: only a plain file name is taken
     @Test
-    fun extract_FromAJarWithEntriesThatEscapeTheFolder_TakesOnlyThePlainFileNames() {
+    fun testExtractFromAJarWithEntriesThatEscapeTheFolderTakesOnlyThePlainFileNames() {
         val jar = jar(
             "linux-x86-64/libmonero_c.so" to "library",
             "linux-x86-64/.." to "the parent",
@@ -79,7 +79,7 @@ class NativeBundleTest {
 
     // A colon in the name of an entry is the drive of a path or the stream of a file on windows, which is not a file of the bundle either
     @Test
-    fun extract_FromAJarWithEntriesThatNameADriveOrAStream_TakesOnlyThePlainFileNames() {
+    fun testExtractFromAJarWithEntriesThatNameADriveOrAStreamTakesOnlyThePlainFileNames() {
         val jar = jar(
             "linux-x86-64/libmonero_c.so" to "library",
             "linux-x86-64/D:libusb-1.0.so.0" to "in the folder of another drive",
@@ -94,7 +94,7 @@ class NativeBundleTest {
 
     // A folder of the classpath is the same, e.g. the resources of a build
     @Test
-    fun extract_FromADirectory_CopiesTheFilesOfThePlatform() {
+    fun testExtractFromADirectoryCopiesTheFilesOfThePlatform() {
         val resources = Files.createDirectories(tempDir.resolve("resources/darwin-aarch64"))
         resources.resolve("libmonero_c.dylib").toFile().writeText("library")
         resources.resolve("libusb-1.0.0.dylib").toFile().writeText("usb")
@@ -111,7 +111,7 @@ class NativeBundleTest {
 
     // Without the library in the folder of the platform there is nothing to take
     @Test
-    fun extract_WithoutTheLibraryOfThePlatform_ReturnsNull() {
+    fun testExtractWithoutTheLibraryOfThePlatformReturnsNull() {
         val jar = jar("linux-aarch64/libmonero_c.so" to "another platform", "linux-x86-64/libusb-1.0.so.0" to "usb")
         val directory = target()
 
@@ -124,7 +124,7 @@ class NativeBundleTest {
 
     // The folder of the platform and the file of the library are those of this system
     @Test
-    fun extract_ByDefault_UsesThePlatformOfTheSystem() {
+    fun testExtractByDefaultUsesThePlatformOfTheSystem() {
         val library = System.mapLibraryName("monero_c")
         val jar = jar("${Platform.RESOURCE_PREFIX}/$library" to "library", "${Platform.RESOURCE_PREFIX}/libusb" to "usb")
         val directory = target()

@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Tag
 class MoneroJsonTest {
 
     @Test
-    fun serialize_LeavesOutFieldsThatAreNotSet_ButNotZeroAndFalse() {
+    fun testSerializeLeavesOutFieldsThatAreNotSetButNotZeroAndFalse() {
         val tx = MoneroTx()
         tx.hash = "abc"
         tx.fee = BigInteger.ZERO
@@ -34,7 +34,7 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun serialize_WritesCompactJson() {
+    fun testSerializeWritesCompactJson() {
         val header = MoneroBlockHeader()
         header.height = 7
         header.hash = "h"
@@ -44,7 +44,7 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun deserialize_ReadsGenericTypes() {
+    fun testDeserializeReadsGenericTypes() {
         val hashes = MoneroJson.deserialize<List<String>>("""["a","b"]""")
         assertEquals(listOf("a", "b"), hashes)
         val heights = MoneroJson.deserialize("[1,2,3]", object : TypeReference<List<Long>>() {})
@@ -52,13 +52,13 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun deserialize_OfNull_IsAnErrorThatNamesTheType() {
+    fun testDeserializeOfNullIsAnErrorThatNamesTheType() {
         val e = assertFailsWith<MoneroError> { MoneroJson.deserialize("null", MoneroDaemonInfo::class.java) }
         assertTrue(e.message!!.contains("MoneroDaemonInfo"), e.message)
     }
 
     @Test
-    fun deserialize_OfJsonThatIsNotValid_IsAnErrorThatNamesTheType() {
+    fun testDeserializeOfJsonThatIsNotValidIsAnErrorThatNamesTheType() {
         for (json in listOf("", "{", """{"height":"high"}""", """{"height":[1]}""", """[1,2]""", "nope")) {
             val e = assertFailsWith<MoneroError>(json) { MoneroJson.deserialize(json, MoneroDaemonInfo::class.java) }
             assertTrue(e.message!!.contains("MoneroDaemonInfo"), e.message)
@@ -66,7 +66,7 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun numbers_UseTheWholeRangeOfTheirType() {
+    fun testNumbersUseTheWholeRangeOfTheirType() {
         val max = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE)
         val json = """{"reward":$max,"height":${Long.MAX_VALUE},"numTxs":${Int.MAX_VALUE},"nonce":4294967295,"difficultyLow":$max,"difficultyHigh":$max}"""
         val header = MoneroJson.deserialize(json, MoneroBlockHeader::class.java)
@@ -79,7 +79,7 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun text_WithEscapesAndUnicode_SurvivesTheRoundTrip() {
+    fun testTextWithEscapesAndUnicodeSurvivesTheRoundTrip() {
         val tx = MoneroTx()
         tx.hash = "quote \" backslash \\ newline \n tab \t unicode é中😀 control \u0001"
         val read = MoneroJson.deserialize(MoneroJson.serialize(tx), MoneroTx::class.java)
@@ -87,7 +87,7 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun text_EmptyIsAValue_NotAFieldThatIsNotSet() {
+    fun testTextEmptyIsAValueNotAFieldThatIsNotSet() {
         val tx = MoneroTx()
         tx.hash = ""
         assertEquals("""{"hash":""}""", MoneroJson.serialize(tx))
@@ -96,7 +96,7 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun emptyLists_AreNotTheSameAsListsThatAreNotSet() {
+    fun testEmptyListsAreNotTheSameAsListsThatAreNotSet() {
         val tx = MoneroJson.deserialize("""{"inputs":[],"outputs":[]}""", MoneroTx::class.java)
         assertEquals(emptyList(), tx.inputs)
         assertEquals(emptyList(), tx.outputs)
@@ -105,14 +105,14 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun extra_IsAnArrayOfNumbers_NotBase64() {
+    fun testExtraIsAnArrayOfNumbersNotBase64() {
         val tx = MoneroJson.deserialize("""{"extra":[1,129,255,0]}""", MoneroTx::class.java)
         assertEquals(listOf(1, 129, 255, 0), tx.extra)
         assertEquals("""{"extra":[1,129,255,0]}""", MoneroJson.serialize(tx))
     }
 
     @Test
-    fun enumerations_HaveTheNumbersOfMoneroCpp() {
+    fun testEnumerationsHaveTheNumbersOfMoneroCpp() {
         assertEquals(listOf("MAINNET", "TESTNET", "STAGENET", "REGTEST"), MoneroNetworkType.entries.map { it.name })
         for ((number, type) in MoneroNetworkType.entries.withIndex()) {
             val info = MoneroJson.deserialize("""{"networkType":$number}""", MoneroDaemonInfo::class.java)
@@ -127,14 +127,14 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun networkType_NumberThatIsNotANetwork_IsRejected() {
+    fun testNetworkTypeNumberThatIsNotANetworkIsRejected() {
         for (number in listOf(-1, 4, 100)) {
             assertFailsWith<MoneroError>("$number") { MoneroJson.deserialize("""{"networkType":$number}""", MoneroDaemonInfo::class.java) }
         }
     }
 
     @Test
-    fun networkType_ParsesTheNamesOfTheNetworks() {
+    fun testNetworkTypeParsesTheNamesOfTheNetworks() {
         assertEquals(MoneroNetworkType.MAINNET, MoneroNetworkType.parse("mainnet"))
         assertEquals(MoneroNetworkType.TESTNET, MoneroNetworkType.parse(" Testnet "))
         assertEquals(MoneroNetworkType.STAGENET, MoneroNetworkType.parse("STAGENET"))
@@ -143,13 +143,13 @@ class MoneroJsonTest {
     }
 
     @Test
-    fun txDefaultPaymentId_IsEightZeroBytes() {
+    fun testTxDefaultPaymentIdIsEightZeroBytes() {
         assertEquals("0000000000000000", MoneroTx.DEFAULT_PAYMENT_ID)
         assertEquals(16, MoneroTx.DEFAULT_PAYMENT_ID.length)
     }
 
     @Test
-    fun json_CanBeUsedFromManyThreads() {
+    fun testJsonCanBeUsedFromManyThreads() {
         val pool = Executors.newFixedThreadPool(4)
         try {
             val json = ModelTestSupport.fixture("daemon", "daemon_info")

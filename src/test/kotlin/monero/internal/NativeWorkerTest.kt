@@ -16,14 +16,14 @@ import org.junit.jupiter.api.Tag
 class NativeWorkerTest {
 
     @Test
-    fun call_ReturnsTheResultOfTheTask() {
+    fun testCallReturnsTheResultOfTheTask() {
         NativeWorker("test", "The test is closed").use { worker ->
             assertEquals(42, worker.call { 42 })
         }
     }
 
     @Test
-    fun call_ThrowsTheErrorOfTheTaskAsItIs() {
+    fun testCallThrowsTheErrorOfTheTaskAsItIs() {
         NativeWorker("test", "The test is closed").use { worker ->
             val error = assertThrows(MoneroError::class.java) { worker.call { throw MoneroError("it failed") } }
             assertEquals("it failed", error.message)
@@ -33,7 +33,7 @@ class NativeWorkerTest {
     // a close that an interrupt ends half way leaves the handle of the owner freed under a queued call, so the
     // close waits the interrupt out: the owner frees the handle only after the last call has ended
     @Test
-    fun close_WaitsAnInterruptOut() {
+    fun testCloseWaitsAnInterruptOut() {
         val worker = NativeWorker("test", "The test is closed")
         val started = CountDownLatch(1)
         val finished = CountDownLatch(1)
@@ -64,7 +64,7 @@ class NativeWorkerTest {
     // the worker runs one call at a time, so a call that waits on a call of its own worker would wait
     // on itself forever
     @Test
-    fun call_FromTheWorkerItself_Fails() {
+    fun testCallFromTheWorkerItselfFails() {
         NativeWorker("test", "The test is closed").use { worker ->
             val error = assertThrows(MoneroError::class.java) {
                 worker.call { worker.call { 1 } }
@@ -74,7 +74,7 @@ class NativeWorkerTest {
     }
 
     @Test
-    fun call_OfAClosedWorker_Fails() {
+    fun testCallOfAClosedWorkerFails() {
         val worker = NativeWorker("test", "The test is closed")
         worker.close()
 
@@ -84,7 +84,7 @@ class NativeWorkerTest {
 
     // The owner of a worker frees its handle as soon as the close returns
     @Test
-    fun close_WaitsForTheCallThatIsRunning() {
+    fun testCloseWaitsForTheCallThatIsRunning() {
         val worker = NativeWorker("test", "The test is closed")
         val started = CountDownLatch(1)
         val finished = AtomicBoolean(false)
@@ -104,7 +104,7 @@ class NativeWorkerTest {
     }
 
     @Test
-    fun close_WaitsForTheCallsInTheQueue() {
+    fun testCloseWaitsForTheCallsInTheQueue() {
         val worker = NativeWorker("test", "The test is closed")
         val started = CountDownLatch(1)
         val queuedRan = AtomicBoolean(false)

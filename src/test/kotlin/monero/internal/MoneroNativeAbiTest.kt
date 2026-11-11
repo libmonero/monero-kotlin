@@ -19,7 +19,7 @@ class MoneroNativeAbiTest {
     }
 
     @Test
-    fun theLibrary_IsOfTheAbiThatTheCodeNeeds() {
+    fun testTheLibraryIsOfTheAbiThatTheCodeNeeds() {
         val major = IntByReference()
         val minor = IntByReference()
         val patch = IntByReference()
@@ -30,7 +30,7 @@ class MoneroNativeAbiTest {
     }
 
     @Test
-    fun aDaemonListener_IsCreatedWithTheSizeOfItsCallbacks() {
+    fun testADaemonListenerIsCreatedWithTheSizeOfItsCallbacks() {
         val callbacks = DaemonListenerCallbacks()
         callbacks.structSize = callbacks.size()
 
@@ -41,7 +41,7 @@ class MoneroNativeAbiTest {
     }
 
     @Test
-    fun aDaemonListener_WithoutTheSizeOfItsCallbacks_IsRefused() {
+    fun testADaemonListenerWithoutTheSizeOfItsCallbacksIsRefused() {
         val callbacks = DaemonListenerCallbacks()
         val out = PointerByReference()
 

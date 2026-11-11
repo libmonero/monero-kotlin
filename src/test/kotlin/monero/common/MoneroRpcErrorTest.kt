@@ -22,21 +22,21 @@ import org.junit.jupiter.api.Tag
 class MoneroRpcErrorTest {
 
     @Test
-    fun rpcError_IsAMoneroError() {
+    fun testRpcErrorIsAMoneroError() {
         val error: MoneroError = MoneroRpcError("Method not found")
         assertEquals("Method not found", error.message)
         assertTrue(error is RuntimeException)
     }
 
     @Test
-    fun rpcError_HasNoCodeUnlessItIsGiven() {
+    fun testRpcErrorHasNoCodeUnlessItIsGiven() {
         assertNull(MoneroRpcError("Method not found").code)
         assertEquals(-32601, MoneroRpcError("Method not found", -32601).code)
         assertEquals(404, MoneroRpcError("Not found", 404).code)
     }
 
     @Test
-    fun rpcError_KeepsItsCause() {
+    fun testRpcErrorKeepsItsCause() {
         val cause = IllegalStateException("cause")
         val error = MoneroRpcError("failed", 500, cause)
         assertSame(cause, error.cause)
@@ -44,13 +44,13 @@ class MoneroRpcErrorTest {
     }
 
     @Test
-    fun rpcError_IsCaughtAsAMoneroError() {
+    fun testRpcErrorIsCaughtAsAMoneroError() {
         assertFailsWith<MoneroError> { throw MoneroRpcError("Method not found") }
     }
 
     // the JSON-RPC code of the answer, and the HTTP status of an answer that is not OK, reach the error
     @Test
-    fun errorOfAServer_HasTheCodeThatTheServerAnsweredWith() {
+    fun testErrorOfAServerHasTheCodeThatTheServerAnsweredWith() {
         NativeTestSupport.assumeAvailable()
         val server = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
         server.createContext("/json_rpc") { exchange ->
@@ -82,7 +82,7 @@ class MoneroRpcErrorTest {
 
     // an argument that monero-c refuses is not an answer of a server
     @Test
-    fun errorOfMoneroC_ThatIsNotAnAnswerOfAServer_IsNotAnRpcError() {
+    fun testErrorOfMoneroCThatIsNotAnAnswerOfAServerIsNotAnRpcError() {
         NativeTestSupport.assumeAvailable()
         val error = assertFailsWith<MoneroError> { MoneroUtils.validateAddress("not an address", monero.daemon.model.MoneroNetworkType.MAINNET) }
         assertFalse(error is MoneroRpcError, error.toString())
