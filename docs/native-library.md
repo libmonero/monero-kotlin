@@ -17,7 +17,7 @@ A `MoneroError` says where the library was looked for, when none of them has it.
 
 ## Version of the ABI
 
-When the library is loaded, the version of its ABI is compared with the one that monero-kotlin was written for. While the major version is 0, the minor version has to be the same (0.3 now). A `MoneroError` is thrown if it is not, and if the library is so old that it has no version.
+When the library is loaded, the version of its ABI is compared with the one that monero-kotlin was written for (0.4 now). ABI 0.3 is also accepted: its function signatures are unchanged, and the changed JSON results are read in either shape. A `MoneroError` is thrown for any other version, and if the library is so old that it has no version.
 
 The version of monero-c that the submodule `external/monero-c` is pinned at is the one that the CI tests the library with. A later release with the same ABI works too.
 

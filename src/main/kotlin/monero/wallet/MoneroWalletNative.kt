@@ -325,7 +325,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         return run { lib, h ->
             val out = PointerByReference()
             val indices = subaddressIndices?.toIntArray()
-            MoneroNative.json(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT((indices?.size ?: 0).toLong()), false, out), out, object : TypeReference<List<MoneroSubaddress>>() {})
+            MoneroNative.jsonList(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT((indices?.size ?: 0).toLong()), false, out), out, "subaddresses", MoneroSubaddress::class.java)
         }
     }
 
@@ -683,7 +683,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         return run { lib, h ->
             val out = PointerByReference()
             val array = indices?.takeIf { it.isNotEmpty() }?.toLongArray()
-            MoneroNative.json(lib.monero_wallet_get_address_book_entries(h, array, SizeT((array?.size ?: 0).toLong()), out), out, object : TypeReference<List<MoneroAddressBookEntry>>() {})
+            MoneroNative.jsonList(lib.monero_wallet_get_address_book_entries(h, array, SizeT((array?.size ?: 0).toLong()), out), out, "entries", MoneroAddressBookEntry::class.java)
         }
     }
 
@@ -852,7 +852,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_create_tx(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+            MoneroNative.txSetsResult(lib.monero_wallet_create_tx(h, MoneroJson.serialize(config), out), out)
         }.getTxs().singleOrNull() ?: throw MoneroError("monero-c did not create one transaction")
     }
 
@@ -870,7 +870,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            val result = MoneroNative.json(lib.monero_wallet_create_txs(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+            val result = MoneroNative.txSetsResult(lib.monero_wallet_create_txs(h, MoneroJson.serialize(config), out), out)
             result.getTxs()
         }
     }
@@ -888,7 +888,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_sweep_output(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+            MoneroNative.txSetsResult(lib.monero_wallet_sweep_output(h, MoneroJson.serialize(config), out), out)
         }.getTxs().singleOrNull() ?: throw MoneroError("monero-c did not create one transaction")
     }
 
@@ -906,7 +906,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_sweep_unlocked(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+            MoneroNative.txSetsResult(lib.monero_wallet_sweep_unlocked(h, MoneroJson.serialize(config), out), out)
         }.getTxs()
     }
 
@@ -922,7 +922,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_sweep_dust(h, relay, out), out, MoneroTxSetsResult::class.java)
+            MoneroNative.txSetsResult(lib.monero_wallet_sweep_dust(h, relay, out), out)
         }.getTxs()
     }
 
@@ -994,7 +994,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return txSetOf(run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_describe_tx_set(h, MoneroJson.serialize(txSet), out), out, MoneroTxSetsResult::class.java)
+            MoneroNative.txSetsResult(lib.monero_wallet_describe_tx_set(h, MoneroJson.serialize(txSet), out), out)
         })
     }
 
@@ -1009,7 +1009,7 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         return txSetOf(run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.json(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out, MoneroTxSetsResult::class.java)
+            MoneroNative.txSetsResult(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out)
         })
     }
 

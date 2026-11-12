@@ -1,6 +1,7 @@
 package monero.internal
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.JsonNode
 import com.sun.jna.FromNativeContext
 import com.sun.jna.FromNativeConverter
 import com.sun.jna.Library
@@ -17,6 +18,10 @@ import java.math.BigInteger
 import monero.common.MoneroError
 import monero.common.MoneroRpcError
 import monero.common.MoneroJson
+import monero.daemon.model.MoneroBlocksResult
+import monero.daemon.model.MoneroOutput
+import monero.wallet.model.MoneroTxSet
+import monero.wallet.model.MoneroTxSetsResult
 
 /**
  * Loads monero-c, checks the results of its functions and reads what they return. The last error is per thread: a call
@@ -32,11 +37,11 @@ internal object MoneroNative {
     const val LIBRARY_ENVIRONMENT = "MONERO_C_LIBRARY"
 
     /**
-     * The version of the C ABI that this code was written for. While the major version is 0, a different minor version
-     * can break the callers.
+     * The latest minor version of the C ABI that this code was written for.
      */
     const val ABI_MAJOR = 0
-    const val ABI_MINOR = 3
+    const val ABI_MINOR = 4
+    internal val SUPPORTED_ABI_MINORS = setOf(3, ABI_MINOR)
 
     // MONERO_ERROR_RPC of monero_error_code
     private const val ERROR_RPC = 4
@@ -97,8 +102,8 @@ internal object MoneroNative {
         } catch (e: UnsatisfiedLinkError) {
             throw MoneroError("The native library monero_c is too old: it has no version of its ABI", e)
         }
-        if (major.value != ABI_MAJOR || minor.value != ABI_MINOR) {
-            throw MoneroError("The version of the ABI of monero-c is ${major.value}.${minor.value}.${patch.value}, and $ABI_MAJOR.$ABI_MINOR.x is needed")
+        if (major.value != ABI_MAJOR || minor.value !in SUPPORTED_ABI_MINORS) {
+            throw MoneroError("The version of the ABI of monero-c is ${major.value}.${minor.value}.${patch.value}, and 0.3.x or 0.4.x is needed")
         }
     }
 
@@ -164,6 +169,53 @@ internal object MoneroNative {
     fun <T> json(result: Int, out: PointerByReference, type: TypeReference<T>): T {
         val json = text(result, out) ?: throw MoneroError("monero-c returned no JSON, and a ${type.type.typeName} is needed")
         return MoneroJson.deserialize(json, type)
+    }
+
+    /**
+     * Read a list returned either as an array or under its property name.
+     */
+    fun <T> jsonList(result: Int, out: PointerByReference, name: String, type: Class<T>): List<T> {
+        val json = text(result, out) ?: throw MoneroError("monero-c returned no JSON, and a list of ${type.simpleName} is needed")
+        return list(json, name, type)
+    }
+
+    internal fun <T> list(json: String, name: String, type: Class<T>): List<T> {
+        val root = MoneroJson.deserialize(json, JsonNode::class.java)
+        val values = if (root.isArray) root else root.get(name)
+        if (values == null || values.isNull) throw MoneroError("monero-c returned no $name list")
+        val listType = MoneroJson.mapper.typeFactory.constructCollectionType(List::class.java, type)
+        return MoneroJson.deserialize(values.toString(), listType)
+    }
+
+    fun outputs(result: Int, out: PointerByReference): List<MoneroOutput> {
+        val json = text(result, out) ?: throw MoneroError("monero-c returned no JSON, and a list of outputs is needed")
+        return outputs(json)
+    }
+
+    internal fun outputs(json: String): List<MoneroOutput> {
+        val root = MoneroJson.deserialize(json, JsonNode::class.java)
+        if (root.isArray) {
+            val listType = MoneroJson.mapper.typeFactory.constructCollectionType(List::class.java, MoneroOutput::class.java)
+            return MoneroJson.deserialize(json, listType)
+        }
+        if (!root.has("blocks")) throw MoneroError("monero-c returned no blocks for its outputs")
+        return MoneroJson.deserialize(json, MoneroBlocksResult::class.java).getOutputs()
+    }
+
+    /**
+     * Read transaction sets returned either in the legacy list wrapper or as one set.
+     */
+    fun txSetsResult(result: Int, out: PointerByReference): MoneroTxSetsResult {
+        val json = text(result, out) ?: throw MoneroError("monero-c returned no JSON, and a transaction set is needed")
+        return txSetsResult(json)
+    }
+
+    internal fun txSetsResult(json: String): MoneroTxSetsResult {
+        val root = MoneroJson.deserialize(json, JsonNode::class.java)
+        if (root.has("txSets")) return MoneroJson.deserialize(json, MoneroTxSetsResult::class.java)
+        val result = MoneroTxSetsResult()
+        result.txSets = if (root.isObject && root.isEmpty) emptyList() else listOf(MoneroJson.deserialize(json, MoneroTxSet::class.java))
+        return result
     }
 
     /**

@@ -6,6 +6,7 @@ import monero.NativeTestSupport
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Tag
@@ -26,7 +27,7 @@ class MoneroNativeAbiTest {
         MoneroNative.ok(MoneroNative.lib.monero_utils_get_abi_version(major, minor, patch))
 
         assertEquals(MoneroNative.ABI_MAJOR, major.value)
-        assertEquals(MoneroNative.ABI_MINOR, minor.value)
+        assertTrue(minor.value in MoneroNative.SUPPORTED_ABI_MINORS)
     }
 
     @Test

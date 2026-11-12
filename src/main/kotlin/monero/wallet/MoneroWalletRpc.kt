@@ -133,7 +133,10 @@ class MoneroWalletRpc(rpc: MoneroRpcConnection) : MoneroWalletNative(connect(rpc
      */
     override fun getAccounts(includeSubaddresses: Boolean, tag: String?): List<MoneroAccount> {
         checkNotClosed()
-        return json { lib, h, out -> lib.monero_wallet_get_accounts(h, includeSubaddresses, tag, false, out) }
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.jsonList(lib.monero_wallet_get_accounts(h, includeSubaddresses, tag, false, out), out, "accounts", MoneroAccount::class.java)
+        }
     }
 
     /**

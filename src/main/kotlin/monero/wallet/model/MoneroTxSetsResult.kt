@@ -1,7 +1,8 @@
 package monero.wallet.model
 
 /**
- * Models the result of the calls that make transactions: {"txSets":[...]}. The calls that sweep can make several sets, and the other calls make one.
+ * Models the normalized result of calls that make transactions. ABI 0.3 returns sets under `txSets`; ABI 0.4 returns a single set directly,
+ * except `sweepUnlocked`, which can make several sets. The native binding normalizes both shapes here.
  */
 class MoneroTxSetsResult {
     var txSets: List<MoneroTxSet>? = null

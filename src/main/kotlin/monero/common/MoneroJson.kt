@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.json.JsonMapper
@@ -51,6 +52,18 @@ object MoneroJson {
      */
     fun <T> deserialize(json: String, type: Class<T>): T {
         return read(json, type.simpleName) { mapper.readValue(json, type) }
+    }
+
+    /**
+     * Deserialize a model from JSON.
+     *
+     * @param json is the JSON to deserialize
+     * @param type is the model type
+     * @return the model
+     * @throws MoneroError if the JSON is not valid, or it is not a model of that type
+     */
+    internal fun <T> deserialize(json: String, type: JavaType): T {
+        return read(json, type.toCanonical()) { mapper.readValue(json, type) }
     }
 
     /**

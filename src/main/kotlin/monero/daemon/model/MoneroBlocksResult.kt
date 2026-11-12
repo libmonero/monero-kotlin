@@ -26,4 +26,13 @@ class MoneroBlocksResult {
         blocks?.forEach { block -> block.txs?.let { txs.addAll(it) } }
         return txs
     }
+
+    /**
+     * Get the outputs of the transactions of the blocks.
+     *
+     * @return the outputs of the transactions
+     */
+    fun getOutputs(): List<MoneroOutput> {
+        return getTxs().flatMap { it.outputs ?: emptyList() }
+    }
 }

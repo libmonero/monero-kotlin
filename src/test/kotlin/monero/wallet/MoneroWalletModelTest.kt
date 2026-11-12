@@ -20,6 +20,7 @@ import monero.ModelTestSupport.write
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
+import monero.internal.MoneroNative
 import monero.daemon.model.MoneroBlock
 import monero.daemon.model.MoneroNetworkType
 import monero.daemon.model.MoneroOutput
@@ -259,6 +260,19 @@ class MoneroWalletModelTest {
     }
 
     @Test
+    fun nativeNamedLists_ReadTheNewWrapperAndLegacyArray() {
+        val wrapped = MoneroNative.list("""{"accounts":[{"index":0},{"index":1}]}""", "accounts", MoneroAccount::class.java)
+        val subaddresses = MoneroNative.list("""{"subaddresses":[{"index":2}]}""", "subaddresses", MoneroSubaddress::class.java)
+        val entries = MoneroNative.list("""{"entries":[{"index":3}]}""", "entries", MoneroAddressBookEntry::class.java)
+        val legacy = MoneroNative.list("""[{"index":2}]""", "accounts", MoneroAccount::class.java)
+
+        assertEquals(listOf(0, 1), wrapped.map { it.index })
+        assertEquals(listOf(2), subaddresses.map { it.index })
+        assertEquals(listOf(3L), entries.map { it.index })
+        assertEquals(listOf(2), legacy.map { it.index })
+    }
+
+    @Test
     fun testMessageSignatureResultsReadTheFixtures() {
         val spend = readFixture("message_signature_spend", MoneroMessageSignatureResult::class.java)
         assertEquals(true, spend.isGood)
@@ -439,6 +453,19 @@ class MoneroWalletModelTest {
         assertTrue(set.unsignedTxHex!!.startsWith("4d6f6e65726f"))
         assertNull(set.signedTxHex)
         assertEquals(BigInteger.valueOf(200000000), set.txs!![0].outgoingTransfer!!.amount)
+    }
+
+    @Test
+    fun nativeTxSetResult_ReadsTheNewSingleSetAndLegacyWrapper() {
+        val direct = MoneroNative.txSetsResult("""{"txs":[{"hash":"new"}],"unsignedTxHex":"hex"}""")
+        val legacy = MoneroNative.txSetsResult("""{"txSets":[{"txs":[{"hash":"old"}]}]}""")
+        val empty = MoneroNative.txSetsResult("{}")
+
+        assertEquals(listOf("new"), direct.getTxs().map { it.hash })
+        assertEquals("hex", direct.txSets!!.single().unsignedTxHex)
+        assertSame(direct.txSets!!.single(), direct.getTxs().single().txSet)
+        assertEquals(listOf("old"), legacy.getTxs().map { it.hash })
+        assertEquals(emptyList(), empty.getTxs())
     }
 
     @Test

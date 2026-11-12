@@ -178,7 +178,7 @@ class MoneroWalletKeys private constructor(private val handle: Pointer) : Monero
         return run { lib, h ->
             val out = PointerByReference()
             val indices = subaddressIndices.toIntArray()
-            MoneroNative.json(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT(indices.size.toLong()), false, out), out, object : TypeReference<List<MoneroSubaddress>>() {})
+            MoneroNative.jsonList(lib.monero_wallet_get_subaddresses(h, accountIdx, indices, SizeT(indices.size.toLong()), false, out), out, "subaddresses", MoneroSubaddress::class.java)
         }
     }
 

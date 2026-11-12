@@ -19,6 +19,7 @@ import monero.ModelTestSupport.write
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.common.MoneroRpcConnection
+import monero.internal.MoneroNative
 import monero.daemon.model.MoneroAddAuxiliaryPowResult
 import monero.daemon.model.MoneroAltChain
 import monero.daemon.model.MoneroAuxiliaryPow
@@ -455,6 +456,21 @@ class MoneroDaemonModelTest {
         assertEquals(false, tx.isConfirmed)
         assertEquals(0L, tx.numConfirmations)
         assertEquals(1791736242L, tx.receivedTimestamp)
+    }
+
+    @Test
+    fun outputsInBlocks_KeepTheirTransactionAndBlockContext() {
+        val outputs = MoneroNative.outputs("""{"blocks":[{"height":42,"txs":[{"hash":"tx","isLocked":true,"outputs":[{"amount":7,"index":3}]}]}]}""")
+        val output = outputs.single()
+        val tx = output.tx!!
+
+        assertEquals(BigInteger.valueOf(7), output.amount)
+        assertEquals(3L, output.index)
+        assertEquals("tx", tx.hash)
+        assertEquals(true, tx.isLocked)
+        assertEquals(42L, tx.height)
+        assertSame(tx, tx.outputs!!.single().tx)
+        assertEquals(listOf(8L), MoneroNative.outputs("""[{"amount":8,"index":4}]""").map { it.amount!!.toLong() })
     }
 
     @Test

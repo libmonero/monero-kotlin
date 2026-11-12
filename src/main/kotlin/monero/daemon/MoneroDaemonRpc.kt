@@ -455,7 +455,10 @@ class MoneroDaemonRpc(rpc: MoneroRpcConnection) : MoneroDaemonDefault(), AutoClo
 
     override fun getOutputs(outputs: Collection<MoneroOutput>): List<MoneroOutput> {
         val request = MoneroJson.serialize(outputs)
-        return json { lib, h, out -> lib.monero_daemon_get_outputs(h, request, out) }
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.outputs(lib.monero_daemon_get_outputs(h, request, out), out)
+        }
     }
 
     override fun getOutputHistogram(amounts: Collection<BigInteger>, minCount: Int?, maxCount: Int?, isUnlocked: Boolean?, recentCutoff: Int?): List<MoneroOutputHistogramEntry> {
