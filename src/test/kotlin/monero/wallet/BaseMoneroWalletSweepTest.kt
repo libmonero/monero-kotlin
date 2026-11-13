@@ -83,6 +83,60 @@ abstract class BaseMoneroWalletSweepTest {
         return config
     }
 
+    // The inputs of the transactions that are not relayed have key images: a spend, a split spend, the sweep of dust, of one output by its key
+    // image, and of the unlocked funds of a subaddress, which leaves no output above the fee
+    @Test
+    fun testInputKeyImages() {
+        fundedWallet().use { wallet ->
+            val accountIdx = 0
+            val subaddressIdx = 0
+
+            val spend = MoneroTxConfig()
+            spend.accountIndex = accountIdx
+            spend.addDestination(wallet.getPrimaryAddress(), MAX_FEE)
+            TxAssertions.validateSent(wallet.createTx(spend), false)
+            wallet.createTxs(spend).forEach { TxAssertions.validateSent(it, false) }
+
+            val dustKeyImages = HashSet<String>()
+            for (tx in wallet.sweepDust(false)) {
+                TxAssertions.validateSent(tx, false)
+                tx.inputs!!.forEach { dustKeyImages.add(assertNotNull(it.keyImage?.hex)) }
+            }
+
+            // what can be spent, less the dust that was swept
+            val query = MoneroOutputQuery().also {
+                it.accountIndex = accountIdx
+                it.subaddressIndex = subaddressIdx
+                it.isSpent = false
+                it.isFrozen = false
+                it.minAmount = MAX_FEE
+                it.txQuery = MoneroTxQuery().also { tx -> tx.isLocked = false }
+            }
+            val outputs = wallet.getOutputs(query).filter { it.keyImage!!.hex !in dustKeyImages }
+            assertTrue(outputs.isNotEmpty(), "No available outputs found")
+
+            val sweepOutput = sweepConfig(wallet.getPrimaryAddress())
+            sweepOutput.relay = false
+            sweepOutput.keyImage = outputs.first().keyImage!!.hex
+            TxAssertions.validateSent(wallet.sweepOutput(sweepOutput), false)
+
+            val sweepWallet = sweepConfig(wallet.getPrimaryAddress())
+            sweepWallet.relay = false
+            sweepWallet.accountIndex = accountIdx
+            sweepWallet.subaddressIndices = listOf(subaddressIdx)
+            val swept = HashSet<String>()
+            for (tx in wallet.sweepUnlocked(sweepWallet)) {
+                TxAssertions.validateSent(tx, false)
+                tx.inputs!!.forEach { swept.add(assertNotNull(it.keyImage?.hex)) }
+            }
+            assertTrue(swept.isNotEmpty())
+
+            // an output that was not swept is less than the fee
+            val skipped = outputs.filter { it.keyImage!!.hex !in swept }.maxOfOrNull { it.amount!! }
+            if (skipped != null) assertTrue(skipped < MAX_FEE, "the largest output that was not swept: $skipped")
+        }
+    }
+
     // Can sweep individual outputs identified by their key images, which are spent after
     @Test
     fun testSweepOutputs() {

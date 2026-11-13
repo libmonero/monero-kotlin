@@ -18,6 +18,7 @@ import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.daemon.MoneroDaemonRpc
 import monero.daemon.model.MoneroNetworkType
+import monero.wallet.TxAssertions.MAX_FEE
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
@@ -111,6 +112,30 @@ class MoneroWalletFullIntegrationTest {
             val accounts = wallet.getAccounts(true)
             assertEquals(wallet.getBalance(), accounts.fold(BigInteger.ZERO) { sum, it -> sum.add(it.balance) })
             assertEquals(true, wallet.getSubaddress(account.index!!, subaddress.index!!).isUsed)
+        }
+    }
+
+    // A wallet with a high subaddress lookahead sees the funds that are sent to a subaddress that is far from the first ones.
+    // Python lets the receiver see the unconfirmed funds, here a block confirms them
+    @Test
+    fun testSubaddressLookahead() {
+        val receiverConfig = config()
+        receiverConfig.accountLookahead = 1L
+        receiverConfig.subaddressLookahead = 100000L
+        MoneroWalletFull.createWallet(receiverConfig).use { receiver ->
+            createWallet().use { sender ->
+                RegtestSupport.mineBlocks(5, sender.getPrimaryAddress())
+                RegtestSupport.mineBlocks(blocksToUnlock)
+                sender.sync()
+
+                val farSubaddress = receiver.getSubaddress(0, 85000)
+                sender.createTxs(txConfig(farSubaddress.address!!, MAX_FEE).also { it.relay = true }).single()
+                RegtestSupport.mineBlocks(1)
+
+                receiver.sync()
+                assertTrue(receiver.getBalance().signum() > 0)
+                assertTrue(receiver.getBalance(0, 85000).signum() > 0, "the funds are in the subaddress that is far from the first ones")
+            }
         }
     }
 

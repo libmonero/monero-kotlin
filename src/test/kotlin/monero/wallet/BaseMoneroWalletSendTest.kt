@@ -10,6 +10,7 @@ import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.common.MoneroJson
+import monero.daemon.MoneroDaemonRpc
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxWallet
@@ -176,14 +177,25 @@ abstract class BaseMoneroWalletSendTest {
         }
     }
 
-    private fun sendToMultiple(wallet: MoneroWalletNative, numAccounts: Int, numSubaddresses: Int, split: Boolean, subtractFee: Boolean) {
+    // Can send dust, half of the fee of a transaction, to many addresses in some transactions
+    @Test
+    fun testSendDustToMultipleSplit() {
+        val dustAmount = MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon -> daemon.getFeeEstimate().fee!!.divide(BigInteger.TWO) }
+        fundedWallet().use { wallet ->
+            sendToMultiple(wallet, 5, 3, split = true, subtractFee = false, amount = dustAmount)
+        }
+    }
+
+    private fun sendToMultiple(
+        wallet: MoneroWalletNative, numAccounts: Int, numSubaddresses: Int, split: Boolean, subtractFee: Boolean,
+        amount: BigInteger = xmr.divide(BigInteger.TEN)
+    ) {
         while (wallet.getAccounts().size < numAccounts) wallet.createAccount()
         val addresses = ArrayList<String>()
         for (accountIdx in 0 until numAccounts) {
             while (wallet.getSubaddresses(accountIdx).size < numSubaddresses) wallet.createSubaddress(accountIdx)
             for (subaddressIdx in 0 until numSubaddresses) addresses.add(wallet.getAddress(accountIdx, subaddressIdx))
         }
-        val amount = xmr.divide(BigInteger.TEN)
         val sent = amount * BigInteger.valueOf(addresses.size.toLong())
 
         val config = MoneroTxConfig()

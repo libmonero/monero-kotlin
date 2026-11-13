@@ -10,6 +10,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import monero.RegtestSupport
 import monero.common.MoneroError
+import monero.daemon.MoneroDaemonRpc
+import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxWallet
@@ -54,6 +56,61 @@ abstract class BaseMoneroWalletProofsTest {
     private fun assertReceived(address: String, paid: BigInteger, received: BigInteger) {
         if (address == RegtestSupport.MINING_ADDRESS) assertEquals(paid, received, "what $address received")
         else assertTrue(received >= paid, "what $address received: $received of $paid")
+    }
+
+    // Can prove an unrelayed transaction: the daemon holds it without relaying it, and a wallet that has nothing to do with it checks
+    // what each address received with its key
+    @Test
+    fun testProveUnrelayedTxs() {
+        val max = TxAssertions.MAX_FEE
+        wallets.create().use { wallet ->
+            RegtestSupport.mineBlocks(5, wallet.getPrimaryAddress())
+            RegtestSupport.mineBlocks(130)
+            wallet.sync()
+            if (wallet.getAccounts().size < 2) wallet.createAccount()
+            val address1 = RegtestSupport.MINING_ADDRESS
+            val address2 = wallet.getAddress(0, 0)
+            val address3 = wallet.getAddress(1, 0)
+            val config = MoneroTxConfig()
+            config.accountIndex = 0
+            config.addDestination(address1, max)
+            config.addDestination(address2, max.multiply(BigInteger.TWO))
+            config.addDestination(address3, max.multiply(BigInteger.valueOf(3)))
+            val tx = wallet.createTx(config)
+            val hash = assertNotNull(tx.hash)
+            val key = assertNotNull(tx.key)
+
+            // the daemon takes the transaction and does not relay it
+            MoneroDaemonRpc(RegtestSupport.daemonConnection()).use { daemon ->
+                assertEquals(true, daemon.submitTxHex(assertNotNull(tx.fullHex), true).isGood)
+                try {
+                    wallets.create().use { verifying ->
+                        val check1 = verifying.checkTxKey(hash, key, address1)
+                        TxAssertions.validateCheckTx(check1)
+                        assertEquals(true, check1.isGood)
+                        assertEquals(true, check1.inTxPool)
+                        assertEquals(0L, check1.numConfirmations)
+                        assertEquals(max, check1.receivedAmount)
+
+                        // this one gets the change too
+                        val check2 = verifying.checkTxKey(hash, key, address2)
+                        assertEquals(true, check2.isGood)
+                        assertEquals(true, check2.inTxPool)
+                        assertEquals(0L, check2.numConfirmations)
+                        assertTrue(check2.receivedAmount!! >= max.multiply(BigInteger.TWO))
+
+                        val check3 = verifying.checkTxKey(hash, key, address3)
+                        assertEquals(true, check3.isGood)
+                        assertEquals(true, check3.inTxPool)
+                        assertEquals(0L, check3.numConfirmations)
+                        assertEquals(max.multiply(BigInteger.valueOf(3)), check3.receivedAmount)
+                    }
+                } finally {
+                    // otherwise the outputs that it spends stay tied up for the other tests
+                    daemon.flushTxPool(hash)
+                }
+            }
+        }
     }
 
     // Can check a transfer using the secret key of the transaction and the destination
