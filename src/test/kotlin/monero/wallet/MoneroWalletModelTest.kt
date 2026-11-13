@@ -591,6 +591,21 @@ class MoneroWalletModelTest {
     }
 
     @Test
+    fun testWalletConfigInvalidNetworkType() {
+        // Python refuses -1 and 3; here 3 is REGTEST, so the first number out of range is 4
+        for (json in listOf("""{"networkType":-1}""", """{"networkType":4}""")) {
+            assertFailsWith<MoneroError>(json) { readJson(json, MoneroWalletConfig::class.java) }
+        }
+        assertEquals(MoneroNetworkType.REGTEST, readJson("""{"networkType":3}""", MoneroWalletConfig::class.java).networkType)
+    }
+
+    @Test
+    fun testTxConfigInvalidPriorityDeserialize() {
+        assertFailsWith<MoneroError> { readJson("""{"priority":4}""", MoneroTxConfig::class.java) }
+        assertFailsWith<MoneroError> { readJson("""{"priority":-1}""", MoneroTxConfig::class.java) }
+    }
+
+    @Test
     fun testTxConfigWithOneDestinationHasItsAddressAndAmount() {
         val config = readJson("""{"destinations":[{"address":"a","amount":5}]}""", MoneroTxConfig::class.java)
         assertEquals("a", config.address)

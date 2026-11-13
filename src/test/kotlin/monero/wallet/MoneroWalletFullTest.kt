@@ -14,6 +14,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import monero.common.MoneroError
 import monero.common.MoneroRpcConnection
+import monero.daemon.model.MoneroKeyImage
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroAddressBookEntry
 import monero.wallet.model.MoneroOutputQuery
@@ -859,6 +860,15 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     @Test
+    fun testRelayTxsWithEmptyMetadata() {
+        testWallet().use { wallet ->
+            val tx = MoneroTxWallet().also { it.metadata = "" }
+            assertFailsWith<MoneroError> { wallet.relayTxs(listOf(tx)) }
+            assertFailsWith<MoneroError> { wallet.relayTx(tx) }
+        }
+    }
+
+    @Test
     fun testSignDescribeAndSubmitTxsOfWhatIsNotTheHexOfTxsAreAnError() {
         testWallet().use { wallet ->
             assertFailsWith<MoneroError> { wallet.signTxs("this is not the hex of transactions") }
@@ -1396,6 +1406,23 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         assertFailsWith<MoneroError> { wallet.freezeOutput("a".repeat(64)) }
         assertFailsWith<MoneroError> { wallet.thawOutput("a".repeat(64)) }
         assertFailsWith<MoneroError> { wallet.isOutputFrozen("a".repeat(64)) }
+    }
+
+    @Test
+    fun testImportKeyImagesHexNotDefined() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val error = assertFailsWith<MoneroError> { wallet.importKeyImages(listOf(MoneroKeyImage())) }
+            assertTrue(error.message!!.contains("key image hex is not defined"), error.message)
+        }
+    }
+
+    @Test
+    fun testImportKeyImagesSignatureNotDefined() {
+        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
+            val keyImage = MoneroKeyImage().also { it.hex = "a".repeat(64) }
+            val error = assertFailsWith<MoneroError> { wallet.importKeyImages(listOf(keyImage)) }
+            assertTrue(error.message!!.contains("key image signature is not defined"), error.message)
+        }
     }
 
     @Test
