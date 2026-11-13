@@ -1302,6 +1302,45 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
         }
     }
 
+    // Can move a wallet: from memory to a file, in place, and to another path, with its attributes and its seed
+    @Test
+    fun testMoveTo() {
+        var wallet = testWallet()
+        try {
+            val seed = wallet.getSeed()
+            wallet.setAttribute("mykey", "myval1")
+
+            // the wallet in memory goes to disk
+            val path1 = walletPath()
+            assertFalse(MoneroWalletFull.walletExists(path1))
+            wallet.moveTo(path1, password)
+            assertTrue(MoneroWalletFull.walletExists(path1))
+            assertEquals(seed, wallet.getSeed())
+            assertEquals("myval1", wallet.getAttribute("mykey"))
+
+            // moving to the same path saves in place
+            wallet.setAttribute("mykey", "myval2")
+            wallet.moveTo(path1, password)
+            wallet.close()
+            wallet = MoneroWalletFull.openWallet(config(path1))
+            assertEquals(seed, wallet.getSeed())
+            assertEquals("myval2", wallet.getAttribute("mykey"))
+
+            // moving to another path leaves nothing at the first one
+            val path2 = walletPath()
+            wallet.setAttribute("mykey", "myval3")
+            wallet.moveTo(path2, password)
+            assertFalse(MoneroWalletFull.walletExists(path1))
+            assertTrue(MoneroWalletFull.walletExists(path2))
+            wallet.close()
+            wallet = MoneroWalletFull.openWallet(config(path2))
+            assertEquals(seed, wallet.getSeed())
+            assertEquals("myval3", wallet.getAttribute("mykey"))
+        } finally {
+            wallet.close()
+        }
+    }
+
     @Test
     fun testWaitForNextBlockOfAClosedWalletFails() {
         val wallet = MoneroWalletFull.createWalletRandom(config(walletPath()))

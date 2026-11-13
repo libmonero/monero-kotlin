@@ -425,6 +425,10 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
                 "getOutputs" to { wallet.getOutputs() },
                 "getPath" to { wallet.getPath() },
                 "save" to { wallet.save() },
+                "getAttribute" to { wallet.getAttribute("key") },
+                "setAttribute" to { wallet.setAttribute("key", "value") },
+                "getDefaultFeePriority" to { wallet.getDefaultFeePriority() },
+                "moveTo" to { wallet.moveTo("path", "password") },
                 "getDaemonConnection" to { wallet.getDaemonConnection() },
                 "setDaemonConnection" to { wallet.setDaemonConnection("http://127.0.0.1:18081") },
                 "startSyncing" to { wallet.startSyncing() },
@@ -457,6 +461,14 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     // ------------------------------- WHAT A KEYS-ONLY WALLET CAN NOT DO ----------------------------------
 
     // the accounts and the subaddresses are made and read by a wallet that can enumerate them, which a keys-only wallet can not
+
+    @NotSupported
+    @Test
+    override fun testSetAttributes() = super.testSetAttributes()
+
+    @NotSupported
+    @Test
+    override fun testGetDefaultFeePriority() = super.testGetDefaultFeePriority()
 
     @NotSupported
     @Test

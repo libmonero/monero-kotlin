@@ -14,6 +14,7 @@ import monero.common.MoneroJson
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxPriority
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import monero.wallet.model.MoneroAccount
@@ -293,6 +294,25 @@ abstract class BaseMoneroWalletTest {
             val truncated = signature.substring(0, 5) + signature.substring(5, signature.length - 10)
             val result = wallet.verifyMessage("hello", address, truncated)
             assertEquals(false, result.isGood)
+        }
+    }
+
+    // Can set attributes and get them back. monero-python answers an empty string for an attribute that was not set, here it is null
+    @Test
+    open fun testSetAttributes() {
+        withTestWallet { wallet ->
+            val attributes = (0 until 5).associate { "attr$it" to java.util.UUID.randomUUID().toString() }
+            attributes.forEach { (key, value) -> wallet.setAttribute(key, value) }
+            attributes.forEach { (key, value) -> assertEquals(value, wallet.getAttribute(key)) }
+            assertNull(wallet.getAttribute("unset_key"))
+        }
+    }
+
+    // Can get the default priority of the fee, which is not DEFAULT: that one means to use the default
+    @Test
+    open fun testGetDefaultFeePriority() {
+        withTestWallet { wallet ->
+            assertTrue(wallet.getDefaultFeePriority() != MoneroTxPriority.DEFAULT)
         }
     }
 
