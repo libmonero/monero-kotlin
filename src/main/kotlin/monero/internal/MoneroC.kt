@@ -353,6 +353,14 @@ internal interface MoneroC : Library {
 
     fun monero_wallet_save(wallet: Pointer): Int
 
+    fun monero_wallet_get_attribute(wallet: Pointer, key: String, found: ByteByReference, value: PointerByReference): Int
+
+    fun monero_wallet_set_attribute(wallet: Pointer, key: String, value: String): Int
+
+    fun monero_wallet_get_default_fee_priority(wallet: Pointer, priority: IntByReference): Int
+
+    fun monero_wallet_move_to(wallet: Pointer, path: String, password: String?): Int
+
     fun monero_wallet_get_path(wallet: Pointer, out: PointerByReference): Int
 
     fun monero_wallet_get_restore_height(wallet: Pointer, height: LongByReference): Int

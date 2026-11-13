@@ -39,6 +39,7 @@ import monero.wallet.model.MoneroWalletListener
 import monero.wallet.model.MoneroTransfer
 import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxPriority
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxSet
 import monero.wallet.model.MoneroTxSetsResult
@@ -432,6 +433,63 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
         checkNotClosed()
         requirePath()
         run { lib, h -> MoneroNative.ok(lib.monero_wallet_save(h)) }
+    }
+
+    /**
+     * Get an attribute that the wallet stores with its files.
+     *
+     * @param key is the attribute to get the value of
+     * @return the value of the attribute, or null if the wallet has no such attribute
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun getAttribute(key: String): String? {
+        checkNotClosed()
+        return run { lib, h ->
+            val found = ByteByReference()
+            val out = PointerByReference()
+            val value = MoneroNative.text(lib.monero_wallet_get_attribute(h, key, found, out), out)
+            if (found.value.toInt() != 0) value ?: "" else null
+        }
+    }
+
+    /**
+     * Set an attribute, which the wallet stores with its files: it is written when the wallet is saved.
+     *
+     * @param key is the attribute key
+     * @param value is the attribute value
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun setAttribute(key: String, value: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_set_attribute(h, key, value)) }
+    }
+
+    /**
+     * Get the default priority of the fee of the transactions, which the wallet uses when a config has none.
+     *
+     * @return the default priority
+     * @throws MoneroError if the wallet is closed
+     */
+    override fun getDefaultFeePriority(): MoneroTxPriority {
+        checkNotClosed()
+        return run { lib, h ->
+            val priority = IntByReference()
+            MoneroNative.ok(lib.monero_wallet_get_default_fee_priority(h, priority))
+            MoneroTxPriority.entries.getOrNull(priority.value) ?: throw MoneroError("monero-c returned a priority that is not known: ${priority.value}")
+        }
+    }
+
+    /**
+     * Move the wallet files to another path, where the wallet is saved with the new password. A wallet that stays in memory is
+     * written there. Only the full wallet moves: a wallet of a server does not.
+     *
+     * @param path is the new path of the wallet
+     * @param password is the password of the wallet files at the new path
+     * @throws MoneroError if the wallet is closed, or it can not be written at the path
+     */
+    override fun moveTo(path: String, password: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_move_to(h, path, password)) }
     }
 
     /**
