@@ -57,6 +57,10 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
 
     override fun closeWallet(wallet: MoneroWallet) = (wallet as MoneroWalletFull).close()
 
+    override val walletPassword: String get() = password
+
+    override fun openWallet(path: String, password: String): MoneroWallet = MoneroWalletFull.openWallet(config(path).also { it.password = password })
+
     override fun seedLanguages(wallet: MoneroWallet): List<String> = (wallet as MoneroWalletFull).getSeedLanguages()
 
     override val defaultLanguage: String = MoneroWalletFull.DEFAULT_LANGUAGE
@@ -1125,29 +1129,6 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
             val closeError = assertFailsWith<MoneroError> { wallet.close(true) }
             assertEquals("The wallet has no path to write to", closeError.message)
             assertFalse(wallet.isClosed())
-        }
-    }
-
-    @Test
-    fun testChangePasswordWritesTheFilesWithTheNewOne() {
-        val path = walletPath()
-        MoneroWalletFull.createWalletRandom(config(path)).use { wallet ->
-            wallet.changePassword(password, "a new password")
-        }
-
-        // the wallet opens with the new password, and not with the old one
-        val withNew = config(path)
-        withNew.password = "a new password"
-        MoneroWalletFull.openWallet(withNew).close()
-        val error = assertFailsWith<MoneroError> { MoneroWalletFull.openWallet(config(path)) }
-        assertTrue(error.message!!.contains("password"), error.message)
-    }
-
-    @Test
-    fun testChangePasswordWithTheWrongOldOneIsAnError() {
-        MoneroWalletFull.createWalletRandom(config(walletPath())).use { wallet ->
-            val error = assertFailsWith<MoneroError> { wallet.changePassword("not the password", "a new password") }
-            assertEquals("Invalid original password.", error.message)
         }
     }
 

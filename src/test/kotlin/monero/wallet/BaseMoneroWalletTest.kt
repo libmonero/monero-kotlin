@@ -69,6 +69,19 @@ abstract class BaseMoneroWalletTest {
     protected abstract fun closeWallet(wallet: MoneroWallet)
 
     /**
+     * The password of the files of the wallets that [createRandomWallet] makes.
+     */
+    protected abstract val walletPassword: String
+
+    /**
+     * Open the wallet that a closed wallet left at its path. The test closes it.
+     *
+     * @param path is the path of the wallet, which [MoneroWallet.getPath] says
+     * @param password is the password of the files of the wallet
+     */
+    protected abstract fun openWallet(path: String, password: String): MoneroWallet
+
+    /**
      * The languages that a seed can be written in, which are the ones of the wallet.
      */
     protected abstract fun seedLanguages(wallet: MoneroWallet): List<String>
@@ -302,6 +315,36 @@ abstract class BaseMoneroWalletTest {
                 }
             }
         }
+    }
+
+    // Can change the password of a wallet with files, which is written with the new one at once: the old one does not open it, the new one
+    // does, and the old password has to be the right one to change it
+    @Test
+    open fun testChangePassword() {
+        val newPassword = ""
+        val wallet = createRandomWallet()
+        val path: String
+        try {
+            path = wallet.getPath()
+            wallet.changePassword(walletPassword, newPassword)
+        } finally {
+            closeWallet(wallet)
+        }
+
+        // the old password does not work, and the change was written without a save: wallet2 and the server say it in their own words
+        val error = assertFailsWith<MoneroError> { openWallet(path, walletPassword) }
+        val message = error.message!!.lowercase()
+        assertTrue("failed to open wallet" in message || "password" in message, error.message)
+
+        val reopened = openWallet(path, newPassword)
+        try {
+            assertEquals("Invalid original password.", assertFailsWith<MoneroError> { reopened.changePassword("badpassword", newPassword) }.message)
+            reopened.save()
+        } finally {
+            closeWallet(reopened)
+        }
+
+        closeWallet(openWallet(path, newPassword))
     }
 
     @Test

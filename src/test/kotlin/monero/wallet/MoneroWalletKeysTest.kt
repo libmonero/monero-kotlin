@@ -44,6 +44,11 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     override fun closeWallet(wallet: MoneroWallet) = (wallet as MoneroWalletKeys).close()
 
+    // a keys wallet has no files
+    override val walletPassword: String = ""
+
+    override fun openWallet(path: String, password: String): MoneroWallet = throw MoneroError("not supported: a keys wallet has no files")
+
     override fun seedLanguages(wallet: MoneroWallet): List<String> = (wallet as MoneroWalletKeys).getSeedLanguages()
 
     override val defaultLanguage: String = MoneroWalletKeys.DEFAULT_LANGUAGE
@@ -482,6 +487,10 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     @NotSupported
     @Test
     override fun testAddressBookWithWhatIsNotValidIsAnError() = super.testAddressBookWithWhatIsNotValidIsAnError()
+
+    @NotSupported
+    @Test
+    override fun testChangePassword() = super.testChangePassword()
 
     @NotSupported
     @Test

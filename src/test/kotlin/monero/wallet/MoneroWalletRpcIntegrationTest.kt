@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Tag
 @Tag("integration")
 class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
-    private val walletPassword = "supersecretpassword123"
+    override val walletPassword = "supersecretpassword123"
 
     // the server of the wallets of these tests, which are on the same one so that a test opens by name a wallet that it made: the first
     // server holds the wallet that the other tests share
@@ -61,6 +61,17 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
     override fun createRandomWallet(): MoneroWallet = createWalletOnServer(config())
 
     override fun closeWallet(wallet: MoneroWallet) = wallet.close(false)
+
+    override fun openWallet(path: String, password: String): MoneroWallet {
+        val wallet = newClient()
+        try {
+            wallet.openWallet(path, password)
+            return wallet
+        } catch (e: Throwable) {
+            runCatching { wallet.close() }
+            throw e
+        }
+    }
 
     override fun seedLanguages(wallet: MoneroWallet): List<String> = (wallet as MoneroWalletRpc).getSeedLanguages()
 
