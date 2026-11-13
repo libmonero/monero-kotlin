@@ -30,6 +30,8 @@ class MoneroWalletRpcIntegrationTest : BaseMoneroWalletTest() {
 
     override val walletPassword = "supersecretpassword123"
 
+    override val verifyMessageWithInvalidAddressThrows: Boolean = false
+
     // the server of the wallets of these tests, which are on the same one so that a test opens by name a wallet that it made: the first
     // server holds the wallet that the other tests share
     private val server = 1

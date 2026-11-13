@@ -69,6 +69,12 @@ abstract class BaseMoneroWalletTest {
     protected abstract fun closeWallet(wallet: MoneroWallet)
 
     /**
+     * Whether verifying a message for an address that is not one is an error: wallet2 refuses the address, and monero-wallet-rpc answers that
+     * the signature is not good, which is what monero-python sees.
+     */
+    protected open val verifyMessageWithInvalidAddressThrows: Boolean = true
+
+    /**
      * The password of the files of the wallets that [createRandomWallet] makes.
      */
     protected abstract val walletPassword: String
@@ -310,7 +316,11 @@ abstract class BaseMoneroWalletTest {
                     assertEquals(false, wallet.verifyMessage("a different message", address, signature).isGood)
 
                     assertResult(wallet.verifyMessage(message, wallet.getAddress(0, 2), signature), false)
-                    assertResult(wallet.verifyMessage(message, "invalid address", signature), false)
+                    if (verifyMessageWithInvalidAddressThrows) {
+                        assertFailsWith<MoneroError> { wallet.verifyMessage(message, "invalid address", signature) }
+                    } else {
+                        assertResult(wallet.verifyMessage(message, "invalid address", signature), false)
+                    }
                     assertResult(wallet.verifyMessage(message, externalAddress, signature), false)
                 }
             }
