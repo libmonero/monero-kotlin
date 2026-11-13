@@ -18,6 +18,7 @@ import monero.wallet.model.MoneroTxPriority
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import monero.wallet.model.MoneroAccount
+import monero.wallet.model.MoneroAddressBookEntry
 import monero.wallet.model.MoneroSubaddress
 
 /**
@@ -598,6 +599,125 @@ abstract class BaseMoneroWalletTest {
             }
             assertEquals(accountsBalance, wallet.getBalance())
             assertEquals(accountsUnlockedBalance, wallet.getUnlockedBalance())
+        }
+    }
+
+    // ------------------------------- ADDRESS BOOK ----------------------------------
+
+    private fun assertEntry(entry: MoneroAddressBookEntry, index: Long, address: String, description: String) {
+        assertEquals(index, entry.index)
+        assertEquals(address, entry.address)
+        assertEquals(description, entry.description)
+        assertNull(entry.paymentId)
+    }
+
+    @Test
+    open fun testAddressBookOfANewWalletIsEmpty() {
+        withRandomWallet { wallet ->
+            assertEquals(emptyList(), wallet.getAddressBookEntries())
+            assertEquals(emptyList(), wallet.getAddressBookEntries(emptyList()))
+        }
+    }
+
+    // Has an address book: adds standard addresses, gets them all or by index, edits them and deletes them
+    @Test
+    open fun testAddressBookAddsEditsAndDeletesEntries() {
+        withRandomWallet { wallet ->
+            val indices = (0 until 5).map { wallet.addAddressBookEntry(primaryAddress, "hi there!") }
+            assertEquals(listOf(0L, 1L, 2L, 3L, 4L), indices)
+
+            val entries = wallet.getAddressBookEntries()
+            assertEquals(5, entries.size)
+            entries.forEachIndexed { i, entry -> assertEntry(entry, indices[i], primaryAddress, "hi there!") }
+
+            for (index in indices) wallet.editAddressBookEntry(index, null, "hello there!!")
+            wallet.getAddressBookEntries(indices).forEachIndexed { i, entry -> assertEntry(entry, indices[i], primaryAddress, "hello there!!") }
+
+            // each delete takes the entry at the index, and the entries after it move one place down
+            repeat(5) { wallet.deleteAddressBookEntry(indices[0]) }
+            assertEquals(emptyList(), wallet.getAddressBookEntries())
+        }
+    }
+
+    @Test
+    open fun testAddressBookGetsTheEntriesOfTheIndicesInTheOrderOfTheIndices() {
+        withRandomWallet { wallet ->
+            for (i in 0 until 4) wallet.addAddressBookEntry(primaryAddress, "entry $i")
+            assertEquals(listOf("entry 3", "entry 1"), wallet.getAddressBookEntries(listOf(3L, 1L)).map { it.description })
+            assertEquals(listOf("entry 2"), wallet.getAddressBookEntries(listOf(2L)).map { it.description })
+        }
+    }
+
+    @Test
+    open fun testAddressBookDeleteMovesTheEntriesAfterItOnePlaceDown() {
+        withRandomWallet { wallet ->
+            for (i in 0 until 4) wallet.addAddressBookEntry(primaryAddress, "entry $i")
+            wallet.deleteAddressBookEntry(1)
+            val entries = wallet.getAddressBookEntries()
+            assertEquals(listOf(0L, 1L, 2L), entries.map { it.index })
+            assertEquals(listOf("entry 0", "entry 2", "entry 3"), entries.map { it.description })
+        }
+    }
+
+    // Adds subaddresses and integrated addresses, which come back as they were given and with no payment id
+    @Test
+    open fun testAddressBookKeepsSubaddressesAndIntegratedAddresses() {
+        withRandomWallet { wallet ->
+            val subaddress = wallet.createSubaddress(0).address!!
+            val integrated = (0 until 5).map { wallet.getIntegratedAddress(null, "03284e41c342f03$it").integratedAddress!! }
+            val subaddressIndex = wallet.addAddressBookEntry(subaddress, "a subaddress")
+            val integratedIndices = integrated.mapIndexed { i, address -> wallet.addAddressBookEntry(address, "integrated $i") }
+
+            assertEntry(wallet.getAddressBookEntries(listOf(subaddressIndex)).single(), subaddressIndex, subaddress, "a subaddress")
+            wallet.getAddressBookEntries(integratedIndices).forEachIndexed { i, entry -> assertEntry(entry, integratedIndices[i], integrated[i], "integrated $i") }
+            assertEquals(6, wallet.getAddressBookEntries().size)
+        }
+    }
+
+    @Test
+    open fun testAddressBookEditKeepsWhatIsNull() {
+        withRandomWallet { wallet ->
+            val other = wallet.getPrimaryAddress()
+            val index = wallet.addAddressBookEntry(primaryAddress, "first")
+
+            wallet.editAddressBookEntry(index, other, null)
+            assertEntry(wallet.getAddressBookEntries(listOf(index)).single(), index, other, "first")
+
+            wallet.editAddressBookEntry(index, null, "second")
+            assertEntry(wallet.getAddressBookEntries(listOf(index)).single(), index, other, "second")
+
+            wallet.editAddressBookEntry(index, primaryAddress, "third")
+            assertEntry(wallet.getAddressBookEntries(listOf(index)).single(), index, primaryAddress, "third")
+
+            // an empty description takes the description away, and nothing to change changes nothing
+            wallet.editAddressBookEntry(index, null, "")
+            assertEntry(wallet.getAddressBookEntries(listOf(index)).single(), index, primaryAddress, "")
+            wallet.editAddressBookEntry(index, null, null)
+            assertEntry(wallet.getAddressBookEntries(listOf(index)).single(), index, primaryAddress, "")
+        }
+    }
+
+    @Test
+    open fun testAddressBookEntryWithNoDescriptionHasAnEmptyOne() {
+        withRandomWallet { wallet ->
+            val index = wallet.addAddressBookEntry(primaryAddress)
+            assertEntry(wallet.getAddressBookEntries(listOf(index)).single(), index, primaryAddress, "")
+        }
+    }
+
+    @Test
+    open fun testAddressBookWithWhatIsNotValidIsAnError() {
+        withRandomWallet { wallet ->
+            assertFailsWith<MoneroError> { wallet.addAddressBookEntry("invalid_address", "no") }
+            assertEquals(emptyList(), wallet.getAddressBookEntries())
+
+            val index = wallet.addAddressBookEntry(primaryAddress, "yes")
+            assertFailsWith<MoneroError> { wallet.editAddressBookEntry(index, "invalid_address", "no") }
+            assertFailsWith<MoneroError> { wallet.editAddressBookEntry(index + 1, null, "no") }
+            assertFailsWith<MoneroError> { wallet.deleteAddressBookEntry(index + 1) }
+            assertFailsWith<MoneroError> { wallet.getAddressBookEntries(listOf(index + 1)) }
+            assertFailsWith<MoneroError> { wallet.getAddressBookEntries(listOf(-1L)) }
+            assertEntry(wallet.getAddressBookEntries().single(), index, primaryAddress, "yes")
         }
     }
 }

@@ -472,6 +472,38 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     @NotSupported
     @Test
+    override fun testAddressBookOfANewWalletIsEmpty() = super.testAddressBookOfANewWalletIsEmpty()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookAddsEditsAndDeletesEntries() = super.testAddressBookAddsEditsAndDeletesEntries()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookGetsTheEntriesOfTheIndicesInTheOrderOfTheIndices() = super.testAddressBookGetsTheEntriesOfTheIndicesInTheOrderOfTheIndices()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookDeleteMovesTheEntriesAfterItOnePlaceDown() = super.testAddressBookDeleteMovesTheEntriesAfterItOnePlaceDown()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookKeepsSubaddressesAndIntegratedAddresses() = super.testAddressBookKeepsSubaddressesAndIntegratedAddresses()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookEditKeepsWhatIsNull() = super.testAddressBookEditKeepsWhatIsNull()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookEntryWithNoDescriptionHasAnEmptyOne() = super.testAddressBookEntryWithNoDescriptionHasAnEmptyOne()
+
+    @NotSupported
+    @Test
+    override fun testAddressBookWithWhatIsNotValidIsAnError() = super.testAddressBookWithWhatIsNotValidIsAnError()
+
+    @NotSupported
+    @Test
     override fun testGetAccountsWithoutSubaddresses() = super.testGetAccountsWithoutSubaddresses()
 
     @NotSupported
