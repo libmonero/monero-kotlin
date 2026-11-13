@@ -347,6 +347,42 @@ abstract class BaseMoneroWalletTest {
         closeWallet(openWallet(path, newPassword))
     }
 
+    // Can save and close the wallet in a single call: what was set and not saved is lost with a close, and kept with a close that saves.
+    // monero-python gets an empty string for an attribute that was not set, here it is null
+    @Test
+    open fun testSaveAndClose() {
+        val uuid = java.util.UUID.randomUUID().toString()
+        val wallet = createRandomWallet()
+        val path: String
+        try {
+            path = wallet.getPath()
+            wallet.setAttribute("id", uuid)
+        } catch (e: Throwable) {
+            closeWallet(wallet)
+            throw e
+        }
+
+        // closed without saving: the attribute is not there when the wallet opens again
+        wallet.close(false)
+        val reopened = openWallet(path, walletPassword)
+        try {
+            assertNull(reopened.getAttribute("id"))
+            reopened.setAttribute("id", uuid)
+        } catch (e: Throwable) {
+            closeWallet(reopened)
+            throw e
+        }
+
+        // closed with a save: it is
+        reopened.close(true)
+        val saved = openWallet(path, walletPassword)
+        try {
+            assertEquals(uuid, saved.getAttribute("id"))
+        } finally {
+            closeWallet(saved)
+        }
+    }
+
     @Test
     fun testVerifyMessageWithoutSignatureHeader() {
         withRandomWallet { wallet ->

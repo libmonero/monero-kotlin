@@ -490,6 +490,10 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
 
     @NotSupported
     @Test
+    override fun testSaveAndClose() = super.testSaveAndClose()
+
+    @NotSupported
+    @Test
     override fun testChangePassword() = super.testChangePassword()
 
     @NotSupported
