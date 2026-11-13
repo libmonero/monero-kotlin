@@ -20,8 +20,6 @@ import monero.wallet.model.MoneroAddressBookEntry
 import monero.wallet.model.MoneroOutputQuery
 import monero.wallet.model.MoneroTransferQuery
 import monero.wallet.model.MoneroDestination
-import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
-import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxSet
@@ -511,34 +509,6 @@ class MoneroWalletFullTest : BaseMoneroWalletTest() {
     }
 
     // ------------------------------- INTEGRATED ADDRESSES ----------------------------------
-
-    // ------------------------------- MESSAGES ----------------------------------
-
-    @Test
-    fun testSignAndVerifyMessagesWithTheSpendKeyAndTheViewKey() {
-        val message = "This is a super important message which needs to be signed and verified."
-        testWallet().use { wallet ->
-            for (signatureType in listOf(SIGN_WITH_SPEND_KEY, SIGN_WITH_VIEW_KEY)) {
-                for ((accountIdx, subaddressIdx) in listOf(Pair(0, 0), Pair(0, 1), Pair(1, 0))) {
-                    val address = wallet.getAddress(accountIdx, subaddressIdx)
-                    val signature = wallet.signMessage(message, signatureType, accountIdx, subaddressIdx)
-
-                    val result = wallet.verifyMessage(message, address, signature)
-                    assertEquals(true, result.isGood)
-                    assertEquals(signatureType, result.signatureType)
-                    assertEquals(false, wallet.verifyMessage("a different message", address, signature).isGood)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testVerifyMessageOfAnotherAddressIsNotGood() {
-        testWallet().use { wallet ->
-            val signature = wallet.signMessage("hello", SIGN_WITH_SPEND_KEY, 0, 0)
-            assertEquals(false, wallet.verifyMessage("hello", wallet.getAddress(0, 1), signature).isGood)
-        }
-    }
 
     // ------------------------------- PAYMENT URIS ----------------------------------
 

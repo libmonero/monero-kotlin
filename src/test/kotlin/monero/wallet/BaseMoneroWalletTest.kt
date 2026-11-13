@@ -12,7 +12,9 @@ import monero.NativeTestSupport
 import monero.common.MoneroError
 import monero.common.MoneroJson
 import monero.wallet.model.MoneroDestination
+import monero.wallet.model.MoneroMessageSignatureResult
 import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
+import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_VIEW_KEY
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxPriority
 import kotlin.test.assertFalse
@@ -268,6 +270,37 @@ abstract class BaseMoneroWalletTest {
 
             val paymentIdError = assertFailsWith<MoneroError> { wallet.getIntegratedAddress(wallet.getPrimaryAddress(), "invalid payment id") }
             assertEquals("Invalid payment ID: invalid payment id", paymentIdError.message)
+        }
+    }
+
+    // Can sign a message with the spend key and with the view key, for the first subaddresses, and verify it: not for another address,
+    // not for what is not an address, and not for an address of another wallet (the mining wallet of monero-python's config.ini)
+    @Test
+    open fun testSignAndVerifyMessages() {
+        val message = "This is a super important message which needs to be signed and verified."
+        val externalAddress = "49cvU1JnXFAH7r1RbDLJw78aaDnhW4sCKRbLaTYa9eHvcz9PK1YXwod5npWZvMyQ8L4waVjUhuCp6btFyELkRpA4SWNKeQH"
+        withTestWallet { wallet ->
+            fun assertResult(result: MoneroMessageSignatureResult, good: Boolean) {
+                assertEquals(good, result.isGood)
+                assertEquals(false, result.isOld)
+                if (good) assertEquals(2, result.version)
+            }
+
+            for ((accountIdx, subaddressIdx) in listOf(Pair(0, 0), Pair(0, 1), Pair(1, 0))) {
+                for (signatureType in listOf(SIGN_WITH_SPEND_KEY, SIGN_WITH_VIEW_KEY)) {
+                    val address = wallet.getAddress(accountIdx, subaddressIdx)
+                    val signature = wallet.signMessage(message, signatureType, accountIdx, subaddressIdx)
+
+                    val good = wallet.verifyMessage(message, address, signature)
+                    assertResult(good, true)
+                    assertEquals(signatureType, good.signatureType)
+                    assertEquals(false, wallet.verifyMessage("a different message", address, signature).isGood)
+
+                    assertResult(wallet.verifyMessage(message, wallet.getAddress(0, 2), signature), false)
+                    assertResult(wallet.verifyMessage(message, "invalid address", signature), false)
+                    assertResult(wallet.verifyMessage(message, externalAddress, signature), false)
+                }
+            }
         }
     }
 

@@ -14,7 +14,6 @@ import kotlin.test.assertTrue
 import monero.common.MoneroError
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroAccount
-import monero.wallet.model.MoneroMessageSignatureType.SIGN_WITH_SPEND_KEY
 import monero.wallet.model.MoneroWalletConfig
 
 /**
@@ -296,24 +295,6 @@ class MoneroWalletKeysTest : BaseMoneroWalletTest() {
     }
 
     // ------------------------------- INTEGRATED ADDRESSES ----------------------------------
-
-    // ------------------------------- MESSAGES ----------------------------------
-
-    @Test
-    fun testSignAndVerifyMessagesWithSpendKey() {
-        val message = "This is a super important message which needs to be signed and verified."
-        testWallet().use { wallet ->
-            val positions = listOf(Pair(0, 0), Pair(0, 1), Pair(1, 0))
-            for ((accountIdx, subaddressIdx) in positions) {
-                val signature = wallet.signMessage(message, SIGN_WITH_SPEND_KEY, accountIdx, subaddressIdx)
-                val result = wallet.verifyMessage(message, wallet.getAddress(accountIdx, subaddressIdx), signature)
-                assertEquals(true, result.isGood)
-                assertEquals(SIGN_WITH_SPEND_KEY, result.signatureType)
-                val wrongMessage = wallet.verifyMessage("a different message", wallet.getAddress(accountIdx, subaddressIdx), signature)
-                assertEquals(false, wrongMessage.isGood)
-            }
-        }
-    }
 
     // ------------------------------- VERSION AND PAYMENT URIS ----------------------------------
 
