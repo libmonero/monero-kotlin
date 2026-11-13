@@ -173,6 +173,9 @@ abstract class BaseMoneroWalletProofsTest {
     @Test
     fun testCheckTxProof() {
         val wallet = wallet()
+        // the last payment of the shared wallet is in the pool, and another test of the class that mines (testProveUnrelayedTxs) puts it in
+        // a block: a wallet that did not sync since sees a transaction that is not in the pool and not in a block, with no confirmations
+        wallet.sync()
         val txs = withDestinations(null)
         assertTrue(txs.size > 1, "No transactions found with outgoing destinations")
         val message = "This transaction definitely happened."
