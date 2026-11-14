@@ -37,7 +37,7 @@ jobs:
       # The release of monero-c whose commit is the pin of the submodule, and the sha256 of its monero-native-android archive, which is in the
       # SHA256SUMS.txt of the release. Change both, and the version and the sha256 of native.yml, when the submodule moves to another release
       MONERO_C_VERSION: 0.4.0-alpha.1
-      MONERO_C_ANDROID_SHA256: 7fcecab32fd7ef85c28fae7b7a15fea6a0d5c8c10aa820411c48587fd4fc2a20
+      MONERO_C_ANDROID_SHA256: 419ba68bdc43fea98ca56c3f4aa26ead169d82e4a6b68dc9675513a4c1b398df
 
     steps:
       - name: Checkout repository
@@ -49,7 +49,7 @@ jobs:
       - name: Check that the release is the pin of the submodule
         run: |
           pinned=$(git rev-parse HEAD:external/monero-c)
-          released=$(git ls-remote https://github.com/libmonero/monero-c.git "refs/tags/v$MONERO_C_VERSION^{}" | cut -f1)
+          released=$(git ls-remote https://github.com/mycomputercrashsalot/monero-c.git "refs/tags/v$MONERO_C_VERSION^{}" | cut -f1)
           test -n "$released" || { echo "::error::monero-c has no release v$MONERO_C_VERSION"; exit 1; }
           if [ "$pinned" != "$released" ]; then
             echo "::error::the submodule is at $pinned and v$MONERO_C_VERSION of monero-c is at $released: set MONERO_C_VERSION and MONERO_C_ANDROID_SHA256 of android.yml to the release of the submodule"
@@ -59,7 +59,7 @@ jobs:
       - name: Download the native library
         run: |
           curl --retry 5 --retry-delay 5 --retry-max-time 150 -fsSL -o "$RUNNER_TEMP/monero-native-android.aar" \
-            "https://github.com/libmonero/monero-c/releases/download/v$MONERO_C_VERSION/monero-native-android-$MONERO_C_VERSION.aar"
+            "https://github.com/mycomputercrashsalot/monero-c/releases/download/v$MONERO_C_VERSION/monero-native-android-$MONERO_C_VERSION.aar"
           echo "$MONERO_C_ANDROID_SHA256  $RUNNER_TEMP/monero-native-android.aar" | sha256sum -c
 
       - name: Set up Java
