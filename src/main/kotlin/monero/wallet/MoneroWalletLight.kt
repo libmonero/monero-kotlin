@@ -17,7 +17,6 @@ import monero.internal.NativeWorker
 import monero.wallet.model.MoneroSyncResult
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
-import monero.wallet.model.MoneroTxSetsResult
 import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletBlocksResult
 import monero.wallet.model.MoneroWalletConfig
@@ -209,7 +208,7 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
         }
         return run { lib, h ->
             val out = PointerByReference()
-            val result = MoneroNative.json(lib.monero_wallet_create_txs(h, MoneroJson.serialize(config), out), out, MoneroTxSetsResult::class.java)
+            val result = MoneroNative.txSetsResult(lib.monero_wallet_create_txs(h, MoneroJson.serialize(config), out), out)
             result.getTxs()
         }
     }
@@ -256,7 +255,7 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            val result = MoneroNative.json(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out, MoneroTxSetsResult::class.java)
+            val result = MoneroNative.txSetsResult(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out)
             result.getTxs()
         }
     }

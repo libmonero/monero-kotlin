@@ -22,6 +22,7 @@ import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroDestination
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Order
@@ -131,7 +132,7 @@ class MoneroWalletSendIntegrationTest {
             assertTrue(tooMuch.message!!.contains("need more money than found"), tooMuch.message)
 
             // the first transaction relays from its metadata, the way the python wallet does
-            val firstTxs = sender.createTxs(txConfig(0, receiverAddress, firstAmount))
+            val firstTxs = createUntilItHasOne(sender, txConfig(0, receiverAddress, firstAmount))
             assertEquals(1, firstTxs.size)
             val first = firstTxs[0]
             assertEquals(false, first.isRelayed, "a transaction of a config that does not relay is not relayed")
@@ -143,7 +144,7 @@ class MoneroWalletSendIntegrationTest {
             assertEquals(firstHash, relayedHash)
 
             // the second transaction relays from the transaction itself
-            val secondTxs = sender.createTxs(txConfig(0, receiverAddress, secondAmount))
+            val secondTxs = createUntilItHasOne(sender, txConfig(0, receiverAddress, secondAmount))
             assertEquals(1, secondTxs.size)
             val second = secondTxs[0]
             val secondFee = assertNotNull(second.fee)
@@ -178,7 +179,7 @@ class MoneroWalletSendIntegrationTest {
                 for (attempt in 1..3) {
                     it.sync()
                     try {
-                        val unsignedTxs = it.createTxs(txConfig(0, receiverAddress, thirdAmount))
+                        val unsignedTxs = createUntilItHasOne(it, txConfig(0, receiverAddress, thirdAmount))
                         val unsigned = unsignedTxs.single()
                         val unsignedTxHex = assertNotNull(unsigned.txSet?.unsignedTxHex, "a wallet that only reads builds its transactions unsigned")
                         // the signature changes nothing of the transaction, so the fee of the signed one is the fee of the
@@ -241,6 +242,25 @@ class MoneroWalletSendIntegrationTest {
         config.destinations = listOf(MoneroDestination(address, amount))
         config.relay = false
         return config
+    }
+
+    /**
+     * Builds the transactions of a transfer, tried again when the server answers the build with none: the wallet
+     * asks the unspent outputs of the account as it reads them, and a scan that a slower machine waits behind is
+     * not one with the answer on the server. The last try is returned whatever it holds.
+     *
+     * @param wallet is the wallet that spends
+     * @param config is the configuration of the transfer
+     * @return the transactions that the wallet built
+     */
+    private fun createUntilItHasOne(wallet: MoneroWalletLight, config: MoneroTxConfig): List<MoneroTxWallet> {
+        var txs = wallet.createTxs(config)
+        for (attempt in 1..2) {
+            if (txs.isNotEmpty()) return txs
+            wallet.sync()
+            txs = wallet.createTxs(config)
+        }
+        return txs
     }
 
 
