@@ -169,22 +169,35 @@ class MoneroWalletSendIntegrationTest {
             } else {
                 MoneroWalletLight.createWallet(viewOnlyConfig, connection)
             }
-            val thirdFee: BigInteger
-            val thirdHash: String
+            var thirdFee: BigInteger? = null
+            var thirdHash: String? = null
             viewOnly.use {
-                it.sync()
-                val unsignedTxs = it.createTxs(txConfig(0, receiverAddress, thirdAmount))
-                val unsigned = unsignedTxs.single()
-                val unsignedTxHex = assertNotNull(unsigned.txSet?.unsignedTxHex, "a wallet that only reads builds its transactions unsigned")
-                // the signature changes nothing of the transaction, so the fee of the signed one is the fee of the
-                // construction, which the unsigned set carries
-                thirdFee = assertNotNull(unsigned.fee)
-                val signedTxs = sender.signTxs(unsignedTxHex)
-                val signed = signedTxs.single()
-                val signedTxHex = assertNotNull(signed.txSet?.signedTxHex)
-                thirdHash = assertNotNull(signed.hash)
-                assertEquals(listOf(thirdHash), sender.submitTxs(signedTxHex))
+                // the build and the submit are tried again when the server refuses the transaction: a scan that a
+                // slower runner waits behind can leave the unspent outputs or the rings of the chain too young for
+                // the node, and the blocks between the tries settle both
+                for (attempt in 1..3) {
+                    it.sync()
+                    try {
+                        val unsignedTxs = it.createTxs(txConfig(0, receiverAddress, thirdAmount))
+                        val unsigned = unsignedTxs.single()
+                        val unsignedTxHex = assertNotNull(unsigned.txSet?.unsignedTxHex, "a wallet that only reads builds its transactions unsigned")
+                        // the signature changes nothing of the transaction, so the fee of the signed one is the fee of the
+                        // construction, which the unsigned set carries
+                        thirdFee = assertNotNull(unsigned.fee)
+                        val signedTxs = sender.signTxs(unsignedTxHex)
+                        val signed = signedTxs.single()
+                        val signedTxHex = assertNotNull(signed.txSet?.signedTxHex)
+                        thirdHash = assertNotNull(signed.hash)
+                        assertEquals(listOf(thirdHash), sender.submitTxs(signedTxHex))
+                        break
+                    } catch (e: MoneroError) {
+                        if (attempt == 3) throw e
+                        RegtestSupport.mineBlocks(10, minerAddress)
+                        LwsSupport.waitScannedToChain(senderAddress, sender.getPrivateViewKey())
+                    }
+                }
             }
+            val fee = assertNotNull(thirdFee)
 
             // a block holds the relayed transactions, and the receiver reads exactly what was sent
             RegtestSupport.mineBlocks(1, minerAddress)
@@ -197,7 +210,7 @@ class MoneroWalletSendIntegrationTest {
 
             // the sender's balance is the one before, less the amounts and the fees
             sender.sync()
-            assertEquals(before.subtract(firstAmount).subtract(firstFee).subtract(secondAmount).subtract(secondFee).subtract(thirdAmount).subtract(thirdFee), sender.getBalance())
+            assertEquals(before.subtract(firstAmount).subtract(firstFee).subtract(secondAmount).subtract(secondFee).subtract(thirdAmount).subtract(fee), sender.getBalance())
             val sent = sender.getTxs().single { tx -> tx.hash == relayedHash }
             assertEquals(firstFee, sent.fee)
             assertEquals(false, sent.isIncoming)
