@@ -163,6 +163,54 @@ class MoneroWalletLightTest {
     }
 
     @Test
+    fun createTxs_WithAnAmountAtOrAboveTwoToTheSixtyFour_IsAnError() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        try {
+            val txConfig = MoneroTxConfig()
+            txConfig.accountIndex = 0
+            txConfig.destinations = listOf(
+                MoneroDestination("48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2", BigInteger.ONE.shiftLeft(64))
+            )
+            val error = assertFailsWith<MoneroError> { wallet.createTxs(txConfig) }
+            assertEquals("The amount 18446744073709551616 of the config of the transaction is at or above 2^64", error.message)
+        } finally {
+            wallet.close()
+        }
+    }
+
+    @Test
+    fun createTxs_WithADestinationOfTheAmountZero_IsAnError() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        try {
+            val txConfig = MoneroTxConfig()
+            txConfig.accountIndex = 0
+            txConfig.destinations = listOf(
+                MoneroDestination("48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2", BigInteger.ZERO)
+            )
+            val error = assertFailsWith<MoneroError> { wallet.createTxs(txConfig) }
+            assertEquals("The destination of the amount zero is not a transfer", error.message)
+        } finally {
+            wallet.close()
+        }
+    }
+
+    @Test
+    fun createTxs_WithANegativeIndex_IsAnError() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        try {
+            val txConfig = MoneroTxConfig()
+            txConfig.accountIndex = -1
+            txConfig.destinations = listOf(
+                MoneroDestination("48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2", BigInteger.ONE)
+            )
+            val error = assertFailsWith<MoneroError> { wallet.createTxs(txConfig) }
+            assertEquals("The index -1 of the config of the transaction is negative", error.message)
+        } finally {
+            wallet.close()
+        }
+    }
+
+    @Test
     fun signTxs_WithHexThatIsNotAnUnsignedSet_IsAnError() {
         val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
         try {

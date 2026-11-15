@@ -201,10 +201,19 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
      */
     fun createTxs(config: MoneroTxConfig): List<MoneroTxWallet> {
         checkNotClosed()
-        // a negative amount crosses the c abi as a number that wraps around to almost 2^64, which the wallet takes
-        // for a huge one and answers with an error about the money it has, and not about the amount
+        // an amount that the c abi cannot carry, or that no destination can hold, is refused here with the amount
+        // in the error, and not with an error about the money the wallet has: a negative amount crosses the abi as
+        // a number that wraps around to almost 2^64, and one at or above 2^64 does not cross at all
         for (amount in listOfNotNull(config.fee, config.belowAmount) + config.destinations.orEmpty().mapNotNull { it.amount }) {
             if (amount.signum() < 0) throw MoneroError("The amount $amount of the config of the transaction is negative")
+            if (amount.bitLength() > 64) throw MoneroError("The amount $amount of the config of the transaction is at or above 2^64")
+        }
+        for (destination in config.destinations.orEmpty()) {
+            val amount = destination.amount ?: continue
+            if (amount.signum() == 0) throw MoneroError("The destination of the amount zero is not a transfer")
+        }
+        for (index in listOfNotNull(config.accountIndex) + config.subaddressIndices.orEmpty() + config.subtractFeeFrom.orEmpty()) {
+            if (index < 0) throw MoneroError("The index $index of the config of the transaction is negative")
         }
         return run { lib, h ->
             val out = PointerByReference()
