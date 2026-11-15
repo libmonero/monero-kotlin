@@ -1,6 +1,7 @@
 package monero.wallet
 
 import org.junit.jupiter.api.Tag
+import java.math.BigInteger
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,6 +49,39 @@ class MoneroWalletLightTest {
             assertEquals(MoneroWalletLight.DEFAULT_LANGUAGE, wallet.getSeedLanguage())
             assertEquals(MoneroNetworkType.MAINNET, wallet.getNetworkType())
             assertEquals(false, wallet.isViewOnly())
+        } finally {
+            wallet.close()
+        }
+    }
+
+    @Test
+    fun getSeedLanguages_WithoutAServer_ListsTheLanguages() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        try {
+            val languages = wallet.getSeedLanguages()
+            assertTrue(languages.contains(MoneroWalletLight.DEFAULT_LANGUAGE), "the default language is one of the list")
+            assertTrue(languages.size > 1, "the list has more than the default language")
+        } finally {
+            wallet.close()
+        }
+    }
+
+    @Test
+    fun getUnrefinedSpendCount_OfAFreshWallet_IsZero() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        try {
+            assertEquals(0L, wallet.getUnrefinedSpendCount())
+        } finally {
+            wallet.close()
+        }
+    }
+
+    @Test
+    fun getBalance_OfAFreshWallet_IsZero() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        try {
+            assertEquals(BigInteger.ZERO, wallet.getBalance())
+            assertEquals(BigInteger.ZERO, wallet.getUnlockedBalance())
         } finally {
             wallet.close()
         }
