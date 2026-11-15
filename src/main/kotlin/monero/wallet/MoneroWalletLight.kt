@@ -314,7 +314,9 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
         return run { lib, h ->
             val networkType = IntByReference()
             MoneroNative.ok(lib.monero_wallet_get_network_type(h, networkType))
-            MoneroNetworkType.values()[networkType.value]
+            val values = MoneroNetworkType.values()
+            if (networkType.value < 0 || networkType.value >= values.size) throw MoneroError("The wallet answered a network type that the library does not know: ${networkType.value}")
+            values[networkType.value]
         }
     }
 
