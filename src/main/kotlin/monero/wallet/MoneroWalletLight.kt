@@ -363,17 +363,15 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
         }
 
         // the flag goes first, so the calls that start after it fail with the error and not on a freed handle. The
-        // close runs behind the calls that are in flight, since the wallet's thread runs them one after the other
+        // close and the free run as one task that an interrupt of this thread cannot cancel, behind the calls that
+        // are in flight: a close or a free that the queue drops leaves the wallet and its keys in memory with no
+        // handle, which a retry of the close does not reach since the flag is set
         closed = true
-        try {
-            run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
-        } finally {
-            // the free runs on the thread of the wallet's calls, which the c abi gives one per handle, and a close
-            // that throws still frees: the flag says closed and a retry does nothing
+        worker.runFinal {
             try {
-                worker.call { MoneroNative.lib.monero_wallet_free(handle) }
+                MoneroNative.ok(MoneroNative.lib.monero_wallet_close(handle, save))
             } finally {
-                worker.close()
+                MoneroNative.lib.monero_wallet_free(handle)
             }
         }
     }
@@ -389,7 +387,13 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     }
 
     private fun <T> run(call: (MoneroC, Pointer) -> T): T {
-        return worker.call { call(MoneroNative.lib, handle) }
+        return worker.call {
+            // the flag is read again on the thread of the calls, where it was written before the task that frees
+            // the handle was queued: a call that reaches the queue behind the free fails here, and does not run
+            // on the freed handle
+            checkNotClosed()
+            call(MoneroNative.lib, handle)
+        }
     }
 
     private inline fun <reified T> json(crossinline call: (MoneroC, Pointer, PointerByReference) -> Int): T {
