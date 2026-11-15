@@ -2,6 +2,10 @@ package monero.wallet
 
 import org.junit.jupiter.api.Tag
 import java.math.BigInteger
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -98,6 +102,39 @@ class MoneroWalletLightTest {
             assertEquals("The transaction has no metadata to relay", error.message)
         } finally {
             wallet.close()
+        }
+    }
+
+    @Test
+    fun close_WhileCallsAreInFlight_EveryCallEndsCleanly() {
+        repeat(10) {
+            val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+            val threads = 8
+            val start = CountDownLatch(1)
+            val pool = Executors.newFixedThreadPool(threads)
+            try {
+                val calls = (0 until threads - 1).map {
+                    pool.submit {
+                        start.await()
+                        repeat(50) {
+                            try {
+                                wallet.getBalance()
+                            } catch (e: MoneroError) {
+                                assertEquals("Wallet is closed", e.message)
+                            }
+                        }
+                    }
+                }
+                val closer = pool.submit {
+                    start.await()
+                    wallet.close()
+                }
+                start.countDown()
+                for (call in calls) call.get(30, TimeUnit.SECONDS)
+                closer.get(30, TimeUnit.SECONDS)
+            } finally {
+                pool.shutdownNow()
+            }
         }
     }
 
