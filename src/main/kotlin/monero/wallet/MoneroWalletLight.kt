@@ -235,8 +235,8 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     }
 
     /**
-     * Relay a transaction that [createTxs] made without relaying, from the transaction itself: the C ABI reads the
-     * metadata of the JSON of the transaction.
+     * Relay a transaction that [createTxs] made without relaying, from the transaction itself, through its
+     * metadata.
      *
      * @param tx is the transaction to relay, which [createTxs] returned
      * @return the hash of the relayed transaction
@@ -245,15 +245,13 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
      */
     fun relayTx(tx: MoneroTxWallet): String {
         checkNotClosed()
-        return run { lib, h ->
-            val out = PointerByReference()
-            MoneroNative.text(lib.monero_wallet_relay_tx_json(h, MoneroJson.serialize(tx), out), out) ?: throw MoneroError("monero-c returned no hash")
-        }
+        val metadata = tx.metadata ?: throw MoneroError("The transaction has no metadata to relay")
+        return relayTx(metadata)
     }
 
     /**
      * Sign the transactions that [createTxs] made without relaying, from the hex of their unsigned set. The wallet
-     * has to hold the spend key of its address, which a wallet that only reads needs a wallet with the key for.
+     * has to hold the spend key of its address, which a wallet that only reads does not have.
      *
      * @param unsignedTxHex is the hex of the unsigned set, which a transaction of [createTxs] carries
      * @return the transactions of the signed set
