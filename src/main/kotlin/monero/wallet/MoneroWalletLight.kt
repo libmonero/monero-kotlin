@@ -111,8 +111,9 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
      * Synchronize the wallet with its light wallet server. The caller waits while the call runs on the
      * thread of the wallet's calls.
      *
-     * @param startHeight is the height to sync from, ignored when it is less than the height that the wallet has
-     * already scanned
+     * @param startHeight is the height to sync from: a height below the one the wallet restores from asks the
+     * server to import the account from it again, which a server that charges for a rescan refuses with an error,
+     * and a height at or above it changes nothing
      * @return the result of the sync
      * @throws MoneroError if the wallet is closed, or it is not connected to the server
      */
