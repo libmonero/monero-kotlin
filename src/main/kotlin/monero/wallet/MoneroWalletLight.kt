@@ -110,8 +110,9 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
      * Synchronize the wallet with its light wallet server. The caller waits while the call runs on the
      * thread of the wallet's calls.
      *
-     * @param startHeight is the height to sync from, ignored when it is less than the height that the wallet has
-     * already scanned
+     * @param startHeight is the height to sync from: a height below the one the wallet restores from asks the
+     * server to import the account from it again, which a server that charges for a rescan refuses with an error,
+     * and a height at or above it changes nothing
      * @return the result of the sync
      * @throws MoneroError if the wallet is closed, or it is not connected to the server
      */
@@ -218,7 +219,9 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
         return run { lib, h ->
             val networkType = IntByReference()
             MoneroNative.ok(lib.monero_wallet_get_network_type(h, networkType))
-            MoneroNetworkType.values()[networkType.value]
+            val values = MoneroNetworkType.values()
+            if (networkType.value < 0 || networkType.value >= values.size) throw MoneroError("The wallet answered a network type that the library does not know: ${networkType.value}")
+            values[networkType.value]
         }
     }
 
@@ -267,17 +270,15 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
         }
 
         // the flag goes first, so the calls that start after it fail with the error and not on a freed handle. The
-        // close runs behind the calls that are in flight, since the wallet's thread runs them one after the other
+        // close and the free run as one task that an interrupt of this thread cannot cancel, behind the calls that
+        // are in flight: a close or a free that the queue drops leaves the wallet and its keys in memory with no
+        // handle, which a retry of the close does not reach since the flag is set
         closed = true
-        try {
-            run { lib, h -> MoneroNative.ok(lib.monero_wallet_close(h, save)) }
-        } finally {
-            // the free runs on the thread of the wallet's calls, which the c abi gives one per handle, and a close
-            // that throws still frees: the flag says closed and a retry does nothing
+        worker.runFinal {
             try {
-                worker.call { MoneroNative.lib.monero_wallet_free(handle) }
+                MoneroNative.ok(MoneroNative.lib.monero_wallet_close(handle, save))
             } finally {
-                worker.close()
+                MoneroNative.lib.monero_wallet_free(handle)
             }
         }
     }
@@ -293,7 +294,13 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     }
 
     private fun <T> run(call: (MoneroC, Pointer) -> T): T {
-        return worker.call { call(MoneroNative.lib, handle) }
+        return worker.call {
+            // the flag is read again on the thread of the calls, where it was written before the task that frees
+            // the handle was queued: a call that reaches the queue behind the free fails here, and does not run
+            // on the freed handle
+            checkNotClosed()
+            call(MoneroNative.lib, handle)
+        }
     }
 
     private inline fun <reified T> json(crossinline call: (MoneroC, Pointer, PointerByReference) -> Int): T {
