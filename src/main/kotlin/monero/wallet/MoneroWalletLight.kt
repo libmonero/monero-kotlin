@@ -9,6 +9,7 @@ import com.sun.jna.ptr.PointerByReference
 import java.math.BigInteger
 import monero.common.MoneroError
 import monero.common.MoneroJson
+import monero.internal.SizeT
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.internal.MoneroC
@@ -20,6 +21,7 @@ import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxWallet
 import monero.wallet.model.MoneroWalletBlocksResult
 import monero.wallet.model.MoneroWalletConfig
+import monero.wallet.model.MoneroCheckTx
 
 /**
  * Implements a light wallet: the keys and the addresses of an account, scanned through a
@@ -304,6 +306,91 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
             if (count.value < 0) throw MoneroError("The wallet answered a spend count that does not fit a long")
             count.value
         }
+    }
+
+    /**
+     * Get the secret key of a transaction that the wallet built, which the wallet keeps for the ones it relayed.
+     *
+     * @param txHash is the hash of the transaction
+     * @return the secret key of the transaction, or null when the wallet did not keep one
+     * @throws MoneroError if the wallet is closed, or the hash is not valid
+     */
+    fun getTxKey(txHash: String): String? {
+        checkNotClosed()
+        return run { lib, h ->
+            val out = PointerByReference()
+            MoneroNative.text(lib.monero_wallet_get_tx_key(h, txHash, out), out)
+        }
+    }
+
+    /**
+     * Check that a transaction paid an address, with the secret key of the transaction. A light wallet server does not
+     * carry the transactions of the chain, so the wallet checks the ones it built itself and refuses the rest.
+     *
+     * @param txHash is the hash of a transaction that the wallet built
+     * @param txKey is the secret key of the transaction
+     * @param address is the address that the transaction paid
+     * @return the result of the check: how much the address received, and whether the transaction is in the pool or how
+     * many confirmations it has. A key that is not the one of the transaction is not an error: the result says it is
+     * not good
+     * @throws MoneroError if the wallet is closed, the wallet did not build the transaction, or the hash, the key or
+     * the address is not valid
+     */
+    fun checkTxKey(txHash: String, txKey: String, address: String): MoneroCheckTx {
+        checkNotClosed()
+        return json { lib, h, out -> lib.monero_wallet_check_tx_key(h, txHash, txKey, address, out) }
+    }
+
+    /**
+     * Freeze an output, which the wallet does not spend while it stays frozen. The setting survives the syncs of the
+     * wallet.
+     *
+     * @param keyImage is the key image of the output to freeze
+     * @throws MoneroError if the wallet is closed, or it does not have the output of the key image
+     */
+    fun freezeOutput(keyImage: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_freeze_output(h, keyImage)) }
+    }
+
+    /**
+     * Thaw a frozen output, which the wallet spends again.
+     *
+     * @param keyImage is the key image of the output to thaw
+     * @throws MoneroError if the wallet is closed, or it does not have the output of the key image
+     */
+    fun thawOutput(keyImage: String) {
+        checkNotClosed()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_thaw_output(h, keyImage)) }
+    }
+
+    /**
+     * Get whether an output is frozen.
+     *
+     * @param keyImage is the key image of the output
+     * @return true if the output of the key image is frozen
+     * @throws MoneroError if the wallet is closed, or it does not have the output of the key image
+     */
+    fun isOutputFrozen(keyImage: String): Boolean {
+        checkNotClosed()
+        return run { lib, h ->
+            val frozen = ByteByReference()
+            MoneroNative.ok(lib.monero_wallet_is_output_frozen(h, keyImage, frozen))
+            frozen.value.toInt() != 0
+        }
+    }
+
+    /**
+     * Scan the transactions of their hashes. A light wallet server does not carry the transactions of the chain: the
+     * call syncs the wallet when the list is empty, and refuses a list that names transactions.
+     *
+     * @param txHashes are the hashes of the transactions to scan, which must be empty
+     * @throws MoneroError if the wallet is closed, or the list names a transaction
+     */
+    fun scanTxs(txHashes: List<String>) {
+        checkNotClosed()
+        val hashes = txHashes.toTypedArray()
+        run { lib, h -> MoneroNative.ok(lib.monero_wallet_scan_txs(h, hashes, SizeT(hashes.size.toLong()))) }
     }
 
     // ------------------------------- STATE ----------------------------------
