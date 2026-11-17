@@ -21,7 +21,9 @@ import monero.common.MoneroError
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
 import monero.wallet.model.MoneroDestination
+import monero.wallet.model.MoneroOutputWallet
 import monero.wallet.model.MoneroTxConfig
+import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Order
@@ -149,6 +151,34 @@ class MoneroWalletSendIntegrationTest {
             val secondFee = assertNotNull(second.fee)
             val secondHash = assertNotNull(second.hash)
             assertEquals(secondHash, sender.relayTx(second))
+
+            // the wallet checks a transaction that it built itself with the key of the transaction: the key of
+            // another transaction is not an error, and the check says it is not good and that nothing arrived
+            val secondKey = assertNotNull(sender.getTxKey(secondHash), "the wallet keeps the key of the transaction it built")
+            val checked = sender.checkTxKey(secondHash, secondKey, receiverAddress)
+            assertEquals(true, checked.isGood)
+            assertEquals(secondAmount, checked.receivedAmount)
+            // the key of the first transaction is not the one of the second: the check is not an error, and
+            // it says it is not good and that the address received nothing
+            val firstKeyOfSecond = assertNotNull(sender.getTxKey(firstHash), "the wallet keeps the key of the first transaction too")
+            val wrongKeyCheck = sender.checkTxKey(secondHash, firstKeyOfSecond, receiverAddress)
+            assertEquals(false, wrongKeyCheck.isGood)
+            assertEquals(BigInteger.ZERO, wrongKeyCheck.receivedAmount)
+
+            // an output that the wallet freezes stays frozen across a sync that replaces the outputs, and the
+            // wallet reports it frozen and thaws it again
+            val keyImage = sender.getTxs(MoneroTxQuery().apply { includeOutputs = true }).firstNotNullOfOrNull { tx -> tx.outputs?.firstNotNullOfOrNull { output -> output.keyImage?.hex } }
+            assertNotNull(keyImage, "the wallet has outputs with key images after it mined")
+            assertEquals(false, sender.isOutputFrozen(keyImage!!))
+            sender.freezeOutput(keyImage)
+            assertEquals(true, sender.isOutputFrozen(keyImage))
+            RegtestSupport.mineBlocks(1, minerAddress)
+            LwsSupport.waitScannedToChain(senderAddress, sender.getPrivateViewKey())
+            sender.sync()
+            assertEquals(true, sender.isOutputFrozen(keyImage), "a sync that replaces the outputs keeps the frozen one frozen")
+            assertEquals(true, sender.getTxs(MoneroTxQuery().apply { includeOutputs = true }).any { tx -> tx.outputs?.any { (it as? MoneroOutputWallet)?.isFrozen == true } == true }, "the outputs of the wallet report the frozen one")
+            sender.thawOutput(keyImage)
+            assertEquals(false, sender.isOutputFrozen(keyImage))
 
             // a block holds the two relayed transactions before the wallet that only reads builds the third: the
             // server does not sync the pool, so its unspent outputs still name the ones that the two transactions
