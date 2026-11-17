@@ -201,6 +201,18 @@ class MoneroWalletLightTest {
     }
 
 
+    @Test
+    fun theChecksOfAClosedWallet_AreErrors() {
+        val wallet = MoneroWalletLight.createWallet(config(), offlineConnection)
+        wallet.close()
+        assertEquals("Wallet is closed", assertFailsWith<MoneroError> { wallet.getTxKey("a".repeat(64)) }.message)
+        assertEquals("Wallet is closed", assertFailsWith<MoneroError> { wallet.checkTxKey("a".repeat(64), "b".repeat(64), "48W9YHwPzRz9aPTeXCA6kmSpW6HsvmWx578jj3of2gT3JwZzwTf33amESBoNDkL6SVK34Q2HTKqgYbGyE1hBws3wCrcBDR2") }.message)
+        assertEquals("Wallet is closed", assertFailsWith<MoneroError> { wallet.scanTxs(emptyList()) }.message)
+        assertEquals("Wallet is closed", assertFailsWith<MoneroError> { wallet.freezeOutput("c".repeat(64)) }.message)
+        assertEquals("Wallet is closed", assertFailsWith<MoneroError> { wallet.thawOutput("c".repeat(64)) }.message)
+        assertEquals("Wallet is closed", assertFailsWith<MoneroError> { wallet.isOutputFrozen("c".repeat(64)) }.message)
+    }
+
     // ------------------------------- SEND ----------------------------------
 
     @Test
