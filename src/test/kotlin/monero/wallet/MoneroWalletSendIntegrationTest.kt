@@ -154,13 +154,13 @@ class MoneroWalletSendIntegrationTest {
 
             // the wallet checks a transaction that it built itself with the key of the transaction: the key of
             // another transaction is not an error, and the check says it is not good and that nothing arrived
-            val secondKey = assertNotNull(sender.getTxKey(secondHash), "the wallet keeps the key of the transaction it built")
+            val secondKey = sender.getTxKey(secondHash)
             val checked = sender.checkTxKey(secondHash, secondKey, receiverAddress)
             assertEquals(true, checked.isGood)
             assertEquals(secondAmount, checked.receivedAmount)
             // the key of the first transaction is not the one of the second: the check is not an error, and
             // it says it is not good and that the address received nothing
-            val firstKeyOfSecond = assertNotNull(sender.getTxKey(firstHash), "the wallet keeps the key of the first transaction too")
+            val firstKeyOfSecond = sender.getTxKey(firstHash)
             val wrongKeyCheck = sender.checkTxKey(secondHash, firstKeyOfSecond, receiverAddress)
             assertEquals(false, wrongKeyCheck.isGood)
             assertEquals(BigInteger.ZERO, wrongKeyCheck.receivedAmount)

@@ -309,18 +309,16 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     }
 
     /**
-     * Get the secret key of a transaction that the wallet built, which the wallet keeps for the ones it relayed.
+     * Get the secret key of a transaction that the wallet built, which the wallet keeps when it builds one.
      *
      * @param txHash is the hash of the transaction
-     * @return the secret key of the transaction, or null when the wallet did not keep one
-     * @throws MoneroError if the wallet is closed, or the hash is not valid
+     * @return the secret key of the transaction, which the c abi wipes when it frees the string
+     * @throws MoneroError if the wallet is closed, the hash is not valid, or the wallet did not keep a key of the
+     * transaction
      */
-    fun getTxKey(txHash: String): String? {
+    fun getTxKey(txHash: String): String {
         checkNotClosed()
-        return run { lib, h ->
-            val out = PointerByReference()
-            MoneroNative.text(lib.monero_wallet_get_tx_key(h, txHash, out), out)
-        }
+        return secret { lib, h, out -> lib.monero_wallet_get_tx_key(h, txHash, out) }
     }
 
     /**

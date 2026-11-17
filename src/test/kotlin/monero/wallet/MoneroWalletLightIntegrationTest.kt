@@ -23,8 +23,6 @@ import monero.RegtestSupport
 import monero.common.MoneroError
 import monero.common.MoneroRpcConnection
 import monero.daemon.model.MoneroNetworkType
-import monero.wallet.model.MoneroOutputWallet
-import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroWalletConfig
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Order
