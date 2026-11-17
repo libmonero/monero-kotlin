@@ -11,5 +11,17 @@
 # the models cross the native ABI as JSON through their fields, and a field that minification renames is a property the ABI cannot read:
 # the names of the fields are the names of the JSON
 -keepclassmembers class monero.** { <fields>; <init>(); }
+# jackson calls the methods that carry its annotations, which minification removes with the methods
+-keepclassmembers class monero.** {
+    @com.fasterxml.jackson.annotation.JsonValue <methods>;
+    @com.fasterxml.jackson.annotation.JsonCreator <methods>;
+}
+# the enumerations cross the abi as their index, which jackson reads through values()
+-keepclassmembers enum monero.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+# the reified reads of the models carry their types in the signatures of their references
+-keepattributes Signature,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
 # jna references the classes of java.awt, which an android app does not carry
 -dontwarn java.awt.**

@@ -74,7 +74,7 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build the AAR and the example
-        run: ./gradlew -Pandroid -Pmonero.c.android.native="$RUNNER_TEMP/monero-native-android.aar" :android:assembleRelease :examples:android:assembleDebug --console=plain
+        run: ./gradlew -Pandroid -Pmonero.c.android.native="$RUNNER_TEMP/monero-native-android.aar" :android:assembleRelease :examples:android:assembleRelease --console=plain
 
       # the AAR has the classes of the library and the native library of both ABIs
       - name: Check the AAR
@@ -83,7 +83,7 @@ jobs:
           unzip -l "$aar" | grep -E 'jni/arm64-v8a/libmonero_c.so|jni/x86_64/libmonero_c.so|classes.jar'
           unzip -p "$aar" classes.jar > "$RUNNER_TEMP/classes.jar"
           unzip -l "$RUNNER_TEMP/classes.jar" | grep 'monero/wallet/MoneroWalletFull.class'
-          unzip -l examples/android/build/outputs/apk/debug/android-debug.apk | grep -E 'lib/(arm64-v8a|x86_64)/libmonero_c.so'
+          unzip -l examples/android/build/outputs/apk/release/android-release-unsigned.apk | grep -E 'lib/(arm64-v8a|x86_64)/libmonero_c.so'
 
       - name: Upload the AAR
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
