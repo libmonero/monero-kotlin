@@ -274,7 +274,8 @@ jobs:
           # the logs of the tests go in the results that are uploaded
           MONERO_KOTLIN_TEST_LOG_DIR: test-results/logs
         run: >
-          java -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
+          java -javaagent:unit-tests/jacoco/jacocoagent.jar=destfile=coverage/jacoco.exec,includes=monero.*
+          -cp "unit-tests/lib/*" org.junit.platform.console.ConsoleLauncher execute
           --disable-banner --details=summary
           --fail-if-no-tests
           --class-path unit-tests/classes/main
@@ -283,6 +284,22 @@ jobs:
           --select-class monero.wallet.MoneroWalletLightIntegrationTest
           --select-class monero.wallet.MoneroWalletSendIntegrationTest
           --reports-dir test-results
+
+      # the report that Codacy reads, from the classes that ran: the light wallet surface is covered only by these
+      # tests, which without the report leave the lines of its methods uncovered in the coverage of the library
+      - name: Make the coverage report
+        if: always() && hashFiles('coverage/jacoco.exec') != ''
+        run: |
+          mkdir light-coverage-reports
+          java -jar unit-tests/jacoco/jacococli.jar report coverage/jacoco.exec             --classfiles unit-tests/classes/main             --xml light-coverage-reports/jacocoTestReport.xml
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: light-coverage-reports
+          path: light-coverage-reports
+          if-no-files-found: ignore
 
       - name: Show the logs of the node and the server
         if: failure()
