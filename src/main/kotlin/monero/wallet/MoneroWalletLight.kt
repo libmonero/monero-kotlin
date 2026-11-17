@@ -198,10 +198,14 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
      * destinations, and says whether to relay
      * @return the transactions that the config makes, with their fee and their metadata
      * @throws MoneroError if the wallet is closed, it is not connected to the server, the configuration is invalid,
-     * or the wallet has less unlocked money than the transfer and its fee need
+     * the wallet is view-only and the config says to relay, or the wallet has less unlocked money than the transfer
+     * and its fee need
      */
     fun createTxs(config: MoneroTxConfig): List<MoneroTxWallet> {
         checkNotClosed()
+        // a view-only wallet cannot sign what it builds, so a transaction that it submits is garbage that the
+        // server refuses: it builds the unsigned set instead, which a full wallet signs and submits
+        if (config.relay == true && isViewOnly()) throw MoneroError("Cannot relay from a view-only wallet")
         // an amount that the c abi cannot carry, or that no destination can hold, is refused here with the amount
         // in the error, and not with an error about the money the wallet has: a negative amount crosses the abi as
         // a number that wraps around to almost 2^64, and one at or above 2^64 does not cross at all
