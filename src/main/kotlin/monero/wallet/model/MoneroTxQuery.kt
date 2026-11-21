@@ -11,7 +11,8 @@ class MoneroTxQuery : MoneroTxWallet {
     var hasPaymentId: Boolean? = null
     var paymentIds: List<String>? = null
 
-    // height of the block of the transactions to match
+    // height of the block of the transactions to match. A transaction that is not in a block yet has no height, and
+    // does not meet a minHeight: monero-java has it meet every one
     override var height: Long? = null
     var minHeight: Long? = null
     var maxHeight: Long? = null
