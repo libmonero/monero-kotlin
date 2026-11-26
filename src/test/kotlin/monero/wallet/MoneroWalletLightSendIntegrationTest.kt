@@ -286,13 +286,7 @@ class MoneroWalletLightSendIntegrationTest {
             assertEquals(2, unsignedTxs.size, "the seventeen destinations split into two transactions")
             val unsignedHex = assertNotNull(unsignedTxs[0].txSet?.unsignedTxHex, "the wallet that only reads builds its transactions unsigned")
 
-            // the describe of the set answers its commitment, and a signer that expects another set refuses it
-            val described = funder.describeUnsignedTxSet(unsignedHex)
-            val commitment = assertNotNull(described.unsignedCommitment, "the describe answers the commitment of the set")
-            val refused = assertFailsWith<MoneroError> { funder.signTxs(unsignedHex, "00") }
-            assertEquals(true, refused.message!!.contains("the set does not match the one that was described"), "the signer of a rewritten set refuses it")
-
-            val signedTxs = funder.signTxs(unsignedHex, commitment)
+            val signedTxs = funder.signTxs(unsignedHex)
             assertEquals(2, signedTxs.size)
             val signedHashes = signedTxs.map { tx -> checkNotNull(tx.hash) }
             val signedHex = assertNotNull(signedTxs[0].txSet?.signedTxHex)

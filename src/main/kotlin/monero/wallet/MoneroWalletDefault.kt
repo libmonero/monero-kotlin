@@ -172,7 +172,7 @@ abstract class MoneroWalletDefault : MoneroWallet {
     override fun relayTxs(txMetadatas: List<String>): List<String> = throw notSupported("relayTxs")
     override fun relayTxs(txs: Collection<MoneroTxWallet>): List<String> = throw notSupported("relayTxs")
     override fun describeTxSet(txSet: MoneroTxSet): MoneroTxSet = throw notSupported("describeTxSet")
-    override fun signTxs(unsignedTxHex: String, expectedCommitment: String?): MoneroTxSet = throw notSupported("signTxs")
+    override fun signTxs(unsignedTxHex: String): MoneroTxSet = throw notSupported("signTxs")
     override fun submitTxs(signedTxHex: String): List<String> = throw notSupported("submitTxs")
     override fun getTxNote(txHash: String): String = throw notSupported("getTxNote")
     override fun getTxNotes(txHashes: List<String>): List<String> = throw notSupported("getTxNotes")

@@ -434,9 +434,8 @@ internal interface MoneroC : Library {
     fun monero_wallet_relay_txs_json(wallet: Pointer, txsJson: String, json: PointerByReference): Int
 
     fun monero_wallet_describe_tx_set(wallet: Pointer, txSetJson: String, json: PointerByReference): Int
-    fun monero_wallet_describe_unsigned_tx_set(wallet: Pointer, unsignedTxHex: String, json: PointerByReference): Int
 
-    fun monero_wallet_sign_txs(wallet: Pointer, unsignedTxHex: String, expectedCommitment: String?, json: PointerByReference): Int
+    fun monero_wallet_sign_txs(wallet: Pointer, unsignedTxHex: String, json: PointerByReference): Int
 
     fun monero_wallet_submit_txs(wallet: Pointer, signedTxHex: String, json: PointerByReference): Int
 

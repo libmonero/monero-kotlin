@@ -723,11 +723,9 @@ interface MoneroWallet {
      * Sign unsigned transactions from a view-only wallet.
      *
      * @param unsignedTxHex is unsigned tx hex from when the transactions were created
-     * @param expectedCommitment is the unsignedCommitment that describeTxSet() answered for the same
-     * set, and the sign fails if the set does not match it, or null to skip the check
      * @return the tx set with the signed transactions and their hex
      */
-    fun signTxs(unsignedTxHex: String, expectedCommitment: String? = null): MoneroTxSet
+    fun signTxs(unsignedTxHex: String): MoneroTxSet
 
     /**
      * Submit signed transactions from a view-only wallet.

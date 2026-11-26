@@ -20,7 +20,6 @@ import monero.daemon.model.MoneroKeyImage
 import monero.wallet.model.MoneroKeyImageExportResult
 import monero.wallet.model.MoneroKeyImageImportResult
 import monero.wallet.model.MoneroSyncResult
-import monero.wallet.model.MoneroTxSet
 import monero.wallet.model.MoneroTxConfig
 import monero.wallet.model.MoneroTxQuery
 import monero.wallet.model.MoneroTxWallet
@@ -308,37 +307,19 @@ class MoneroWalletLight private constructor(private val handle: Pointer) : AutoC
     }
 
     /**
-     * Describe the transactions of an unsigned set, which answers the commitment of the set that [signTxs] takes.
-     *
-     * @param unsignedTxHex is the hex of the unsigned set, which a transaction of [createTxs] carries
-     * @return the tx set with the structured transactions and the unsignedCommitment of its hex
-     * @throws MoneroError if the wallet is closed or the hex is not the hex of an unsigned set
-     */
-    fun describeUnsignedTxSet(unsignedTxHex: String): MoneroTxSet {
-        checkNotClosed()
-        return run { lib, h ->
-            val out = PointerByReference()
-            MoneroNative.txSetsResult(lib.monero_wallet_describe_unsigned_tx_set(h, unsignedTxHex, out), out).txSets?.firstOrNull()
-                ?: throw MoneroError("monero-c did not describe the set")
-        }
-    }
-
-    /**
      * Sign the transactions that [createTxs] made without relaying, from the hex of their unsigned set. The wallet
      * has to hold the spend key of its address, which a wallet that only reads does not have.
      *
      * @param unsignedTxHex is the hex of the unsigned set, which a transaction of [createTxs] carries
-     * @param expectedCommitment is the unsignedCommitment that describing the set answered, and the sign
-     * fails if the set does not match it, or null to skip the check
      * @return the transactions of the signed set
      * @throws MoneroError if the wallet is closed, the wallet has no spend key, or the hex is not the hex of an
      * unsigned set
      */
-    fun signTxs(unsignedTxHex: String, expectedCommitment: String? = null): List<MoneroTxWallet> {
+    fun signTxs(unsignedTxHex: String): List<MoneroTxWallet> {
         checkNotClosed()
         return run { lib, h ->
             val out = PointerByReference()
-            val result = MoneroNative.txSetsResult(lib.monero_wallet_sign_txs(h, unsignedTxHex, expectedCommitment, out), out)
+            val result = MoneroNative.txSetsResult(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out)
             result.getTxs()
         }
     }

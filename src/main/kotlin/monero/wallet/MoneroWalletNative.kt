@@ -1075,16 +1075,14 @@ abstract class MoneroWalletNative internal constructor(internal val handle: Poin
      * Sign the unsigned transactions that a view-only wallet made, with the wallet that has the keys.
      *
      * @param unsignedTxHex is the unsigned tx hex of the set that the view-only wallet made
-     * @param expectedCommitment is the unsignedCommitment that describing the set answered, and the
-     * sign fails if the set does not match it, or null to skip the check
      * @return the tx set with the signed transactions and their hex
      * @throws MoneroError if the wallet is closed, is view-only, or the hex is not unsigned transactions of this wallet
      */
-    override fun signTxs(unsignedTxHex: String, expectedCommitment: String?): MoneroTxSet {
+    override fun signTxs(unsignedTxHex: String): MoneroTxSet {
         checkNotClosed()
         return txSetOf(run { lib, h ->
             val out = PointerByReference()
-            MoneroNative.txSetsResult(lib.monero_wallet_sign_txs(h, unsignedTxHex, expectedCommitment, out), out)
+            MoneroNative.txSetsResult(lib.monero_wallet_sign_txs(h, unsignedTxHex, out), out)
         })
     }
 
