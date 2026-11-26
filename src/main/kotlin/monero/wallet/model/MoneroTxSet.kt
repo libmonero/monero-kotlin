@@ -20,6 +20,12 @@ class MoneroTxSet {
         }
     var signedTxHex: String? = null
     var unsignedTxHex: String? = null
+
+    /**
+     * Commitment of the unsigned tx hex, from describing the set, that a signer can require of
+     * the set that it signs so a rewrite of the set between its describe and its sign fails.
+     */
+    var unsignedCommitment: String? = null
     var multisigTxHex: String? = null
 
     constructor()
@@ -28,6 +34,7 @@ class MoneroTxSet {
         this.txs = txSet.txs?.map { it.copy() }
         this.signedTxHex = txSet.signedTxHex
         this.unsignedTxHex = txSet.unsignedTxHex
+        this.unsignedCommitment = txSet.unsignedCommitment
         this.multisigTxHex = txSet.multisigTxHex
     }
 
